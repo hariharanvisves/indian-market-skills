@@ -15,6 +15,7 @@ because the **rules** differ. These skills exist to close that gap.
 | [`indian-equity-charges`](skills/indian-equity-charges/) | STT, exchange transaction charge, SEBI turnover fee, stamp duty, GST and DP charges — with the correct base and side for each, and why a blended bps figure cannot express them |
 | [`indian-capital-gains-tax`](skills/indian-capital-gains-tax/) | §111A / §112A rates, the 12-month boundary, the ₹1.25L annual aggregate exemption, §112A grandfathering, set-off ordering and 8-year carry-forward |
 | [`indian-market-data-pitfalls`](skills/indian-market-data-pitfalls/) | IST date shifts, survivorship bias, corporate-action price breaks, broker statement drift, cross-source duplicates, MF scheme-name matching, parser coverage checks |
+| [`nse-options-mechanics`](skills/nse-options-mechanics/) | European-style exercise (so Black-Scholes throughout), IV non-convergence, expiry as an instant from the calendar, settlement price vs price-at-an-instant, one ATM definition, multi-leg payoff and leg ordering |
 
 ## Install
 
