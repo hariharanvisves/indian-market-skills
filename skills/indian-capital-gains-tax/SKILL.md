@@ -1,11 +1,11 @@
 ---
 name: indian-capital-gains-tax
-description: Indian capital gains taxation — Section 111A STCG and 112A LTCG rates, the 12-month boundary, the annual aggregate exemption, 31-Jan-2018 grandfathering, the loss set-off ordering and 8-year carry-forward. Use when computing or reviewing capital gains, classifying a trade as short or long term, building tax-loss harvesting logic, or adapting any US-authored tax code. Explicitly covers the rules that differ from US law — no wash-sale rule, no deduction against ordinary income.
+description: Indian capital gains taxation — Section 111A STCG and 112A LTCG rates, the 12-month boundary, the annual aggregate exemption, 31-Jan-2018 grandfathering, the loss set-off ordering and 8-year carry-forward. Use when computing or reviewing capital gains, classifying a trade as short or long term, building tax-loss harvesting logic, or adapting any US-authored tax code. Also covers asset-class traps (SGBs, debt funds, non-equity ETFs, ELSS) and fail-closed classification. Explicitly covers the rules that differ from US law — no wash-sale rule, no deduction against ordinary income.
 license: MIT
 compatibility: Rates verified 2026-08-20 for AY 2026-27; re-verify before use, as they change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
 ---
 
@@ -33,6 +33,17 @@ Other asset classes are **not** §112A and get **no ₹1.25L exemption**: debt m
 funds are taxed at slab; gold, foreign shares and sovereign gold bond secondary
 sales fall under §112, some with a 24-month threshold. Classify before you rate.
 
+## Section numbers: Income-tax Act 2025
+
+The Income-tax Act 2025 replaced the 1961 Act from 1 April 2026 and renumbered
+sections. The capital-gains group moved: **111A to 196, 112 to 197, 112A to 198**
+(the group is confirmed in the Finance Bill 2026 memo; the one-to-one mapping
+within it is from secondary sources, so verify against the Act). This skill uses
+the 1961 numbers because most statements, schedules and ITR JSON field names
+still carry them; check the field names of the schema you are emitting. Other
+sections cited below (§94(7), §47(viic), §50AA, §55(2)(ac), §115BBH) are
+1961-Act numbers; verify against statute for their 2025 equivalents.
+
 ## The four rules that differ from US law
 
 **1. There is no wash-sale rule.** No 30-day, 61-day, or any window disallows a
@@ -43,7 +54,9 @@ it withholds a real benefit to satisfy a constraint that does not exist.
 The narrow Indian analogue is **§94(7) dividend stripping**: where a security is
 bought within 3 months *before* a record date and sold within 3 months *after*
 (9 months for units), the loss is disallowed **only up to the dividend received**.
-That is a cap on the disallowance, not a blanket denial.
+That is a cap on the disallowance, not a blanket denial. Implement it
+*instead of* a wash-sale check, as a dividend-linked cap, never as a re-entry
+window.
 
 Separately, a same-day sell/re-buy may be re-characterised as **intraday**
 (speculative business income) rather than a capital transaction. That is a
@@ -108,12 +121,57 @@ fair market value.
 - The outer `max` stops a pre-2018 fall from *reducing* a genuine cost.
 
 Implementing only `max(actual_cost, fmv)` is the common error and it manufactures
-losses on every such holding. If no 31-Jan-2018 fair market value is available,
+losses on every such holding. Grandfathering applies to §112A assets only, so
+non-equity ETFs are excluded. If no 31-Jan-2018 fair market value is available,
 return the lot untouched rather than guessing — and say so, rather than emitting a
 figure that looks derived.
 
 For reporting, keep the **stepped** cost and the **actual** cost in separate
 fields. Indian ITR schedules require both so the step-up stays auditable.
+
+## Asset-class traps
+
+**Classify before you rate.** Each of these is a way the equity rules get
+applied to something they do not cover.
+
+**Fail closed.** An unrecognised asset (bond, REIT, InvIT, property, empty
+string) routes to **slab**, not to §112A. Defaulting to equity hands an unknown
+asset a 12.5% rate and the exemption; slab is the taxpayer-unfavourable, and
+therefore safe, direction, and an unclassified row stays visible.
+
+**Sovereign gold bonds.**
+- **Redemption at RBI maturity is exempt** (§47(viic), 1961 numbering). Omit it
+  from the capital-gains rows upstream; do not emit a zero row. Fail loudly if
+  one reaches the schedule writer.
+- A **market sale** before maturity is an ordinary §112 long-term gain (§197
+  under the 2025 Act): no §112A exemption. Check for an SGB **before** any
+  gold-matching regex, or "gold" in the name routes it wrongly.
+- Match tranche symbols tightly (`SGB` plus six digits), not `^SGB`, which
+  catches unrelated tickers. An SGB *fund* is a mutual fund with no exemption.
+- The 2.5% coupon accrues on the tranche's **nominal issue price**, not on your
+  cost. A secondary-market buyer's cost overstates it; an online-discount buyer's
+  understates it. Hold nominal prices in a sourced table and render "issue price
+  unknown" for an unlisted tranche rather than falling back to cost.
+
+**Debt mutual funds.** Units bought **on or after 1 April 2023** are taxed at
+slab, always, whatever the holding period; there is no long-term bucket. Units
+bought before that date keep a long-term path. Route on the **purchase** date,
+not the sale date, and verify the current thresholds against statute before
+coding either.
+
+**Non-equity ETFs** (gold, silver, international) are under §112 (§197), not
+§112A. So **no ₹1.25L exemption** and no §112A grandfathering. Keep them out of
+the shared §112A exemption pool; spending the pool on them understates tax.
+Verify the holding-period threshold per class.
+
+**ELSS.** The 3-year lock-in blocks redemption, so a harvesting plan cannot sell
+a locked lot. Filter harvest candidates by lock-in, or the plan recommends sales
+the platform will reject.
+
+**Realised rows must be per lot.** Emit one row per sold lot with its own buy
+date and gain type. A "MIXED" or multi-lot aggregate with a null purchase date
+cannot be placed in a schedule, and hides lots that straddle the 12-month
+boundary. If an aggregate reaches the writer, fail loudly rather than guess.
 
 ## Crypto / VDA is a different regime entirely
 
