@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.1 — 2026-11-11
+
+### Added
+- `scripts/sync_issues.py` opens one GitHub issue (label `unverified-claim`) for
+  each row of `docs/unverified-claims.md` that has none. It is a dry run unless
+  you pass `--apply`.
+- README: results of running the evals with and without the plugin.
+
+### Changed
+- `scripts/run_evals.py` calls `claude` from an empty folder, so a `--baseline`
+  run can't read the skills from the repo. `--out DIR` saves every answer.
+
+### Fixed
+- `backtest-engine-correctness` eval 2 no longer fails a correct answer that
+  says "`1/years` is too large".
+
 ## 1.1.0 — 2026-11-11
 
 ### Added

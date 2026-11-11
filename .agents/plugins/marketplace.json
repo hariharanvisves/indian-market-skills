@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "indian-market-skills",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "description": "Agent Skills and read-only reviewer agents for Indian equity markets, tax and broker data: capital gains, ITR schedules, transaction charges, NSE data, backtests, options and broker API safety.",
       "source": {
         "source": "local",
