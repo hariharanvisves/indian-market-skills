@@ -6,6 +6,7 @@ Usage:
                                 [--timeout SECONDS] [--out DIR]
 
 --baseline runs without this plugin loaded, which shows how much each skill adds.
+Each call runs in an empty directory, so the model cannot read the skills from the repo.
 --out saves every answer to DIR/<skill>-<id>.<pass|fail>.md for review.
 Each eval is one `claude -p` call, so a full run costs tokens.
 """
@@ -15,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,7 +29,8 @@ def ask(prompt, baseline, model, timeout):
         cmd += ["--plugin-dir", str(ROOT)]
     if model:
         cmd += ["--model", model]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT, stdin=subprocess.DEVNULL)
+    with tempfile.TemporaryDirectory() as empty:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=empty, stdin=subprocess.DEVNULL)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "claude exited non-zero")
     return result.stdout

@@ -58,6 +58,10 @@ claude plugin validate .      # if Claude Code is installed
 
 CI runs `scripts/validate.py` on every pull request.
 
+Maintainers: after adding rows to `docs/unverified-claims.md`, run
+`python3 scripts/sync_issues.py --apply` to open an issue for each new row. It skips
+rows that already have an issue.
+
 ## Scope
 
 The repo covers the NSE/BSE cash segment and resident-individual tax. Content is

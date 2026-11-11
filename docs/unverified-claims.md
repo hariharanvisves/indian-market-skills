@@ -7,6 +7,10 @@ to confirm or correct with a primary source. See the sourcing rule in
 
 Last reviewed: 2026-11-11.
 
+Each row has a GitHub issue labelled
+[`unverified-claim`](https://github.com/hariharanvisves/indian-market-skills/issues?q=label%3Aunverified-claim).
+When you resolve one, remove its row here and close the issue.
+
 ## Tax
 
 | Skill | Claim | Status | Primary source to check |
