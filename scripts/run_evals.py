@@ -27,7 +27,7 @@ def ask(prompt, baseline, model, timeout):
         cmd += ["--plugin-dir", str(ROOT)]
     if model:
         cmd += ["--model", model]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT, stdin=subprocess.DEVNULL)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "claude exited non-zero")
     return result.stdout
