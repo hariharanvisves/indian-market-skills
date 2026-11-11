@@ -115,7 +115,7 @@
         "No: from tax year 2026-27 no deduction is allowed against dividend income; the 20% interest cap applied up to FY 2025-26"
       ],
       "must_match": [
-        "(?i)\\bno\\b[^.]{0,60}deduct|not (be )?(allowed|deductible)|nil"
+        "(?i)\\bno\\b[^.]{0,60}deduct|not (be )?(allowed|deductible)|can(not|'t|’t) deduct|nothing is deductible|\\bnil\\b"
       ],
       "must_not_match": [
         "(?i)^\\s*yes\\b"

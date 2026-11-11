@@ -2,17 +2,39 @@
   "skill_name": "fno-tax-and-charges",
   "trigger": {
     "positive": [
-      { "prompt": "Write a function that computes STT, exchange charges and stamp duty for an NSE Nifty option sell order." },
-      { "prompt": "How is profit from trading Bank Nifty futures and options taxed for a resident individual in India?" },
-      { "prompt": "How do I compute F&O turnover to check whether I need a tax audit under section 44AB?" },
-      { "prompt": "Can my intraday equity loss be set off against my F&O profit this year?" },
-      { "prompt": "What STT is charged on an in-the-money Nifty option that is exercised at expiry?" }
+      {
+        "prompt": "Write a function that computes STT, exchange charges and stamp duty for an NSE Nifty option sell order."
+      },
+      {
+        "prompt": "How is profit from trading Bank Nifty futures and options taxed for a resident individual in India?"
+      },
+      {
+        "prompt": "How do I compute F&O turnover to check whether I need a tax audit under section 44AB?"
+      },
+      {
+        "prompt": "Can my intraday equity loss be set off against my F&O profit this year?"
+      },
+      {
+        "prompt": "What STT is charged on an in-the-money Nifty option that is exercised at expiry?"
+      }
     ],
     "negative": [
-      { "prompt": "What STT and stamp duty apply on a ₹1 lakh NSE delivery buy of Infosys shares?", "owner": "indian-equity-charges" },
-      { "prompt": "I sold listed shares held for 14 months. What LTCG rate applies and how much is exempt?", "owner": "indian-capital-gains-tax" },
-      { "prompt": "Should I use Black-Scholes or a binomial model for Nifty option Greeks?", "owner": "nse-options-mechanics" },
-      { "prompt": "Which schedule in ITR-2 carries foreign dividend income and Form 67 tax credit?", "owner": "itr-filing-schedules" }
+      {
+        "prompt": "What STT and stamp duty apply on a ₹1 lakh NSE delivery buy of Infosys shares?",
+        "owner": "indian-equity-charges"
+      },
+      {
+        "prompt": "I sold listed shares held for 14 months. What LTCG rate applies and how much is exempt?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "Should I use Black-Scholes or a binomial model for Nifty option Greeks?",
+        "owner": "nse-options-mechanics"
+      },
+      {
+        "prompt": "Which schedule in ITR-2 carries foreign dividend income and Form 67 tax credit?",
+        "owner": "itr-filing-schedules"
+      }
     ]
   },
   "evals": [
@@ -23,8 +45,13 @@
         "STT is 0.15% of the premium turnover (300 x 50 = ₹15,000), giving ₹22.50",
         "Does not compute STT on notional or strike value"
       ],
-      "must_match": ["22\\.5", "(?i)premium"],
-      "must_not_match": ["10,?800"]
+      "must_match": [
+        "22\\.5",
+        "(?i)premium"
+      ],
+      "must_not_match": [
+        "(?i)\\bSTT\\b[^.\\n]{0,25}(?:\\b(?:is|of|comes to|works out to)\\b|=)\\s*\\**₹?\\s?10,?800\\b"
+      ]
     },
     {
       "id": 2,
@@ -33,8 +60,14 @@
         "STT is 0.15% of intrinsic value (100 x 300 = ₹30,000), giving ₹45",
         "The purchaser (long option holder) pays it, not the option writer"
       ],
-      "must_match": ["(?i)intrinsic", "\\b45\\b", "(?i)buyer|purchaser|long|holder"],
-      "must_not_match": ["10,?845"]
+      "must_match": [
+        "(?i)intrinsic",
+        "\\b45\\b",
+        "(?i)buyer|purchaser|long|holder"
+      ],
+      "must_not_match": [
+        "(?i)\\bSTT\\b[^.\\n]{0,25}(?:\\b(?:is|of|comes to|works out to)\\b|=)\\s*\\**₹?\\s?10,?845\\b"
+      ]
     },
     {
       "id": 3,
@@ -44,8 +77,13 @@
         "Section 111A/112A rates, holding periods and the ₹1.25 lakh exemption do not apply; it is taxed at slab rates",
         "Mentions ITR-3"
       ],
-      "must_match": ["(?i)business income", "(?i)non[- ]speculative"],
-      "must_not_match": ["(?i)\\byes\\b[^.]{0,60}(STCG|short[- ]term capital gain)"]
+      "must_match": [
+        "(?i)business income",
+        "(?i)non[- ]speculative"
+      ],
+      "must_not_match": [
+        "(?i)\\byes\\b[^.]{0,60}(STCG|short[- ]term capital gain)"
+      ]
     },
     {
       "id": 4,
@@ -55,8 +93,14 @@
         "It carries forward for 4 years against speculative profit only, if the return is filed by the due date",
         "Notes the reverse is allowed: an F&O loss can offset speculative profit"
       ],
-      "must_match": ["(?i)\\bno\\b|cannot|can't|not allowed", "(?i)speculat", "(?i)\\b(4|four)\\b"],
-      "must_not_match": ["(?i)\\byes\\b,? you can set (it|the intraday loss) off"]
+      "must_match": [
+        "(?i)\\bno\\b|cannot|can't|not allowed",
+        "(?i)speculat",
+        "(?i)\\b(4|four)\\b"
+      ],
+      "must_not_match": [
+        "(?i)\\byes\\b,? you can set (it|the intraday loss) off"
+      ]
     },
     {
       "id": 5,
@@ -66,8 +110,12 @@
         "It is not the net P&L of ₹21,000 and not the contract value",
         "Notes that the premium rule must not count a premium and its own trade's difference twice"
       ],
-      "must_match": ["87,?000"],
-      "must_not_match": ["(?i)turnover (is|of|=) ₹?\\s?21,?000"]
+      "must_match": [
+        "87,?000"
+      ],
+      "must_not_match": [
+        "(?i)turnover (is|of|=) ₹?\\s?21,?000"
+      ]
     },
     {
       "id": 6,
@@ -76,8 +124,13 @@
         "₹300 on 2026-03-20 (0.02%) and ₹750 on 2026-04-20 (0.05%), sell side only",
         "The rate change is effective 1 April 2026 under the Finance Act 2026"
       ],
-      "must_match": ["\\b300\\b", "\\b750\\b"],
-      "must_not_match": ["(?i)STT[^.]{0,40}both (sides|legs)"]
+      "must_match": [
+        "\\b300\\b",
+        "\\b750\\b"
+      ],
+      "must_not_match": [
+        "(?i)STT[^.]{0,40}both (sides|legs)"
+      ]
     }
   ]
 }

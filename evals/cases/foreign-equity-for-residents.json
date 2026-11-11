@@ -116,7 +116,7 @@
         "(?i)calendar year|January\\s*(to|–|-)\\s*December|31(st)? December|1 January",
         "(?i)peak",
         "(?i)closing",
-        "(?i)(still|must|need to|have to) (be )?(report|disclos)"
+        "(?i)(still|must|need to|have to) (be )?(report|disclos|fill)|no (minimum |de minimis )?threshold|can(not|'t|’t) skip|skip it\\?\\**\\s*\\**no\\b"
       ],
       "must_not_match": [
         "(?i)(yes|you can),? (you can )?skip (it|schedule FA)",

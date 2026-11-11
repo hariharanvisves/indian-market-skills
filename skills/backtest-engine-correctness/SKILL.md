@@ -1,6 +1,6 @@
 ---
 name: backtest-engine-correctness
-description: Defect classes in equity backtest engines that produce plausible numbers and survive review — null-close valuation, look-ahead marking, wrong annualisation, phantom round-trips, cost sizing, non-finite metrics, regime-filter blind spots, engine versioning, and NSE fill realism (circuit locks, closing auction, trade-for-trade series, F&O ban). Use when writing, reviewing or auditing a backtester, when a CAGR/Sharpe/drawdown figure looks too good or too bad, or before quoting any backtest result for Indian equities.
+description: Defect classes in equity backtest engines that produce plausible numbers and survive review — null-close valuation, look-ahead marking, wrong annualisation, phantom round-trips (an engine that sells and rebuys names it keeps at every rebalance), cost sizing, non-finite metrics, regime-filter blind spots, engine versioning, and NSE fill realism (circuit locks, closing auction, trade-for-trade series, F&O ban). Use when writing, reviewing or auditing a backtester, when a CAGR/Sharpe/drawdown figure looks too good or too bad, or before quoting any backtest result for Indian equities.
 license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
