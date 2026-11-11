@@ -116,6 +116,17 @@ tool names, so Gemini does not load them.
 npx skills add hariharanvisves/indian-market-skills -a cursor
 ```
 
+That installs the skills only. For the reviewers too, either install the
+plugin in Claude Code (Cursor imports Claude Code plugins on its own), or clone
+the repo into Cursor's local plugin folder and restart Cursor:
+
+```bash
+git clone https://github.com/hariharanvisves/indian-market-skills.git ~/.cursor/plugins/local/indian-market-skills
+```
+
+Use one route, not both, or Cursor loads the plugin twice. Cursor rejects a
+symlink there, so clone a real copy.
+
 </details>
 
 <details>
