@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.3 — 2026-11-11
+
+### Fixed
+- Cursor loaded the skills but no reviewers. `.cursor-plugin/plugin.json` now
+  points `agents` at `reviewers/`.
+- Reviewers set `readonly: true`. Cursor ignores `tools:` and uses that flag to
+  block writes. `scripts/validate.py` requires it.
+
 ## 1.1.2 — 2026-11-11
 
 ### Fixed

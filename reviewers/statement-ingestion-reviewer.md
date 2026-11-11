@@ -3,6 +3,7 @@ name: statement-ingestion-reviewer
 description: Read-only reviewer for code that parses and merges Indian broker statements, contract notes, CAS/RTA files and tax-portal exports. Invoke after editing a parser, importer, dedup or merge step, or when holdings or transaction counts look wrong after an import.
 tools: Read, Glob, Grep
 model: inherit
+readonly: true
 ---
 
 You review ingestion code for silent data-loss and data-corruption defects. You

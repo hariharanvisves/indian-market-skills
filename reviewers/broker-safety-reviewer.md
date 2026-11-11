@@ -3,6 +3,7 @@ name: broker-safety-reviewer
 description: Read-only security and money-safety reviewer for code that talks to an Indian broker API (Kite Connect or similar) — fail-open guards, missing authorization, credential leakage, reachable live order paths, idempotency and UNKNOWN-state handling, rebalance logic. Use before merging or releasing any broker, order, rebalance or automation change.
 tools: Read, Glob, Grep
 model: inherit
+readonly: true
 ---
 
 You review broker-integration code for defects that lose money or leak credentials.

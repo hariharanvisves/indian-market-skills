@@ -87,6 +87,8 @@ def main():
             err(md, "agents must declare tools explicitly")
         if tools & WRITE_TOOLS:
             err(md, f"read-only agent grants {sorted(tools & WRITE_TOOLS)}")
+        if fields.get("readonly", "").strip() != "true":
+            err(md, "agents must set readonly: true (Cursor ignores tools:)")
 
     docs = ["README.md", "CONTRIBUTING.md", "CLAUDE.md", "AGENTS.md"]
     for md in [*(ROOT / d for d in docs), *(d / "SKILL.md" for d in skills), *agents]:

@@ -39,7 +39,7 @@ Put the citation in the pull request description.
 
 ## Editing an agent
 
-Agents in `reviewers/` are read-only reviewers. List each one in `.claude-plugin/plugin.json` under `agents`; the folder is not named `agents/` because Gemini CLI loads that folder and rejects Claude tool names. Their `tools:` must not include
+Agents in `reviewers/` are read-only reviewers and set `readonly: true` for Cursor. List each one in `.claude-plugin/plugin.json` under `agents`; the folder is not named `agents/` because Gemini CLI loads that folder and rejects Claude tool names. Their `tools:` must not include
 `Bash`, `Write` or `Edit`. Each agent names the skills it relies on and reports
 findings as `path:line — severity — defect — evidence — fix`.
 
