@@ -232,7 +232,7 @@ They cause silent errors that push results the wrong way:
   On 2026-11-11 the suite ran three times in full on Sonnet. A grader also read
   every answer against its expectations: 94 of 103 were correct, 5 partial and
   4 wrong. Each miss led to a fix, either clearer skill wording or a trigger phrase
-  (8 skills) or a stricter check (13 evals). The last full run passed 99 of 103.
+  (9 skills) or a corrected check (17 evals). The last full run passed 99 of 103.
   Its 4 misses were wording the checks didn't accept, and after fixing those,
   all 103 saved answers pass.
 
