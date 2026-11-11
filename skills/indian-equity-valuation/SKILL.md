@@ -30,7 +30,7 @@ verify per schema.
 | §200 (old 115BAA) | 22% + 10% surcharge + 4% cess = **25.168%** | Opt-in; forgoes most deductions and incentives |
 | §201 (old 115BAB) | 15% base, **17.16%** effective | **Closed to new units** — manufacturing had to commence by 31-03-2024 |
 | Non-opting domestic company | 25% if turnover in the reference year is ≤ ₹400 cr, else 30%; surcharge 7% (>₹1 cr–10 cr), 12% (>₹10 cr); cess 4% | Reference year was 2024-25 in the 2026 source read; verify for the year you model |
-| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Under the old regime MAT is a final tax with no new credit; credit set-off applies only under the new regime, capped at 25% of liability |
+| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Old regime: MAT is a final tax, and no new credit accrues. Existing MAT credit can be set off only under the new regime, capped at 25% of liability |
 
 **Why.** A flat 25% or 30% misstates NOPAT by several points, and the opt-in
 regime changes whether past MAT credit is usable at all.

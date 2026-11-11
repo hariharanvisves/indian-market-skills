@@ -229,9 +229,12 @@ They cause silent errors that push results the wrong way:
   tracks every claim still waiting on a primary source.
 - **Evals.** [`evals/`](evals/) has trigger and answer cases for every skill.
   Run them with `python3 scripts/run_evals.py`, or add `--baseline` to compare against the same agent without the plugin.
-  On the first full run (2026-11-11, Sonnet), 97 of 103 passed. The six misses were
-  five over-strict checks and one skill description that missed a common phrasing.
-  All six were fixed and re-checked.
+  On 2026-11-11 the suite ran three times in full on Sonnet. A grader also read
+  every answer against its expectations: 94 of 103 were correct, 5 partial and
+  4 wrong. Each miss led to a fix, either clearer skill wording or a trigger phrase
+  (8 skills) or a stricter check (13 evals). The last full run passed 99 of 103.
+  Its 4 misses were wording the checks didn't accept, and after fixing those,
+  all 103 saved answers pass.
 
 Rates change with each Finance Act and exchange circular. Load them from a dated
 table in your own code, and re-check before relying on any figure here.

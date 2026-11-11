@@ -2,15 +2,32 @@
   "skill_name": "backtest-engine-correctness",
   "trigger": {
     "positive": [
-      { "prompt": "Review my backtest engine for look-ahead bias before I quote the CAGR." },
-      { "prompt": "My Sharpe ratio looks about 5x too high on a monthly-rebalanced NSE strategy. What could cause that?" },
-      { "prompt": "Max drawdown in my backtest shows 99.99% for one day and then recovers. Data problem?" },
-      { "prompt": "How should my backtester model fills at the NSE close after the closing auction starts?" }
+      {
+        "prompt": "Review my backtest engine for look-ahead bias before I quote the CAGR."
+      },
+      {
+        "prompt": "My Sharpe ratio looks about 5x too high on a monthly-rebalanced NSE strategy. What could cause that?"
+      },
+      {
+        "prompt": "Max drawdown in my backtest shows 99.99% for one day and then recovers. Data problem?"
+      },
+      {
+        "prompt": "How should my backtester model fills at the NSE close after the closing auction starts?"
+      }
     ],
     "negative": [
-      { "prompt": "What STT and stamp duty should I charge on an NSE delivery buy?", "owner": "indian-equity-charges" },
-      { "prompt": "How do I build point-in-time Nifty 50 membership for a backtest universe?", "owner": "nse-universe-survivorship" },
-      { "prompt": "Is a 12-month lookback better than 6 months for momentum ranking on Indian stocks?", "owner": "momentum-factor-research" }
+      {
+        "prompt": "What STT and stamp duty should I charge on an NSE delivery buy?",
+        "owner": "indian-equity-charges"
+      },
+      {
+        "prompt": "How do I build point-in-time Nifty 50 membership for a backtest universe?",
+        "owner": "nse-universe-survivorship"
+      },
+      {
+        "prompt": "Is a 12-month lookback better than 6 months for momentum ranking on Indian stocks?",
+        "owner": "momentum-factor-research"
+      }
     ]
   },
   "evals": [
@@ -21,14 +38,26 @@
         "No: scale by sqrt of observed periods per year (about 12 here), not sqrt(252)",
         "Hardcoded 252 inflates Sharpe, Sortino and vol by about sqrt(21)"
       ],
-      "must_match": ["(?i)sqrt\\s*\\(?\\s*12|periods[- ]per[- ]year|observed spacing|sqrt\\s*\\(?\\s*21"],
-      "must_not_match": ["(?i)^\\s*(yes|that is correct|that's correct)"]
+      "must_match": [
+        "(?i)sqrt\\s*\\(?\\s*12|periods[- ]per[- ]year|observed spacing|sqrt\\s*\\(?\\s*21"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*(yes|that is correct|that's correct)"
+      ]
     },
     {
       "id": 2,
       "prompt": "For CAGR I compute years = len(equity_curve) / 252, with one equity point per monthly rebalance. Any problem?",
-      "expectations": ["years must come from elapsed time (last date minus first date over 365.25 days), not point count"],
-      "must_match": ["(?i)elapsed|365\\.25|(last|end)[ _]?date[^.]{0,40}(first|start)[ _]?date|calendar time"]
+      "expectations": [
+        "years must come from elapsed time (last date minus first date over 365.25 days), not point count"
+      ],
+      "must_match": [
+        "(?i)elapsed|365\\.25|(last|end)[ _]?date[^.]{0,40}(first|start)[ _]?date|calendar time"
+      ],
+      "must_not_match": [
+        "(?i)`?\\byears\\b`?\\W{0,3}(is|are|comes out|becomes|ends up)\\b[^.\\n]{0,25}too (large|big|high)",
+        "(?i)CAGR[^.\\n]{0,30}(collaps|deflat|understat)"
+      ]
     },
     {
       "id": 3,
@@ -37,19 +66,29 @@
         "Must use the last real close at or before d",
         "On a symbol with a gap, the forward lookup leaks future prices"
       ],
-      "must_match": ["(?i)(at|on) or before|last (real |available |valid )?close|look[- ]ahead|future"]
+      "must_match": [
+        "(?i)(at|on) or before|last (real |available |valid )?close|look[- ]ahead|future"
+      ]
     },
     {
       "id": 4,
       "prompt": "Some NSE bars from my vendor have close: null on a special Saturday session. My engine values positions as qty * close. Fine?",
-      "expectations": ["Skip null/zero closes and walk back to the last real close, in valuation and in exit paths"],
-      "must_match": ["(?i)skip|walk back|last (real|valid|non[- ]?null|available)"]
+      "expectations": [
+        "Skip null/zero closes and walk back to the last real close, in valuation and in exit paths"
+      ],
+      "must_match": [
+        "(?i)skip|walk back|last (real|valid|non[- ]?null|available)"
+      ]
     },
     {
       "id": 5,
       "prompt": "I'm backtesting a close-fill strategy on F&O stocks in September 2026. Is the NSE close still the VWAP of the last 30 minutes?",
-      "expectations": ["No: from 3 Aug 2026 F&O stocks close from a Closing Auction Session; non-F&O stocks keep the 30-minute VWAP close"],
-      "must_match": ["(?i)auction|\\bCAS\\b"]
+      "expectations": [
+        "No: from 3 Aug 2026 F&O stocks close from a Closing Auction Session; non-F&O stocks keep the 30-minute VWAP close"
+      ],
+      "must_match": [
+        "(?i)auction|\\bCAS\\b"
+      ]
     },
     {
       "id": 6,
@@ -58,7 +97,9 @@
         "Books phantom ~0% round-trips that distort trade count, win rate and payoff",
         "Retained positions should be resized, keeping entry price and date"
       ],
-      "must_match": ["(?i)phantom|round[- ]trip|trade count|win rate|resiz"]
+      "must_match": [
+        "(?i)phantom|round[- ]trip|trade count|win rate|resiz"
+      ]
     }
   ]
 }

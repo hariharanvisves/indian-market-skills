@@ -57,7 +57,10 @@ Detector: the earliest membership date is a field on every backtest result.
 
 ## 3. Corporate-action price breaks, and the cleaning rule that eats your data
 
-An unadjusted series shows a 50% "fall" on a 1:2 split. Filters that discard
+An unadjusted series shows a 50% "fall" on a 1:2 split or a 1:1 bonus. A bonus of
+`a:b` (a new shares for every b held) multiplies the price by `b / (a + b)`, so a
+3:2 bonus is a 60% fall and a 4:5 bonus a 44% fall: most corporate actions trip a
+40% one-day filter. Filters that discard
 everything before the last implausible move look sensible and are dangerous: a
 recent demerger can delete the entire window you actually need.
 

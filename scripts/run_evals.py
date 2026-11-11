@@ -6,7 +6,7 @@ Usage:
                                 [--timeout SECONDS] [--out DIR]
 
 --baseline runs without this plugin loaded, which shows how much each skill adds.
---out saves each failing answer to DIR/<skill>-<id>.md for review.
+--out saves every answer to DIR/<skill>-<id>.<pass|fail>.md for review.
 Each eval is one `claude -p` call, so a full run costs tokens.
 """
 import argparse
@@ -75,12 +75,13 @@ def main():
             missing, forbidden = grade(answer, case)
             if missing or forbidden:
                 print(f"FAIL  {label}: missing {missing} forbidden {forbidden}")
-                if args.out:
-                    args.out.mkdir(parents=True, exist_ok=True)
-                    (args.out / f"{spec['skill_name']}-{case['id']}.md").write_text(answer, encoding="utf-8")
             else:
                 passed += 1
                 print(f"PASS  {label}")
+            if args.out:
+                args.out.mkdir(parents=True, exist_ok=True)
+                status = "fail" if missing or forbidden else "pass"
+                (args.out / f"{spec['skill_name']}-{case['id']}.{status}.md").write_text(answer, encoding="utf-8")
 
     mode = "baseline (no plugin)" if args.baseline else "with plugin"
     print(f"\n{passed}/{total} passed, {mode}")

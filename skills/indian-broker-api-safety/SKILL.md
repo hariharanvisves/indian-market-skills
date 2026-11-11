@@ -113,6 +113,8 @@ slice. A test fires 30 intents in one second and expects at most the limit to le
 - Rotating the IP is rate-limited. On Upstox, changing it invalidates existing access tokens
   (https://upstox.com/developer/api-documentation/announcements/algo-trading-circular).
 - Read endpoints are usually exempt: Upstox (same page) and Dhan (https://dhanhq.co/docs/v2/authentication/).
+  For Kite, WebSocket data and read endpoints work from any IP; see
+  [kite-connect-safety](../kite-connect-safety/SKILL.md) 8h.
   So a deployment can pass every read-path test and still fail on its first order.
 
 **Detector.** Run a startup check: compare the egress IP to the broker's registered IP

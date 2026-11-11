@@ -2,14 +2,28 @@
   "skill_name": "nse-bhavcopy-corporate-actions",
   "trigger": {
     "positive": [
-      { "prompt": "Download NSE bhavcopy for 2015 to 2025 and build a split- and bonus-adjusted close series." },
-      { "prompt": "My NSE bhavcopy downloader stopped getting files in July 2024. What changed?" },
-      { "prompt": "Parse the subject field of the NSE corporate-actions API to extract split and bonus ratios." },
-      { "prompt": "Why does my NSE price series show a 50% drop on a stock's split date?" }
+      {
+        "prompt": "Download NSE bhavcopy for 2015 to 2025 and build a split- and bonus-adjusted close series."
+      },
+      {
+        "prompt": "My NSE bhavcopy downloader stopped getting files in July 2024. What changed?"
+      },
+      {
+        "prompt": "Parse the subject field of the NSE corporate-actions API to extract split and bonus ratios."
+      },
+      {
+        "prompt": "Why does my NSE price series show a 50% drop on a stock's split date?"
+      }
     ],
     "negative": [
-      { "prompt": "How do I build point-in-time Nifty 50 membership from NSE index-change press releases?", "owner": "nse-universe-survivorship" },
-      { "prompt": "What does an intraday NSE trade cost including STT and stamp duty?", "owner": "indian-equity-charges" }
+      {
+        "prompt": "How do I build point-in-time Nifty 50 membership from NSE index-change press releases?",
+        "owner": "nse-universe-survivorship"
+      },
+      {
+        "prompt": "What does an intraday NSE trade cost including STT and stamp duty?",
+        "owner": "indian-equity-charges"
+      }
     ]
   },
   "evals": [
@@ -20,7 +34,10 @@
         "Says the legacy bhavcopy was discontinued (last file 5 Jul 2024)",
         "Says the CM-UDiFF common bhavcopy replaced it from 8 Jul 2024"
       ],
-      "must_match": ["(?i)UDiFF", "(?i)\\b[58]\\s*Jul(y)?,?\\s*2024|2024-07-0[58]|July 2024"],
+      "must_match": [
+        "(?i)UDiFF",
+        "(?i)\\b[58]\\s*Jul(y)?,?\\s*2024|2024-07-0[58]|July 2024"
+      ],
       "must_not_match": []
     },
     {
@@ -30,8 +47,12 @@
         "Says adjust strictly before the ex-date (date < exDate)",
         "Says the ex-date bar already trades at the new scale; compare dates, not timestamps"
       ],
-      "must_match": ["(?i)strictly before|<\\s*`?ex|before the ex[- ]date"],
-      "must_not_match": ["(?i)\\buse\\s*`?<="]
+      "must_match": [
+        "(?i)strictly before|<\\s*`?ex|before the ex[- ]date"
+      ],
+      "must_not_match": [
+        "(?i)\\buse\\s*`?<="
+      ]
     },
     {
       "id": 3,
@@ -39,8 +60,12 @@
       "expectations": [
         "Gives 0.2 (new face value over old), not 5"
       ],
-      "must_match": ["0\\.2\\b|1/5|2/10"],
-      "must_not_match": ["(?i)multiply[^.\\n]*by\\s*5\\b"]
+      "must_match": [
+        "0\\.2\\b|1/5|2/10"
+      ],
+      "must_not_match": [
+        "(?i)multiply[^.\\n]{0,30}\\bprices?\\b[^.\\n]{0,30}\\bby\\s*5\\b"
+      ]
     },
     {
       "id": 4,
@@ -50,8 +75,12 @@
         "Says typing it as SPLIT alone understates the adjustment by 2x",
         "Notes the singular Re. for one rupee must be parsed"
       ],
-      "must_match": ["(?i)compound|two (price )?events|both"],
-      "must_not_match": ["(?i)^\\W*(yes|that'?s (fine|ok|correct))"]
+      "must_match": [
+        "(?i)compound|two (price )?events|both"
+      ],
+      "must_not_match": [
+        "(?i)^\\W*(yes|that'?s (fine|ok|correct))"
+      ]
     },
     {
       "id": 5,
@@ -60,7 +89,10 @@
         "Says delivery data does not exist before 30 Sep 2019",
         "Says unavailable fields must be emitted empty, never 0"
       ],
-      "must_match": ["(?i)2019", "(?i)empty|null|blank|NaN|None|missing"],
+      "must_match": [
+        "(?i)2019",
+        "(?i)empty|null|blank|NaN|None|missing"
+      ],
       "must_not_match": []
     },
     {
@@ -70,7 +102,10 @@
         "Says ordinary dividends stay raw in the price series",
         "Says rights are not adjusted by default, because a share-count ratio overstates a discounted, subscription-dependent event"
       ],
-      "must_match": ["(?i)raw|unadjusted|not adjust|don't adjust|do not adjust|untouched", "(?i)rights"],
+      "must_match": [
+        "(?i)raw|unadjusted|not adjust|don't adjust|do not adjust|untouched",
+        "(?i)rights"
+      ],
       "must_not_match": []
     }
   ]

@@ -150,8 +150,9 @@ user moves a leg it is simply a custom position, and the maths is identical.
 
 Lot size, strike interval and available expiries are **per-instrument config
 sourced from the exchange's contract master**, revised periodically. Never assume
-or hardcode them — a stale lot size silently mis-sizes every order and every
-backtest position. Weekly index expiries are also date-dependent: from 20 Nov 2024
+or hardcode them, and that includes a hand-maintained dated table in code: load
+the contract master for the trade date instead. A stale lot size silently
+mis-sizes every order and every backtest position. Weekly index expiries are also date-dependent: from 20 Nov 2024
 each exchange may offer weeklies on only one benchmark index (SEBI circular
 1 Oct 2024, para 5.5; verified 2026-11-11), so a chain built for an earlier date
 had weeklies on more indices.

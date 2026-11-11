@@ -2,24 +2,47 @@
   "skill_name": "kite-connect-safety",
   "trigger": {
     "positive": [
-      { "prompt": "How do I generate the Kite Connect checksum to get an access_token?" },
-      { "prompt": "My Kite access token stops working every morning. How should my app handle it?" },
-      { "prompt": "Write a place_order wrapper for pykiteconnect that retries on timeout." },
-      { "prompt": "Review my Zerodha Kite rebalance script before I run it with real money." }
+      {
+        "prompt": "How do I generate the Kite Connect checksum to get an access_token?"
+      },
+      {
+        "prompt": "My Kite access token stops working every morning. How should my app handle it?"
+      },
+      {
+        "prompt": "Write a place_order wrapper for pykiteconnect that retries on timeout."
+      },
+      {
+        "prompt": "Review my Zerodha Kite rebalance script before I run it with real money."
+      }
     ],
     "negative": [
-      { "prompt": "I'm using the Upstox API. How should I handle order retries and idempotency?", "owner": "indian-broker-api-safety" },
-      { "prompt": "What are SEBI's rules for retail algo trading through broker APIs?", "owner": "indian-broker-api-safety" },
-      { "prompt": "What DP charge does Zerodha levy when I sell shares?", "owner": "indian-equity-charges" }
+      {
+        "prompt": "I'm using the Upstox API. How should I handle order retries and idempotency?",
+        "owner": "indian-broker-api-safety"
+      },
+      {
+        "prompt": "What are SEBI's rules for retail algo trading through broker APIs?",
+        "owner": "indian-broker-api-safety"
+      },
+      {
+        "prompt": "What DP charge does Zerodha levy when I sell shares?",
+        "owner": "indian-equity-charges"
+      }
     ]
   },
   "evals": [
     {
       "id": 1,
       "prompt": "When does a Kite Connect access_token expire?",
-      "expectations": ["At 6 AM the next day (regulatory), or earlier on logout; compute in IST; treat expiry as a normal state"],
-      "must_match": ["(?i)6\\s*(:00\\s*)?(AM|a\\.m\\.)|06:00"],
-      "must_not_match": ["(?i)expires (after|in) 24 hours"]
+      "expectations": [
+        "At 6 AM the next day (regulatory), or earlier on logout; compute in IST; treat expiry as a normal state"
+      ],
+      "must_match": [
+        "(?i)6\\s*(:00\\s*)?(AM|a\\.m\\.)|06:00"
+      ],
+      "must_not_match": [
+        "(?i)expires (after|in) 24 hours"
+      ]
     },
     {
       "id": 2,
@@ -28,33 +51,57 @@
         "No: a timeout after send is UNKNOWN, not rejected",
         "No retry or auto-cancel; suspend automation and reconcile by tag or order id"
       ],
-      "must_match": ["(?i)unknown|reconcil|order history|\\btag\\b"],
-      "must_not_match": ["(?i)^\\s*yes,? (just )?retry"]
+      "must_match": [
+        "(?i)unknown|reconcil|order history|\\btag\\b"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes,? (just )?retry"
+      ]
     },
     {
       "id": 3,
       "prompt": "How is the Kite Connect login checksum computed?",
-      "expectations": ["SHA-256 hex of api_key + request_token + api_secret, computed server-side"],
-      "must_match": ["(?i)sha-?256", "(?i)api_key[^.]{0,40}request_token[^.]{0,40}api_secret"]
+      "expectations": [
+        "SHA-256 hex of api_key + request_token + api_secret, computed server-side"
+      ],
+      "must_match": [
+        "(?i)sha-?256",
+        "(?i)api_key[^.]{0,40}request_token[^.]{0,40}api_secret"
+      ]
     },
     {
       "id": 4,
       "prompt": "Can I return the Kite access_token to my React frontend so it calls Kite directly?",
-      "expectations": ["No: api_secret, request_token and access_token stay server-side; the browser holds only the app session"],
-      "must_match": ["(?i)server"],
-      "must_not_match": ["(?i)^\\s*yes,? (you can )?(return|send)"]
+      "expectations": [
+        "No: api_secret, request_token and access_token stay server-side; the browser holds only the app session"
+      ],
+      "must_match": [
+        "(?i)server"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes,? (you can )?(return|send)"
+      ]
     },
     {
       "id": 5,
       "prompt": "Can my Kite order bot run on AWS Lambda with a dynamic IP after April 2026?",
-      "expectations": ["From 2026-04-01 order placement must come from a whitelisted static IP; read endpoints and WebSocket work from any IP"],
-      "must_match": ["(?i)static IP|whitelist"]
+      "expectations": [
+        "From 2026-04-01 order placement must come from a whitelisted static IP; read endpoints and WebSocket work from any IP"
+      ],
+      "must_match": [
+        "(?i)static IP|whitelist",
+        "(?i)WebSocket"
+      ]
     },
     {
       "id": 6,
       "prompt": "My Kite rebalance planner reads holdings quantity and ignores t1_quantity. Is that a problem?",
-      "expectations": ["Yes: holdings = settled + T1, otherwise a same-day re-run double-buys"],
-      "must_match": ["(?i)\\bT1\\b|t1_quantity|unsettled|double[- ]buy"]
+      "expectations": [
+        "Yes: holdings = settled + T1, otherwise a same-day re-run double-buys"
+      ],
+      "must_match": [
+        "(?i)\\bT1\\b|t1_quantity|unsettled|double[- ]buy"
+      ]
     }
   ]
 }

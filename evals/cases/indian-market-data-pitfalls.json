@@ -2,15 +2,32 @@
   "skill_name": "indian-market-data-pitfalls",
   "trigger": {
     "positive": [
-      { "prompt": "My JS importer turns '06 Mar 2025' into 2025-03-05 after toISOString. Why is every trade date one day early?" },
-      { "prompt": "My Nifty 50 momentum backtest beats the index by 15 points a year. I used the current constituent list. Is something off?" },
-      { "prompt": "After uploading both my Groww export and my CAS, the portfolio tracker shows double the invested amount. What's going on?" },
-      { "prompt": "What are the common data traps when ingesting NSE bhavcopy and Indian broker statements into a portfolio app?" }
+      {
+        "prompt": "My JS importer turns '06 Mar 2025' into 2025-03-05 after toISOString. Why is every trade date one day early?"
+      },
+      {
+        "prompt": "My Nifty 50 momentum backtest beats the index by 15 points a year. I used the current constituent list. Is something off?"
+      },
+      {
+        "prompt": "After uploading both my Groww export and my CAS, the portfolio tracker shows double the invested amount. What's going on?"
+      },
+      {
+        "prompt": "What are the common data traps when ingesting NSE bhavcopy and Indian broker statements into a portfolio app?"
+      }
     ],
     "negative": [
-      { "prompt": "What is the STT on a ₹2L delivery sell on NSE?", "owner": "indian-equity-charges" },
-      { "prompt": "Is a listed share held exactly 365 days long term in India?", "owner": "indian-capital-gains-tax" },
-      { "prompt": "Place a limit order through Kite Connect with an idempotency key.", "owner": "kite-connect-safety" }
+      {
+        "prompt": "What is the STT on a ₹2L delivery sell on NSE?",
+        "owner": "indian-equity-charges"
+      },
+      {
+        "prompt": "Is a listed share held exactly 365 days long term in India?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "Place a limit order through Kite Connect with an idempotency key.",
+        "owner": "kite-connect-safety"
+      }
     ]
   },
   "evals": [
@@ -22,7 +39,10 @@
         "Says to run the tests in IST (Asia/Kolkata) or another zone where the shift is observable",
         "Says not to round-trip a date-only value through toISOString; build from year/month/day parts"
       ],
-      "must_match": ["(?i)Asia/Kolkata|\\bIST\\b|\\+05?:30|UTC\\+5", "(?i)toISOString"],
+      "must_match": [
+        "(?i)Asia/Kolkata|\\bIST\\b|\\+05?:30|UTC\\+5",
+        "(?i)toISOString"
+      ],
       "must_not_match": []
     },
     {
@@ -33,8 +53,13 @@
         "Recommends keeping the longest clean run instead",
         "Says the defect bar itself belongs to neither surviving segment"
       ],
-      "must_match": ["(?i)longest", "(?i)demerger|recent|neither"],
-      "must_not_match": []
+      "must_match": [
+        "(?i)longest",
+        "(?i)demerger|recent|neither"
+      ],
+      "must_not_match": [
+        "(?i)(bonus|split)[^.\\n]{0,60}\\b(under|below|pass(es)?|within)\\b[^.\\n]{0,25}40\\s?%"
+      ]
     },
     {
       "id": 3,
@@ -43,7 +68,10 @@
         "Explains Math.round rounds half up toward +infinity, so Math.round(-2.5) is -2",
         "Recommends integer paise, or sign(v) * round(abs(v)) if symmetry is needed"
       ],
-      "must_match": ["(?i)-2\\b|half[- ]up|toward(s)? (\\+|positive )?(∞|inf)", "(?i)paise|sign\\s*\\(|abs\\s*\\("],
+      "must_match": [
+        "(?i)-2\\b|half[- ]up|toward(s)? (\\+|positive )?(∞|inf)",
+        "(?i)paise|sign\\s*\\(|abs\\s*\\("
+      ],
       "must_not_match": []
     },
     {
@@ -54,8 +82,13 @@
         "Says the timezone bug shows as a uniform one-day offset on every row",
         "Says to decide which date the store holds and enforce it in the parser"
       ],
-      "must_match": ["(?i)allot", "(?i)uniform"],
-      "must_not_match": ["(?i)^\\W*yes\\b"]
+      "must_match": [
+        "(?i)allot",
+        "(?i)uniform"
+      ],
+      "must_not_match": [
+        "(?i)^\\W*yes\\b"
+      ]
     },
     {
       "id": 5,
@@ -65,7 +98,10 @@
         "Recommends a coverage ratio of candidate rows to emitted records, as a warning",
         "Recommends checking the units x price == amount identity"
       ],
-      "must_match": ["(?i)coverage|ratio", "(?i)identity|units\\s*[x×*]\\s*(price|nav)"],
+      "must_match": [
+        "(?i)coverage|ratio",
+        "(?i)identity|units\\s*[x×*]\\s*(price|nav)"
+      ],
       "must_not_match": []
     }
   ]

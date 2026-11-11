@@ -2,15 +2,32 @@
   "skill_name": "indian-broker-statement-formats",
   "trigger": {
     "positive": [
-      { "prompt": "openpyxl says my CAMS .xls statement is not a zip file. How do I read it?" },
-      { "prompt": "After importing the Zerodha Console tax P&L workbook my capital gains look about three times too high." },
-      { "prompt": "Groww mutual-fund order history has no SIP column. How should my importer label the purchases?" },
-      { "prompt": "My CAS PDF regex keeps picking up page headers as transactions. How do I parse the transaction lines reliably?" }
+      {
+        "prompt": "openpyxl says my CAMS .xls statement is not a zip file. How do I read it?"
+      },
+      {
+        "prompt": "After importing the Zerodha Console tax P&L workbook my capital gains look about three times too high."
+      },
+      {
+        "prompt": "Groww mutual-fund order history has no SIP column. How should my importer label the purchases?"
+      },
+      {
+        "prompt": "My CAS PDF regex keeps picking up page headers as transactions. How do I parse the transaction lines reliably?"
+      }
     ],
     "negative": [
-      { "prompt": "How do I match 'Example Flexi Cap Fund - Direct Growth' to 'Example Flexi Cap Direct Plan Growth Option' across sources?", "owner": "mf-scheme-matching" },
-      { "prompt": "How is LTCG on an equity mutual fund taxed if I sold in 2026?", "owner": "indian-capital-gains-tax" },
-      { "prompt": "Which ITR schedule do I report foreign holdings in?", "owner": "itr-filing-schedules" }
+      {
+        "prompt": "How do I match 'Example Flexi Cap Fund - Direct Growth' to 'Example Flexi Cap Direct Plan Growth Option' across sources?",
+        "owner": "mf-scheme-matching"
+      },
+      {
+        "prompt": "How is LTCG on an equity mutual fund taxed if I sold in 2026?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "Which ITR schedule do I report foreign holdings in?",
+        "owner": "itr-filing-schedules"
+      }
     ]
   },
   "evals": [
@@ -21,7 +38,9 @@
         "Says CAMS .xls files are legacy OLE2/BIFF, not OOXML",
         "Recommends detecting format by magic bytes and using a BIFF-capable reader rather than asking the user to convert"
       ],
-      "must_match": ["(?i)OLE2|BIFF|d0cf11e0|legacy"],
+      "must_match": [
+        "(?i)OLE2|BIFF|d0cf11e0|legacy"
+      ],
       "must_not_match": []
     },
     {
@@ -31,7 +50,10 @@
         "Says to take gains from the per-lot tax P&L rows with buy and sell dates",
         "Says summary or aggregate sheets duplicate the same trades, and rows with no buy date should be skipped"
       ],
-      "must_match": ["(?i)summary|aggregate", "(?i)buy date|per[- ]lot"],
+      "must_match": [
+        "(?i)summary|aggregate",
+        "(?i)buy date|per[- ]lot"
+      ],
       "must_not_match": []
     },
     {
@@ -41,8 +63,13 @@
         "Says no: ETFs carry the INF prefix but trade and are taxed like equity",
         "Says the ETF symbol check must run before the ISIN-prefix rule"
       ],
-      "must_match": ["(?i)ETF", "(?i)before|first|order"],
-      "must_not_match": ["(?i)\\bthat('s| is) (correct|right)\\b"]
+      "must_match": [
+        "(?i)ETF",
+        "(?i)before|first|order"
+      ],
+      "must_not_match": [
+        "(?i)\\bthat('s| is) (correct|right)\\b"
+      ]
     },
     {
       "id": 4,
@@ -51,8 +78,12 @@
         "Says no: inferring from cadence mislabels repeated lumpsums",
         "Says to label such buys \"Not stated\", not \"Unclassified\""
       ],
-      "must_match": ["(?i)not stated"],
-      "must_not_match": ["(?i)\\byes,? (you can )?infer"]
+      "must_match": [
+        "(?i)not stated"
+      ],
+      "must_not_match": [
+        "(?i)\\byes,? (you can )?infer"
+      ]
     },
     {
       "id": 5,
@@ -61,7 +92,9 @@
         "Says it is a lumpsum: continuous offer describes the open-ended scheme, not the purchase",
         "Contrasts it with 'Systematic Purchase (Continuous Offer)', which is SIP"
       ],
-      "must_match": ["(?i)lump\\s?sum"],
+      "must_match": [
+        "(?i)lump\\s?sum"
+      ],
       "must_not_match": []
     },
     {
@@ -71,8 +104,13 @@
         "Says no: AIS is a cross-check of what third parties reported",
         "Says to reconcile and flag differences, because AIS can omit items and includes non-income categories"
       ],
-      "must_match": ["(?i)cross[- ]check|reconcil"],
-      "must_not_match": ["(?i)\\byes,? (you should )?overwrite"]
+      "must_match": [
+        "(?i)cross[- ]check|reconcil",
+        "(?i)\\bomit|AIS (can |may |often )?(miss|lack|leave out)|incomplete|not (all )?income|card spend|non-income|securities purchases"
+      ],
+      "must_not_match": [
+        "(?i)\\byes,? (you should )?overwrite"
+      ]
     }
   ]
 }

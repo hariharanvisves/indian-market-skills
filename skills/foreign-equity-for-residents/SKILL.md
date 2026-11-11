@@ -189,7 +189,10 @@ own short-term row.
   For an individual, India–US DTAA Article 10(2)(b) caps it at **25%**; the 15%
   rate needs a company holding 10% or more of the voting stock
   ([treaty](https://www.irs.gov/pub/irs-trty/india.pdf)).
-- In India the dividend is slab-taxed as "Other sources". The credit is the
+- File a **W-8BEN** with the broker before the dividend is paid, so the 25% rate
+  is withheld at source instead of 30%.
+- In India the dividend is slab-taxed as "Other sources" (Schedule OS), and the
+  same rupee amount goes in Schedule FSI. The credit is the
   **lower of** the foreign tax and the Indian tax on that income. Foreign tax above
   the treaty rate **is ignored** (Rule 76(7)(a)), so recover any excess from the
   IRS instead.

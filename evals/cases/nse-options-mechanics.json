@@ -2,15 +2,32 @@
   "skill_name": "nse-options-mechanics",
   "trigger": {
     "positive": [
-      { "prompt": "Should I price NSE stock options with a binomial tree to handle early exercise?" },
-      { "prompt": "Compute Greeks for a Nifty option chain in Python." },
-      { "prompt": "How do I compute time to expiry for a Nifty weekly option?" },
-      { "prompt": "Build an iron condor payoff and max-loss calculator for NSE options." }
+      {
+        "prompt": "Should I price NSE stock options with a binomial tree to handle early exercise?"
+      },
+      {
+        "prompt": "Compute Greeks for a Nifty option chain in Python."
+      },
+      {
+        "prompt": "How do I compute time to expiry for a Nifty weekly option?"
+      },
+      {
+        "prompt": "Build an iron condor payoff and max-loss calculator for NSE options."
+      }
     ],
     "negative": [
-      { "prompt": "What STT is charged on an exercised Nifty option?", "owner": "fno-tax-and-charges" },
-      { "prompt": "Is the exchange open on Diwali, and which day is the trading holiday this year?", "owner": "nse-trading-calendar" },
-      { "prompt": "How should I store the Kite access token for my options bot?", "owner": "kite-connect-safety" }
+      {
+        "prompt": "What STT is charged on an exercised Nifty option?",
+        "owner": "fno-tax-and-charges"
+      },
+      {
+        "prompt": "Is the exchange open on Diwali, and which day is the trading holiday this year?",
+        "owner": "nse-trading-calendar"
+      },
+      {
+        "prompt": "How should I store the Kite access token for my options bot?",
+        "owner": "kite-connect-safety"
+      }
     ]
   },
   "evals": [
@@ -21,15 +38,25 @@
         "All NSE equity options, index and stock, are European-style (stock options since contracts expiring 2011-01-27)",
         "Black-Scholes applies; a tree is justified only by discrete dividends"
       ],
-      "must_match": ["(?i)european"],
-      "must_not_match": ["(?i)nse (single[- ])?stock options are american"]
+      "must_match": [
+        "(?i)european"
+      ],
+      "must_not_match": [
+        "(?i)nse (single[- ])?stock options are american"
+      ]
     },
     {
       "id": 2,
       "prompt": "My IV solver does not converge on some deep OTM strikes. Should I return the last iterate, or 0?",
-      "expectations": ["Neither: non-convergence returns null and the UI shows unavailable; any interpolation is labelled as computed"],
-      "must_match": ["(?i)\\bnull\\b|\\bNone\\b|unavailable"],
-      "must_not_match": ["(?i)return (the )?last iterate\\b(?![^.]*(never|not|don't|do not))"]
+      "expectations": [
+        "Neither: non-convergence returns null and the UI shows unavailable; any interpolation is labelled as computed"
+      ],
+      "must_match": [
+        "(?i)\\bnull\\b|\\bNone\\b|unavailable"
+      ],
+      "must_not_match": [
+        "(?i)return (the )?last iterate\\b(?![^.]*(never|not|don't|do not))"
+      ]
     },
     {
       "id": 3,
@@ -38,26 +65,43 @@
         "Resolve the exchange expiry instant (date and time) from a market calendar, not a date subtraction",
         "Do not hardcode the clock time; it changes by circular"
       ],
-      "must_match": ["(?i)instant|time of day|intraday|hours|clock time|15:30|calendar"]
+      "must_match": [
+        "(?i)instant|time of day|intraday|hours|clock time|15:30|calendar"
+      ]
     },
     {
       "id": 4,
       "prompt": "To decide whether my Nifty call expired ITM, I use the Nifty value printed at the exact close time on expiry day. Right?",
-      "expectations": ["No: final settlement is the index computed from constituent settlement prices (VWAP or closing prices per date range), not a price at an instant"],
-      "must_match": ["(?i)settlement price|VWAP|constituent"]
+      "expectations": [
+        "No: final settlement is the index computed from constituent settlement prices (VWAP or closing prices per date range), not a price at an instant"
+      ],
+      "must_match": [
+        "(?i)settlement price|VWAP|constituent"
+      ]
     },
     {
       "id": 5,
       "prompt": "How should I define the ATM strike for a Nifty option chain?",
-      "expectations": ["Strike closest to the futures price of the same expiry (else spot), ties to the lower strike, one shared definition"],
-      "must_match": ["(?i)futures?", "(?i)lower strike|\\btie"]
+      "expectations": [
+        "Strike closest to the futures price of the same expiry (else spot), ties to the lower strike, one shared definition"
+      ],
+      "must_match": [
+        "(?i)futures?",
+        "(?i)lower strike|\\btie"
+      ]
     },
     {
       "id": 6,
       "prompt": "Can I hardcode the Nifty lot size and weekly expiry list in my options backtest?",
-      "expectations": ["No: lot size, strike interval and expiries are per-instrument dated config from the exchange contract master"],
-      "must_match": ["(?i)contract master|config|revis|change"],
-      "must_not_match": ["(?i)^\\s*yes,? (you can )?hardcode"]
+      "expectations": [
+        "No: lot size, strike interval and expiries are per-instrument dated config from the exchange contract master"
+      ],
+      "must_match": [
+        "(?i)contract master|config|revis|change"
+      ],
+      "must_not_match": [
+        "(?i)^\\W*yes\\b"
+      ]
     }
   ]
 }

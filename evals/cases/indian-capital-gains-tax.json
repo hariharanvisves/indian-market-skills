@@ -73,8 +73,9 @@
         "(?i)\\bno\\b.{0,30}wash[- ]sale|wash[- ]sale.{0,60}(not|n't)\\b"
       ],
       "must_not_match": [
-        "(?i)loss (is|will be) disallowed",
-        "(?i)30[- ]day (window|rule) (applies|disallows)"
+        "(?i)^\\W*yes\\b",
+        "(?i)wash[- ]sale (rule )?(applies|disallows|would disallow)",
+        "(?i)(your|the|this) loss (is|will be) disallowed(?! only)"
       ]
     },
     {
@@ -99,7 +100,7 @@
       ],
       "must_match": [
         "(?i)(none|nothing|cannot|can't|not (be )?(deduct|set off|offset)|no (such )?(deduction|equivalent))",
-        "(?i)\\b(8|eight) (assessment |tax )?years",
+        "(?i)\\b(8|eight)\\b[^.\\n]{0,20}\\byears",
         "(?i)due date|139\\(1\\)|on time"
       ],
       "must_not_match": [
@@ -118,7 +119,9 @@
         "(?i)\\b(zero|nil|no)\\s+(capital\\s+)?(gain|loss)|\\bneither\\b[^.]{0,30}\\bgain\\b[^.]{0,15}\\bloss|gain (of|is|=) ₹?\\s?0\\b|₹\\s?0\\b"
       ],
       "must_not_match": [
-        "(?i)(you have|you book|results in|giving|gives) a (capital )?loss of ₹?\\s?50\\b"
+        "(?i)(you have|you book|results in|giving|gives) a (capital )?loss of ₹?\\s?50\\b",
+        "(?i)\\bgain\\W{0,4}(of\\s)?₹\\s?50\\b",
+        "(?i)cost of acquisition\\W{0,4}(is\\s)?₹\\s?100\\b"
       ]
     }
   ]

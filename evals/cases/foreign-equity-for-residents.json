@@ -96,7 +96,7 @@
       ],
       "must_match": [
         "(?i)25\\s?%",
-        "(?i)W-?8\\s?BEN",
+        "(?i)W-?8\\s?BEN[^.\\n]{0,60}(before|on file|at source|so (that )?the (25|treaty))|(file|submit)\\w*\\s+(a\\s+)?W-?8\\s?BEN(?![^.\\n]{0,40}\\b(late|retroactive|refund)\\b)[^.\\n]{0,60}(treaty|25\\s?%|withh|source)",
         "(?i)Form\\s*(No\\.?\\s*)?(67|44)"
       ],
       "must_not_match": [

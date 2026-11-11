@@ -77,9 +77,11 @@ fetched past it.
 
 **Rule.** `years = (lastDate − firstDate) / 365.25 days`. Never
 `points / 252`.
-**Why.** An equity curve with one point per rebalance, divided by 252, reported
-a decade of monthly rebalancing as 2.0 years. CAGR, Calmar and Sortino all
-divide by it; the error grows with run length so short smoke tests never show it.
+**Why.** An equity curve with one point per rebalance, divided by 252, turns a
+decade of monthly rebalancing (120 points) into 0.48 years. `years` is then about
+21× too small, the CAGR exponent `1/years` about 21× too large, and CAGR is
+**inflated**, not deflated. CAGR, Calmar and Sortino all divide by it. The error
+grows with run length, so short smoke tests never show it.
 **Detector.** Run monthly vs daily rebalancing over the same span; `years` must
 be identical.
 

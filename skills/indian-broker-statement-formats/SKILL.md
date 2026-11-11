@@ -1,6 +1,6 @@
 ---
 name: indian-broker-statement-formats
-description: Format facts and parse-safety rules for Indian broker and RTA statements — Zerodha Console tradebook and tax P&L, Groww stock and mutual-fund xlsx, CAMS xls/json, KFintech vs CAMS servicing split, CAS PDFs, INDmoney xls, AIS, ITD acknowledgement PDFs. Use when writing or debugging a statement importer or upload parser, when a broker .xls will not open or a parse returns suspiciously few rows, when SIP vs lumpsum labelling is wrong, or when imported capital gains are double-counted.
+description: Format facts and parse-safety rules for Indian broker and RTA statements — Zerodha Console tradebook and tax P&L, Groww stock and mutual-fund xlsx, CAMS xls/json, KFintech vs CAMS servicing split, CAS PDFs, INDmoney xls, AIS, ITD acknowledgement PDFs. Use when writing or debugging a statement importer or upload parser, when a broker .xls will not open or a parse returns suspiciously few rows, when SIP vs lumpsum labelling is wrong, when imported capital gains are double-counted, or when deciding whether AIS or the broker's figures win (reconcile; never overwrite with AIS).
 license: MIT
 compatibility: Describes export formats as observed; vendors change layouts without notice, so detect by header signature and verify on a current file.
 metadata:
@@ -231,11 +231,11 @@ asset sheet as a zero-value capital gain.
 
 ## 17. AIS is a cross-check, not the source of truth
 
-**Rule.** Treat the Annual Information Statement as evidence of what third
-parties reported, not of what you traded. Reconcile broker gains and dividends
-against it and flag differences; do not overwrite broker figures with it.
-Expect it to omit items the portal or your broker has, and to include categories
-(card spend, securities purchases) that are not income.
+**Rule.** The Annual Information Statement **omits items** your broker has, and it
+**includes non-income categories** (card spend, securities purchases). Treat it as
+evidence of what third parties reported, not of what you traded. Reconcile broker
+gains and dividends against it and flag differences; do not overwrite broker
+figures with it.
 
 **Why.** Auto-filling from AIS imports its omissions and its non-income lines;
 a diff track that sums a non-income category reads as missing income.

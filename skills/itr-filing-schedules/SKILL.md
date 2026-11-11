@@ -238,7 +238,9 @@ TAN-less one as a probable duplicate rather than adding it.
 
 AIS is a broader information record than 26AS; the two legitimately differ
 (AIS carries items that carry no TDS). 26AS is the TDS credit authority; AIS
-informs income reporting. The portal's pre-filled view may lag either.
+informs income reporting. The portal's pre-filled view may lag either. Never
+overwrite broker capital-gains figures with AIS: see
+[indian-broker-statement-formats](../indian-broker-statement-formats/SKILL.md) section 17.
 
 Measured defect: a real 26AS (TAN present) and the stub auto-created from an AIS
 upload (no TAN) held the same salary credit; concatenation doubled the TDS and

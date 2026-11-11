@@ -146,6 +146,10 @@ fair market value.
   loss**.
 - The outer `max` stops a pre-2018 fall from *reducing* a genuine cost.
 
+Worked case: bought at ₹100, FMV ₹200 on 31 Jan 2018, sold at ₹150. Cost is
+`max(100, min(200, 150))` = **₹150**, so the gain is **zero**. It is not a ₹50
+gain (actual cost) and not a ₹50 loss (FMV alone).
+
 Implementing only `max(actual_cost, fmv)` is the common error and it manufactures
 losses on every such holding. Grandfathering applies to §112A assets only, so
 non-equity ETFs are excluded. If no 31-Jan-2018 fair market value is available,
