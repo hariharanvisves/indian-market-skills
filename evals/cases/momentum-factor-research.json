@@ -1,0 +1,56 @@
+{
+  "skill_name": "momentum-factor-research",
+  "trigger": {
+    "positive": [
+      { "prompt": "Rank NSE stocks by 6-month return divided by 6-month volatility. How should I define the windows?" },
+      { "prompt": "Should I switch my momentum volatility estimator to Yang-Zhang or Parkinson?" },
+      { "prompt": "My momentum backtest on Nifty 100 shows 32% CAGR. Can I quote that number?" },
+      { "prompt": "Build a parser for user-written factor formulas like `6M Perf / 6M Vol`." }
+    ],
+    "negative": [
+      { "prompt": "My backtest values positions with the first bar after the date. Is that look-ahead?", "owner": "backtest-engine-correctness" },
+      { "prompt": "How do I get historical Nifty 500 constituents so my momentum universe has no survivorship bias?", "owner": "nse-universe-survivorship" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Is Yang-Zhang a better volatility estimator than close-to-close for ranking NSE stocks by risk-adjusted momentum?",
+      "expectations": [
+        "Not on NSE data: it was the worst of six out of sample",
+        "Many NSE bars have Open equal to the previous Close (stale opens), corrupting overnight-dependent estimators"
+      ],
+      "must_match": ["(?i)stale open|open[^.]{0,30}equal[^.]{0,30}previous close|overnight"],
+      "must_not_match": ["(?i)\\byes,? (use|switch to) yang"]
+    },
+    {
+      "id": 2,
+      "prompt": "My momentum strategy made 32% CAGR on a large-cap NSE universe. Can I publish that figure?",
+      "expectations": ["Only with its full parameter set, universe rule and exact window; lookback, rebalance and start date each swing CAGR materially"],
+      "must_match": ["(?i)parameter|lookback|window|start date"]
+    },
+    {
+      "id": 3,
+      "prompt": "Simplest way to evaluate user-defined factor formulas in a Node backend: just pass them to eval()?",
+      "expectations": ["No eval or Function; use a tokenizer and recursive-descent parser, dry-run parsed before data is touched"],
+      "must_match": ["(?i)recursive[- ]descent|parser|tokeni[sz]er"],
+      "must_not_match": ["(?i)eval\\(\\) is fine"]
+    },
+    {
+      "id": 4,
+      "prompt": "I changed my volatility from annualised log-return sample stdev to un-annualised RMS of simple returns. Inverse-vol weights are normalised, so results are unchanged, right?",
+      "expectations": [
+        "No: the change is not a common scale factor; it changes shape, moving weights and stored ratio scores",
+        "So it is an engine-version bump"
+      ],
+      "must_match": ["(?i)not (just |only )?(a )?(common |pure )?scale|shape|does not (fully )?cancel|version"],
+      "must_not_match": ["(?i)^\\s*(yes|right),? (it|they) cancel"]
+    },
+    {
+      "id": 5,
+      "prompt": "A blend of two momentum slope factors beat both components in my backtest. Should I ship the blend?",
+      "expectations": ["Only after it beats its best component on a frozen, later held-out validation window; discovery uplift reversed out of sample on NSE data"],
+      "must_match": ["(?i)out[- ]of[- ]sample|held[- ]out|validation"]
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "skill_name": "fno-tax-and-charges",
+  "trigger": {
+    "positive": [
+      { "prompt": "Write a function that computes STT, exchange charges and stamp duty for an NSE Nifty option sell order." },
+      { "prompt": "How is profit from trading Bank Nifty futures and options taxed for a resident individual in India?" },
+      { "prompt": "How do I compute F&O turnover to check whether I need a tax audit under section 44AB?" },
+      { "prompt": "Can my intraday equity loss be set off against my F&O profit this year?" },
+      { "prompt": "What STT is charged on an in-the-money Nifty option that is exercised at expiry?" }
+    ],
+    "negative": [
+      { "prompt": "What STT and stamp duty apply on a ₹1 lakh NSE delivery buy of Infosys shares?", "owner": "indian-equity-charges" },
+      { "prompt": "I sold listed shares held for 14 months. What LTCG rate applies and how much is exempt?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "Should I use Black-Scholes or a binomial model for Nifty option Greeks?", "owner": "nse-options-mechanics" },
+      { "prompt": "Which schedule in ITR-2 carries foreign dividend income and Form 67 tax credit?", "owner": "itr-filing-schedules" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "On 2026-05-12 I sell 300 units of a Nifty 24000 call at a premium of ₹50 on NSE. How much STT is charged on this sale?",
+      "expectations": [
+        "STT is 0.15% of the premium turnover (300 x 50 = ₹15,000), giving ₹22.50",
+        "Does not compute STT on notional or strike value"
+      ],
+      "must_match": ["22\\.5", "(?i)premium"],
+      "must_not_match": ["10,?800"]
+    },
+    {
+      "id": 2,
+      "prompt": "I hold 300 units of a Nifty 24000 call bought in June 2026. It expires in the money with a settlement price of 24,100 and is exercised. What STT applies, on what value, and who pays it?",
+      "expectations": [
+        "STT is 0.15% of intrinsic value (100 x 300 = ₹30,000), giving ₹45",
+        "The purchaser (long option holder) pays it, not the option writer"
+      ],
+      "must_match": ["(?i)intrinsic", "\\b45\\b", "(?i)buyer|purchaser|long|holder"],
+      "must_not_match": ["10,?845"]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm a salaried resident and made ₹3 lakh profit trading Nifty options in tax year 2026-27, holding each position for a few days. Is this short-term capital gain taxed at 20% under section 111A?",
+      "expectations": [
+        "No: F&O on a recognised exchange is non-speculative business income, not capital gains",
+        "Section 111A/112A rates, holding periods and the ₹1.25 lakh exemption do not apply; it is taxed at slab rates",
+        "Mentions ITR-3"
+      ],
+      "must_match": ["(?i)business income", "(?i)non[- ]speculative"],
+      "must_not_match": ["(?i)\\byes\\b[^.]{0,60}(STCG|short[- ]term capital gain)"]
+    },
+    {
+      "id": 4,
+      "prompt": "This year I have a ₹2 lakh loss from intraday equity trading and a ₹5 lakh profit from F&O. Can I set the intraday loss off against the F&O profit? What happens to it otherwise?",
+      "expectations": [
+        "No: intraday equity is speculative business; a speculative loss offsets only speculative profit",
+        "It carries forward for 4 years against speculative profit only, if the return is filed by the due date",
+        "Notes the reverse is allowed: an F&O loss can offset speculative profit"
+      ],
+      "must_match": ["(?i)\\bno\\b|cannot|can't|not allowed", "(?i)speculat", "(?i)\\b(4|four)\\b"],
+      "must_not_match": ["(?i)\\byes\\b,? you can set (it|the intraday loss) off"]
+    },
+    {
+      "id": 5,
+      "prompt": "For tax-audit turnover in F&O: one future gained ₹40,000, another lost ₹25,000; a short option sold for ₹12,000 was bought back for ₹4,000; a long option bought for ₹10,000 was sold for ₹2,000; a short option sold for ₹6,000 expired worthless. What is my turnover under the ICAI method, ignoring any premium adjustment?",
+      "expectations": [
+        "Turnover is the sum of absolute differences: ₹87,000",
+        "It is not the net P&L of ₹21,000 and not the contract value",
+        "Notes that the premium rule must not count a premium and its own trade's difference twice"
+      ],
+      "must_match": ["87,?000"],
+      "must_not_match": ["(?i)turnover (is|of|=) ₹?\\s?21,?000"]
+    },
+    {
+      "id": 6,
+      "prompt": "What STT is charged on selling Nifty futures with a traded value of ₹15 lakh on 2026-03-20, and on the same sale on 2026-04-20?",
+      "expectations": [
+        "₹300 on 2026-03-20 (0.02%) and ₹750 on 2026-04-20 (0.05%), sell side only",
+        "The rate change is effective 1 April 2026 under the Finance Act 2026"
+      ],
+      "must_match": ["\\b300\\b", "\\b750\\b"],
+      "must_not_match": ["(?i)STT[^.]{0,40}both (sides|legs)"]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "skill_name": "indian-market-data-pitfalls",
+  "trigger": {
+    "positive": [
+      { "prompt": "My JS importer turns '06 Mar 2025' into 2025-03-05 after toISOString. Why is every trade date one day early?" },
+      { "prompt": "My Nifty 50 momentum backtest beats the index by 15 points a year. I used the current constituent list. Is something off?" },
+      { "prompt": "After uploading both my Groww export and my CAS, the portfolio tracker shows double the invested amount. What's going on?" },
+      { "prompt": "What are the common data traps when ingesting NSE bhavcopy and Indian broker statements into a portfolio app?" }
+    ],
+    "negative": [
+      { "prompt": "What is the STT on a ₹2L delivery sell on NSE?", "owner": "indian-equity-charges" },
+      { "prompt": "Is a listed share held exactly 365 days long term in India?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "Place a limit order through Kite Connect with an idempotency key.", "owner": "kite-connect-safety" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Our date tests run in CI with TZ=UTC and all pass. A user in India sees every trade date one day early from new Date('06 Mar 2025').toISOString().slice(0, 10). Does the green CI prove the code is correct?",
+      "expectations": [
+        "Says a TZ=UTC suite passes with the bug fully present",
+        "Says to run the tests in IST (Asia/Kolkata) or another zone where the shift is observable",
+        "Says not to round-trip a date-only value through toISOString; build from year/month/day parts"
+      ],
+      "must_match": ["(?i)Asia/Kolkata|\\bIST\\b|\\+05?:30|UTC\\+5", "(?i)toISOString"],
+      "must_not_match": []
+    },
+    {
+      "id": 2,
+      "prompt": "I clean daily close series by dropping everything before the last one-day move bigger than 40%. Is that a safe price-sanity rule for NSE stocks?",
+      "expectations": [
+        "Says no: a recent corporate action such as a demerger can delete the window you need",
+        "Recommends keeping the longest clean run instead",
+        "Says the defect bar itself belongs to neither surviving segment"
+      ],
+      "must_match": ["(?i)longest", "(?i)demerger|recent|neither"],
+      "must_not_match": []
+    },
+    {
+      "id": 3,
+      "prompt": "In JavaScript I round rupee debits and credits with Math.round before netting, and -2.5 and +2.5 don't cancel. Why, and what should I do?",
+      "expectations": [
+        "Explains Math.round rounds half up toward +infinity, so Math.round(-2.5) is -2",
+        "Recommends integer paise, or sign(v) * round(abs(v)) if symmetry is needed"
+      ],
+      "must_match": ["(?i)-2\\b|half[- ]up|toward(s)? (\\+|positive )?(∞|inf)", "(?i)paise|sign\\s*\\(|abs\\s*\\("],
+      "must_not_match": []
+    },
+    {
+      "id": 4,
+      "prompt": "Two Groww mutual-fund exports of the same year disagree on dates by 1-3 days on some rows but not others. Is that the IST timezone bug?",
+      "expectations": [
+        "Says no: a non-uniform offset is order date vs allotment date, a semantic difference",
+        "Says the timezone bug shows as a uniform one-day offset on every row",
+        "Says to decide which date the store holds and enforce it in the parser"
+      ],
+      "must_match": ["(?i)allot", "(?i)uniform"],
+      "must_not_match": ["(?i)^\\W*yes\\b"]
+    },
+    {
+      "id": 5,
+      "prompt": "My CAS PDF parser returned 3 transactions from a 300-row statement. We only throw when the result is empty. Is that good enough?",
+      "expectations": [
+        "Says a non-empty result is not success",
+        "Recommends a coverage ratio of candidate rows to emitted records, as a warning",
+        "Recommends checking the units x price == amount identity"
+      ],
+      "must_match": ["(?i)coverage|ratio", "(?i)identity|units\\s*[x×*]\\s*(price|nav)"],
+      "must_not_match": []
+    }
+  ]
+}

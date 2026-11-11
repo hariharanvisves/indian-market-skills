@@ -1,0 +1,69 @@
+{
+  "skill_name": "nse-universe-survivorship",
+  "trigger": {
+    "positive": [
+      { "prompt": "I'm backtesting momentum on Nifty 500 from 2012. How do I avoid survivorship bias in the universe?" },
+      { "prompt": "Parse NSE index-change press releases to rebuild historical Nifty 50 constituents." },
+      { "prompt": "Build a ticker rename map for NSE symbols so price history isn't truncated at a rename." },
+      { "prompt": "ind_nifty200Momentum30_list.csv works but my derived filename for another index returns HTML. How do I fetch NSE constituent CSVs?" }
+    ],
+    "negative": [
+      { "prompt": "How do I adjust NSE bhavcopy prices for a bonus issue?", "owner": "nse-bhavcopy-corporate-actions" },
+      { "prompt": "How should I annualise the Sharpe ratio from daily backtest returns?", "owner": "backtest-engine-correctness" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My strategy on today's Nifty 50 constituents shows 21% CAGR from 2018. To dilute survivorship bias I'll switch to today's Nifty 200 list. Good plan?",
+      "expectations": [
+        "Says no: a wider current-constituent universe makes the bias worse, not better",
+        "Recommends point-in-time membership as of each date",
+        "Suggests comparing against the index's own buy-and-hold over the same window"
+      ],
+      "must_match": ["(?i)point[- ]in[- ]time|\\bPIT\\b|as of each|historical (membership|constituents)", "(?i)worse|more (extreme|inflated|biased)|inflat"],
+      "must_not_match": ["(?i)\\b(yes|good plan),? (switch|widen)"]
+    },
+    {
+      "id": 2,
+      "prompt": "Should I rebuild historical Nifty 50 membership by starting from the 2010 list and applying index changes forward?",
+      "expectations": [
+        "Says to walk backwards from today's verified list, inverting each change event",
+        "Explains a backward walk exposes a missed circular as an impossible inversion, while a forward walk compounds gaps invisibly"
+      ],
+      "must_match": ["(?i)backward|from today|current (verified )?(list|anchor)|invert"],
+      "must_not_match": []
+    },
+    {
+      "id": 3,
+      "prompt": "I have a union of every symbol that was ever in the Nifty 500. Can I backtest on it as if it were the point-in-time index?",
+      "expectations": [
+        "Says no: the union is a weaker claim, not point-in-time",
+        "Says it is survivorship bias in reverse, including companies not yet joined and ones already removed",
+        "Says to label it with a caveat field"
+      ],
+      "must_match": ["(?i)not (a |the )?(point[- ]in[- ]time|PIT)|weaker|reverse", "(?i)not yet|had not (yet )?joined|already (been )?(removed|left|excluded)|before (they|it) joined"],
+      "must_not_match": []
+    },
+    {
+      "id": 4,
+      "prompt": "I filter NSE press-release-cms20 results with field_type === 'NSE INDICES' and get nothing after May 2025. Did the archive stop?",
+      "expectations": [
+        "Says the field changed to 'NSE Indices' from May 2025",
+        "Says to compare case-insensitively"
+      ],
+      "must_match": ["(?i)case[- ]insensitiv|NSE Indices|lower ?case|toLowerCase|casefold|upper ?case"],
+      "must_not_match": []
+    },
+    {
+      "id": 5,
+      "prompt": "An old NSE listing had ISIN INE450D01013 and the current one has INE450D01021. Different ISINs, so are these different companies?",
+      "expectations": [
+        "Says the first seven characters name the issuer, so this is the same issuer",
+        "Says a re-denomination (face value change) changes the suffix but is one continuous listing"
+      ],
+      "must_match": ["(?i)issuer|first (seven|7)|same (company|listing|security)|re-?denominat|face value"],
+      "must_not_match": ["(?i)\\byes,? (they are |these are )?different compan"]
+    }
+  ]
+}

@@ -5,7 +5,8 @@ license: MIT
 compatibility: Daily NSE close data. Figures marked "measured on NSE data" are dated findings from one codebase; re-measure on yours.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -22,8 +23,8 @@ momentum works. Engine defects live in
 windows: 21, 63, 126, 189, 252 bars (about 1, 3, 6, 9 and 12 months). A "month"
 is a bar count, set once, shared by every factor.
 **Why.** A calendar-month window varies in bars and silently changes between a
-signal and its denominator. A 12-month factor needs 253 bars, consumed from the
-front of the requested range.
+signal and its denominator. A 12-month factor needs 253 bars (252 returns),
+consumed from the front of the requested range.
 **Detector.** Grep for a month-to-bars conversion; two different conversions in
 one codebase is the defect. Confirm the performance and volatility windows in a
 ratio match unless the mismatch is deliberate and documented.
@@ -108,8 +109,9 @@ on a held-out window before it is promoted.
 best component by +6.40pt in discovery and lost by −5.23pt in validation: the
 shorter component diluted the stronger one. Dividing momentum by volatility
 improved Sharpe in discovery (+0.108) and worsened it out of sample (−0.176),
-because volatility changes sign of its relationship to returns across regimes: a
-regime-conditional variable used as a regime-invariant divisor.
+plausibly because volatility's relationship to returns changes sign across
+regimes (a regime-conditional variable used as a regime-invariant divisor); treat
+that as an explanation, not a measured result.
 **Detector.** Require a frozen discovery window and a later validation window
 with the digest of each result recorded before analysis. Of 98 combinations, the
 five that beat their best component by more than 3pt were all one family — a
@@ -117,31 +119,51 @@ cluster of one idea, not five findings.
 
 ## 7. User-written formula engines
 
-If users write factor formulas (`6M Perf / 6M Vol`), the evaluator is a security
-and correctness boundary.
+**Rule.** If users write factor formulas (`6M Perf / 6M Vol`), the evaluator is a
+security and correctness boundary; each item below is a rule with its detector.
+**Why.** `eval` on user text is code execution, and a formula that silently
+mis-parses ranks every symbol on a wrong number.
 
 1. **No `eval`, no `Function`.** Parse with a recursive-descent parser over a
    tokenizer. Detector: grep the evaluator for `eval(` and `new Function`.
 2. **Dry-run parse.** Validate the whole formula against the grammar and the
    known factor names before any data is touched.
-3. **Reject `A -- B`.** Two adjacent binary operators are a typo. Key the guard
-   on **token type** (operator followed by operator), never on the character:
-   a `-` after `(` is legitimate unary minus.
+3. **Reject `A -- B`.** Two operator tokens with no whitespace between them
+   (`--`, `+-`) are a typo. Key the guard on **token type and adjacency**, never
+   on the character: a `-` after `(`, or after an operator with whitespace
+   between (`a - -b`), is legitimate unary minus.
 4. **Parenthesise negative substitutions.** Substitute `-10` as `(-10)`, so
    `a - (-10)` stays valid. Consequence: `a +- b` must throw while `a + -b`
-   (unary minus after an operator) must evaluate. If your own tests assert both
-   cannot hold, one encodes an untested belief; re-derive from the tokenizer.
+   (unary minus after an operator) must evaluate. Both hold only if the
+   tokenizer records whether whitespace separated the two operators; if it does
+   not, the two inputs are the same token stream and one assertion is wrong.
 5. **Explicit ÷0 policy.** Division by zero returns a defined result (skip the
    symbol, or null), never `Infinity` silently ranked first.
 6. **Never run an unresolved formula.** If a factor name does not resolve, fail;
    never substitute 0 or an empty value and rank anyway.
-7. **Test both unary-minus shapes** (`-x`, `a - -x`, `a * (-x)`) and assert error
+7. **Test every unary-minus shape** (`-x`, `a - -x`, `a * (-x)`) and assert error
    **text**, not merely that something throws.
 8. **Async tests must actually run.** A synchronous harness passes any async
    assertion without running it; mutate an expected value to a false one and
    confirm it fails.
 
+## Verifying an implementation
+
+- One month-to-bars constant, shared by every factor (§1).
+- Estimator assertions on `n` vs `n−1`, annualisation and simple vs log, each
+  killed by a mutation (§2).
+- Any estimator or window change reports changed top-N names on the full
+  universe (§3).
+- Every stored result carries parameters, universe rule, `simulatedFrom` and
+  `simulatedTo`; runs with different effective starts are not compared (§4).
+- An IC table with t-statistics exists before any equity curve (§5).
+- A blend is promoted only after it beats its best component on a frozen,
+  later validation window (§6).
+- The formula evaluator has no `eval` / `new Function`; `a +- b` throws,
+  `a + -b` evaluates, ÷0 and unresolved names fail defined (§7).
+
 ## Scope
 
-Research method, not a strategy recommendation. Past measured findings come from
-specific NSE universes and windows and are not forecasts.
+Cross-sectional momentum research method on daily NSE closes, not a strategy
+recommendation. Past measured findings come from specific NSE universes and
+windows and are not forecasts.

@@ -1,0 +1,78 @@
+{
+  "skill_name": "indian-broker-statement-formats",
+  "trigger": {
+    "positive": [
+      { "prompt": "openpyxl says my CAMS .xls statement is not a zip file. How do I read it?" },
+      { "prompt": "After importing the Zerodha Console tax P&L workbook my capital gains look about three times too high." },
+      { "prompt": "Groww mutual-fund order history has no SIP column. How should my importer label the purchases?" },
+      { "prompt": "My CAS PDF regex keeps picking up page headers as transactions. How do I parse the transaction lines reliably?" }
+    ],
+    "negative": [
+      { "prompt": "How do I match 'Example Flexi Cap Fund - Direct Growth' to 'Example Flexi Cap Direct Plan Growth Option' across sources?", "owner": "mf-scheme-matching" },
+      { "prompt": "How is LTCG on an equity mutual fund taxed if I sold in 2026?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "Which ITR schedule do I report foreign holdings in?", "owner": "itr-filing-schedules" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A user uploads a CAMS statement with a .xls extension and my xlsx reader rejects it. Should I ask them to resave it as .xlsx?",
+      "expectations": [
+        "Says CAMS .xls files are legacy OLE2/BIFF, not OOXML",
+        "Recommends detecting format by magic bytes and using a BIFF-capable reader rather than asking the user to convert"
+      ],
+      "must_match": ["(?i)OLE2|BIFF|d0cf11e0|legacy"],
+      "must_not_match": []
+    },
+    {
+      "id": 2,
+      "prompt": "I ingest every sheet of the Zerodha Console tax P&L workbook, including the summary sheets. Realised gains look inflated. Why?",
+      "expectations": [
+        "Says to take gains from the per-lot tax P&L rows with buy and sell dates",
+        "Says summary or aggregate sheets duplicate the same trades, and rows with no buy date should be skipped"
+      ],
+      "must_match": ["(?i)summary|aggregate", "(?i)buy date|per[- ]lot"],
+      "must_not_match": []
+    },
+    {
+      "id": 3,
+      "prompt": "My Zerodha tradebook parser classes every ISIN starting with INF as a mutual fund, so NIFTYBEES shows up as a mutual fund. Is that right?",
+      "expectations": [
+        "Says no: ETFs carry the INF prefix but trade and are taxed like equity",
+        "Says the ETF symbol check must run before the ISIN-prefix rule"
+      ],
+      "must_match": ["(?i)ETF", "(?i)before|first|order"],
+      "must_not_match": ["(?i)\\bthat('s| is) (correct|right)\\b"]
+    },
+    {
+      "id": 4,
+      "prompt": "Groww MF order history only says PURCHASE. Can I infer SIP vs lumpsum from the monthly cadence of purchases?",
+      "expectations": [
+        "Says no: inferring from cadence mislabels repeated lumpsums",
+        "Says to label such buys \"Not stated\", not \"Unclassified\""
+      ],
+      "must_match": ["(?i)not stated"],
+      "must_not_match": ["(?i)\\byes,? (you can )?infer"]
+    },
+    {
+      "id": 5,
+      "prompt": "In a CAMS statement, is a 'Purchase (Continuous Offer)' row an SIP instalment?",
+      "expectations": [
+        "Says it is a lumpsum: continuous offer describes the open-ended scheme, not the purchase",
+        "Contrasts it with 'Systematic Purchase (Continuous Offer)', which is SIP"
+      ],
+      "must_match": ["(?i)lump\\s?sum"],
+      "must_not_match": []
+    },
+    {
+      "id": 6,
+      "prompt": "Should my tax tool overwrite the broker's capital-gains figures with the AIS figures, since AIS is the government's data?",
+      "expectations": [
+        "Says no: AIS is a cross-check of what third parties reported",
+        "Says to reconcile and flag differences, because AIS can omit items and includes non-income categories"
+      ],
+      "must_match": ["(?i)cross[- ]check|reconcil"],
+      "must_not_match": ["(?i)\\byes,? (you should )?overwrite"]
+    }
+  ]
+}

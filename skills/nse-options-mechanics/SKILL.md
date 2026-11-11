@@ -1,11 +1,12 @@
 ---
 name: nse-options-mechanics
-description: NSE equity and index options mechanics for correct pricing and Greeks — European-style exercise, Black-Scholes applicability, IV non-convergence handling, expiry-instant resolution, settlement price derivation, ATM definition, and multi-leg payoff. Use when computing option prices or Greeks, building an option chain or strategy builder, backtesting an options strategy, or reviewing code that assumes American-style exercise or a hardcoded expiry time.
+description: NSE equity and index options mechanics for correct pricing and Greeks — European-style exercise, Black-Scholes applicability, IV non-convergence handling, expiry-instant resolution, settlement price derivation, ATM definition, and multi-leg payoff. Use when computing option prices, implied volatility or Greeks for Nifty, Bank Nifty or stock options, building an option chain or strategy builder, backtesting an options strategy, or reviewing code that assumes American-style exercise or a hardcoded expiry time.
 license: MIT
 compatibility: Covers NSE (India) equity and index options. Settlement and session timings change by exchange circular — verify current values before relying on them.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -51,7 +52,8 @@ market-derived IV.
 
 Compute delta, gamma, theta, vega and rho **only when every input exists**: spot,
 strike, time to expiry, risk-free rate, and a resolvable IV. A missing input
-yields `null` and the UI shows unavailable.
+yields `null` and the UI shows unavailable; a default stand-in (IV 0, rate 0)
+yields a Greek that looks computed and is not.
 
 Prefer **provider-supplied Greeks** where available, and label them as such — a
 provider's and your own will differ, and the user needs to know which they are
@@ -64,29 +66,37 @@ Two errors, both common:
 1. **A hardcoded clock time.** Expiry timing has changed. Following the Closing
    Auction Session's introduction, continuous trading in CAS-eligible stocks ends
    before the auction, and equity derivatives close later than the historical
-   15:30. **Read the exact times from the current exchange circular**, not from
-   any document — including this one.
+   15:30: to 15:40 from 3 Aug 2026 (SEBI circular 16 Jan 2026), then from 7 Dec
+   2026 to 15:45, except expiring index contracts on expiry day, which cease at
+   15:30 (SEBI circular 15 Oct 2026; verified 2026-11-11). **Read the exact times
+   from the current exchange circular**, not from any document — including this
+   one.
 2. **Calendar days from a naive date subtraction.** Time to expiry must resolve
    the **exchange expiry instant** for that segment and date from a market
    calendar. Naive subtraction mis-prices every short-dated contract, and the
    error grows as expiry approaches — exactly where it matters most.
 
 Treat both the expiry date *and* the expiry instant as **config**, for the same
-reason.
+reason. Expiry days moved by holidays: [nse-trading-calendar](../nse-trading-calendar/SKILL.md).
 
 ## Settlement price is not a price at an instant
 
 Conflating the two puts every near-the-money contract on the **wrong side of the
 ITM/OTM boundary**.
 
-- **Index** final settlement is an **average of the underlying over a closing
-  window** (historically the last 30 minutes).
-- **Stock** derivatives settle against the **closing-auction equilibrium price**
-  where CAS applies.
+- **Index** final settlement is the index value computed from constituent
+  prices, not the index sampled at an instant. Up to 6 Dec 2026 those prices are
+  each constituent's closing price (from 3 Aug 2026, the CAS equilibrium price
+  for F&O stocks); from 7 Dec 2026 they are each constituent's VWAP over the
+  last 30 minutes of continuous trading.
+- **Stock** derivatives: 3 Aug to 6 Dec 2026, volume-weighted average of the
+  closing prices across exchanges; from 7 Dec 2026, VWAP of the underlying over
+  the last 30 minutes of continuous trading across exchanges.
 
-The derivation is per segment and comes from the clearing corporation's rules.
-Record it as config with its source, and treat current CAS mechanics as
-**unverified until read from the circular**.
+Source: SEBI circulars 16 Jan 2026 (para 4.9) and 15 Oct 2026 (para 4.9),
+verified 2026-11-11; the rule before 3 Aug 2026 was not re-verified here. The
+derivation is per segment and comes from the clearing corporation's rules.
+Record it as config with its source and the date range it applies to.
 
 ## `r` and `q` are config, versioned by effective date
 
@@ -141,7 +151,10 @@ user moves a leg it is simply a custom position, and the maths is identical.
 Lot size, strike interval and available expiries are **per-instrument config
 sourced from the exchange's contract master**, revised periodically. Never assume
 or hardcode them — a stale lot size silently mis-sizes every order and every
-backtest position.
+backtest position. Weekly index expiries are also date-dependent: from 20 Nov 2024
+each exchange may offer weeklies on only one benchmark index (SEBI circular
+1 Oct 2024, para 5.5; verified 2026-11-11), so a chain built for an earlier date
+had weeklies on more indices.
 
 ## Verifying an options implementation
 
@@ -150,12 +163,20 @@ backtest position.
 - **Round-trip IV**: price → implied vol → price should return the input.
 - **Assert non-convergence returns null**, with a deliberately impossible input.
   A test that only checks the happy path cannot see a fabricated fallback.
+- **Settle a near-the-money contract at expiry** from the settlement price
+  config for that date range, and assert ITM/OTM flips when the last traded
+  price and the settlement price straddle the strike.
+- **Price one option on two dates either side of an `r` or `q` change**; the
+  value used must follow the effective-date table, not a constant.
 - **Test the expiry instant near the boundary** — the last hour before expiry is
   where a naive day-count diverges most.
 - **Force a leg rejection at each position in turn** in a multi-leg group, and
   assert the account is never left holding only risk-creating legs.
 - **Check the ATM definition has exactly one implementation.** Grep for
   "nearest strike" logic; more than one is a divergence waiting to happen.
+- **Grep for literal lot sizes and clock times** (`15:30`, `15:40`); each
+  belongs in dated config.
+- **Assert an unbounded leg set reports `Unlimited`**, never a large number.
 
 ## Scope
 
@@ -164,8 +185,6 @@ mechanics, timings and contract specs change by circular — verify against the
 current NSE/clearing-corporation documents before relying on any specific value
 here.
 
-For transaction costs on options (STT on premium vs intrinsic value, which
-differs from the cash segment) see
-[indian-equity-charges](../indian-equity-charges/SKILL.md) for the cash-segment
-structure and then read the derivatives rates from the exchange directly — the
-cash table does **not** transfer.
+Transaction costs and tax on options: [fno-tax-and-charges](../fno-tax-and-charges/SKILL.md).
+The cash-segment table in [indian-equity-charges](../indian-equity-charges/SKILL.md)
+does **not** transfer.

@@ -1,0 +1,70 @@
+{
+  "skill_name": "itr-filing-schedules",
+  "trigger": {
+    "positive": [
+      { "prompt": "Which ITR form should I file if I have salary and a small short-term gain from selling shares?" },
+      { "prompt": "Our ITR JSON exporter writes the 112A total into Schedule CG and Schedule 112A. What must reconcile between them and CYLA/BFLA/CFL?" },
+      { "prompt": "How do I claim foreign tax credit for US dividend withholding in my Indian return? Do I need Form 67?" },
+      { "prompt": "The TDS total in our generated ITR is double what Form 26AS shows after merging AIS. Why?" }
+    ],
+    "negative": [
+      { "prompt": "Is my F&O loss business income, and do I need a tax audit with ₹3 crore option turnover?", "owner": "fno-tax-and-charges" },
+      { "prompt": "What is the LTCG tax rate on an equity mutual fund held 14 months, and how much is exempt?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "What STT and stamp duty apply to an intraday equity trade?", "owner": "indian-equity-charges" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "For AY 2026-27: I'm a salaried resident, total income ₹30 lakh, one house, FD interest, and ₹90,000 of §112A LTCG on listed shares, nothing else. Can I use ITR-1? What if I also had a ₹2,000 STCG from a stock sale?",
+      "expectations": [
+        "Says ITR-1 is still allowed when the only capital gain is §112A LTCG of ₹1,25,000 or less",
+        "Says any STCG rules out ITR-1, so the second case needs ITR-2 at minimum"
+      ],
+      "must_match": ["(?i)ITR-?1.{0,120}(allowed|eligible|can (be )?use|still|permitted)|(yes|can|allowed|eligible).{0,120}ITR-?1", "ITR-?2"],
+      "must_not_match": ["(?i)any capital gains? (at all )?(rules? out|bars?|disqualif\\w+) ITR-?1"]
+    },
+    {
+      "id": 2,
+      "prompt": "Our tax engine computes final tax payable as ₹1,234.60. What amount should the return show after statutory rounding under §288B?",
+      "expectations": [
+        "Ignores the paise first (₹1,234), then rounds to the nearest ten rupees, giving ₹1,230",
+        "Does not round 60 paise up to ₹1,235 before rounding to ten"
+      ],
+      "must_match": ["1,?230\\b"],
+      "must_not_match": ["(?i)(shows?|should be|rounds? to|final (amount|figure) is)\\s*₹?\\s?1,?240\\b"]
+    },
+    {
+      "id": 3,
+      "prompt": "In my AY 2026-27 return I want credit for 25% US tax withheld on dividends from my US broker. What do I file and how much credit is allowed?",
+      "expectations": [
+        "Names Form 67 as the required foreign-tax-credit statement for AY 2026-27 (Form 44 from tax year 2026-27)",
+        "Caps relief at the lower of tax paid abroad and Indian tax on that income",
+        "Reports the dividend in Schedule OS and the same rupee amount in Schedule FSI, with the credit in Schedule TR"
+      ],
+      "must_match": ["(?i)Form\\s*(No\\.?\\s*)?67", "(?i)lower|lesser|minimum|min\\(|capped|cannot exceed|not more than"],
+      "must_not_match": []
+    },
+    {
+      "id": 4,
+      "prompt": "All ₹6 lakh of my short-term capital gains arose in February 2026. I paid no advance tax in June, September or December. Am I charged §234C interest for those earlier instalments?",
+      "expectations": [
+        "Says the shortfall in instalments before the gain arose is excused, provided the tax on the gain is paid in the remaining instalment",
+        "Names 15 March as the remaining instalment date"
+      ],
+      "must_match": ["(?i)excus|not (be )?(liable|charged)|no (§\\s?234C )?interest|don't owe|do not owe", "(?i)15 March|March 15|15th March|remaining instal|last instal"],
+      "must_not_match": []
+    },
+    {
+      "id": 5,
+      "prompt": "After merging Form 26AS and AIS, our ITR tool shows a ₹1,20,000 salary TDS twice: once with the employer's TAN and once with no TAN, same section and date. What TDS should the return claim?",
+      "expectations": [
+        "Treats the two rows as one credit and claims ₹1,20,000, not ₹2,40,000",
+        "Keeps the TAN-bearing row and flags the TAN-less row as a probable duplicate",
+        "Recommends keying credits on section, date and amount rather than TAN"
+      ],
+      "must_match": ["1,?20,?000", "(?i)duplicate|double[- ]count|once|one credit"],
+      "must_not_match": ["(?i)claim (the )?(full |total )?₹?\\s?2,?40,?000\\b"]
+    }
+  ]
+}

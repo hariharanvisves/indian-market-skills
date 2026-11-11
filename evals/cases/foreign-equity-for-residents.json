@@ -1,0 +1,142 @@
+{
+  "skill_name": "foreign-equity-for-residents",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "I sold US stocks I bought on INDmoney 18 months ago. Is that long-term capital gain in India, and do I get the ₹1.25 lakh exemption?"
+      },
+      {
+        "prompt": "Which exchange rate should my tax tool use to convert the dollar sale proceeds of my Vested holdings into rupees?"
+      },
+      {
+        "prompt": "How do I compute the cost basis and capital gain when I sell Google RSUs that vested last year, as an Indian resident?"
+      },
+      {
+        "prompt": "Do I need to report my US brokerage account in Schedule FA, and for which period — April to March or January to December?"
+      },
+      {
+        "prompt": "My bank deducted TCS when I sent ₹20 lakh abroad to buy US shares under LRS. Can I get it back?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "I sold Infosys shares on NSE after 14 months. What is the LTCG rate and how much is exempt?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "Our ITR JSON exporter puts the same carried-forward loss in BFLA and CFL. Which identity should catch that?",
+        "owner": "itr-filing-schedules"
+      },
+      {
+        "prompt": "What STT and stamp duty apply to a ₹1 lakh delivery sell on NSE?",
+        "owner": "indian-equity-charges"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Resident Indian. I bought 10 Apple shares through a US broker on 15 Jan 2024 and sold them on 20 Jul 2025 for a ₹70,900 gain. My code treats it as LTCG at 12.5% inside the ₹1.25 lakh exemption, so zero tax. Is that right?",
+      "expectations": [
+        "Says a US-listed share is not listed on an Indian exchange, so the long-term threshold is more than 24 months",
+        "Classifies an 18-month holding as short term, taxed at slab rates",
+        "Says the §112A/§198 ₹1.25 lakh exemption does not apply to foreign shares"
+      ],
+      "must_match": [
+        "(?i)24[- ]months?",
+        "(?i)short[- ]term|STCG",
+        "(?i)slab"
+      ],
+      "must_not_match": [
+        "(?i)\\byes\\b,? (that's|that is|it is|your code is) (right|correct)",
+        "(?i)(zero|no|nil) tax is (correct|right)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm an Indian resident and sold US shares on 10 April 2026. Which USD-INR rate do I use to convert the sale for Indian capital gains tax?",
+      "expectations": [
+        "Uses the SBI telegraphic transfer buying rate",
+        "Takes the rate on the last day of the month before the month of transfer, i.e. 31 March 2026",
+        "Does not use the 10 April spot rate or an RBI reference rate"
+      ],
+      "must_match": [
+        "(?i)SBI|telegraphic|TTBR|TT buying",
+        "(?i)31(st)? March|March 31|last day of (the )?(previous|preceding|prior) month|month[- ]end (before|preceding)"
+      ],
+      "must_not_match": [
+        "(?i)(should|must) use the (spot |exchange )?rate (on|of|for) 10 April"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "100 RSUs of my US employer vested on 10 June 2025 at $150; Form 16 shows a ₹12,78,000 perquisite. I sold them in March 2026. What is my cost basis and from when is the holding period counted?",
+      "expectations": [
+        "Says the cost of acquisition is the FMV taken for the salary perquisite, about ₹12,780 per share",
+        "Counts the holding period from the vest/allotment date, not the grant date",
+        "Classifies the March 2026 sale as short term"
+      ],
+      "must_match": [
+        "(?i)12,?780|12,?78,?000|fair market value|FMV",
+        "(?i)vest|allot",
+        "(?i)short[- ]term|STCG"
+      ],
+      "must_not_match": [
+        "(?i)cost (basis )?(is|of) (zero|nil|₹?\\s?0)\\b",
+        "(?i)holding period (starts|runs|is counted) from the grant date"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I'm a resident Indian individual with no W-8BEN on file, and my US broker withheld 30% on a $1,000 dividend. How much foreign tax credit can I claim in India?",
+      "expectations": [
+        "Says the India–US treaty caps US tax on an individual's dividends at 25%",
+        "Says credit is limited to the treaty-rate tax and to the Indian tax on that income, so the 5% excess is not creditable in India",
+        "Mentions filing W-8BEN to get the treaty rate and Form 67 (Form 44 from tax year 2026-27) for the credit"
+      ],
+      "must_match": [
+        "(?i)25\\s?%",
+        "(?i)W-?8\\s?BEN",
+        "(?i)Form\\s*(No\\.?\\s*)?(67|44)"
+      ],
+      "must_not_match": [
+        "(?i)(full|entire|all) 30\\s?% (is|can be) (claimed|credited|creditable)",
+        "(?i)15\\s?% (treaty )?rate applies to (you|individuals)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "For my FY 2025-26 return (AY 2026-27), which period does Schedule FA cover for my US shares, and what values must I report? I have under ₹5 lakh abroad — can I skip it?",
+      "expectations": [
+        "Says Schedule FA uses the calendar year ending 31 December 2025, not the April–March financial year",
+        "Names peak value during the period and closing value among the required fields",
+        "Says the ₹20 lakh Black Money Act relief removes the penalty, not the duty to report, so the assets must still be disclosed"
+      ],
+      "must_match": [
+        "(?i)calendar year|January\\s*(to|–|-)\\s*December|31(st)? December|1 January",
+        "(?i)peak",
+        "(?i)closing",
+        "(?i)(still|must|need to|have to) (be )?(report|disclos)"
+      ],
+      "must_not_match": [
+        "(?i)(yes|you can),? (you can )?skip (it|schedule FA)",
+        "(?i)schedule FA (uses|covers|follows) the financial year"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "In tax year 2026-27 I remitted ₹25 lakh under LRS to buy US stocks, my only LRS use. How much TCS does the bank collect, and should my portfolio tracker add it to the cost of the shares?",
+      "expectations": [
+        "Computes TCS as 20% of the amount above ₹10 lakh, i.e. ₹3,00,000",
+        "Says TCS is tax paid on the investor's behalf, claimable as a credit in the return (or adjustable against salary TDS), and is not part of cost basis"
+      ],
+      "must_match": [
+        "(?i)3,00,000|3 lakh|300,000",
+        "(?i)credit|adjust"
+      ],
+      "must_not_match": [
+        "(?i)(should|do) add (the )?TCS to (the )?cost"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "skill_name": "indian-equity-charges",
+  "trigger": {
+    "positive": [
+      { "prompt": "Write a Python function that computes every charge on a ₹1 lakh NSE delivery buy and the matching sell." },
+      { "prompt": "Is stamp duty charged on both legs of an equity delivery trade in India?" },
+      { "prompt": "My backtest uses a flat 10 bps round-trip cost for Indian stocks. Is that a reasonable cost model?" },
+      { "prompt": "My brokerage calculator is off by a few rupees against my Zerodha contract note. Which line items should I check?" }
+    ],
+    "negative": [
+      { "prompt": "What STT is charged when I sell a Nifty option?", "owner": "fno-tax-and-charges" },
+      { "prompt": "How is the gain taxed if I sell listed shares after 14 months?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "Does my backtest fill at the close when the stock is circuit-locked?", "owner": "backtest-engine-correctness" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "For an NSE delivery trade, is GST 18% of the total of all charges, including STT and stamp duty?",
+      "expectations": [
+        "Says GST is 18% of brokerage + SEBI fee + exchange transaction charge only",
+        "Says STT and stamp duty are outside the GST base"
+      ],
+      "must_match": ["(?i)(STT|stamp duty)[^.]{0,120}(not|outside|exclud)|(not|outside|exclud)[^.]{0,120}(STT|stamp duty)"],
+      "must_not_match": ["(?i)\\byes\\b[^.]{0,40}(all|total|every) charges"]
+    },
+    {
+      "id": 2,
+      "prompt": "Does stamp duty apply on the sell side of an equity delivery trade on NSE? And the DP charge?",
+      "expectations": [
+        "Stamp duty is buy side only",
+        "DP charge is sell side only and flat per scrip"
+      ],
+      "must_match": ["(?i)buy[- ]side only|only on (the )?buy|buy (leg|side) only", "(?i)DP[^.]{0,80}sell"],
+      "must_not_match": ["(?i)stamp duty (is )?(charged|levied|applies) on both"]
+    },
+    {
+      "id": 3,
+      "prompt": "What STT applies to an intraday equity trade on NSE, and on which side?",
+      "expectations": ["0.025%, sell side only (delivery is 0.1% on both sides)"],
+      "must_match": ["0\\.025\\s*%", "(?i)sell"],
+      "must_not_match": ["(?i)intraday[^.]{0,60}0\\.1\\s*%"]
+    },
+    {
+      "id": 4,
+      "prompt": "I'm selling ₹500 worth of one stock from my Zerodha demat. Is the DP charge a percentage of the sale value?",
+      "expectations": [
+        "DP charge is flat per scrip, not proportional to value",
+        "On a small sell it can exceed every other charge"
+      ],
+      "must_match": ["(?i)flat|per[- ]scrip|fixed|does not scale"],
+      "must_not_match": ["(?i)DP charge (is|of) (a )?(percentage|\\d+(\\.\\d+)?\\s*%)"]
+    },
+    {
+      "id": 5,
+      "prompt": "Should my charges calculator keep STT at paise precision?",
+      "expectations": ["STT rounds to the nearest rupee at its own step, not at the end of the summed stack"],
+      "must_match": ["(?i)(nearest|whole) rupee|round(ed|s)? (it )?to (the )?rupee"]
+    },
+    {
+      "id": 6,
+      "prompt": "What is NSE's exchange transaction charge on cash-segment equity trades?",
+      "expectations": [
+        "0.00307% of turnover on both sides",
+        "Notes the rate is dated and must be verified against a broker's live schedule"
+      ],
+      "must_match": ["0\\.00307"],
+      "must_not_match": ["(?i)\\bis 0\\.00297"]
+    }
+  ]
+}

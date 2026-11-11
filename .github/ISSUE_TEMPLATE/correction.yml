@@ -1,0 +1,32 @@
+name: Rate or rule correction
+description: A rate, threshold, date or rule in a skill is wrong or out of date
+labels: [correction]
+body:
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      placeholder: indian-equity-charges
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What the skill says
+      description: Quote the line, with its section.
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: What is correct, and from when
+      description: Give the corrected value and the date it takes effect.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Primary source URL
+      description: Statute, Finance Act, CBDT, SEBI, exchange or AMFI circular, or a broker's published charge schedule. Blogs and search summaries are not accepted.
+    validations:
+      required: true

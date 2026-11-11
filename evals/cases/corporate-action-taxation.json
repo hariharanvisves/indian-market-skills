@@ -1,0 +1,125 @@
+{
+  "skill_name": "corporate-action-taxation",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "How is a share buyback taxed for a resident individual in India in tax year 2026-27?"
+      },
+      {
+        "prompt": "What cost and purchase date should my portfolio tracker give bonus shares received from an NSE stock?"
+      },
+      {
+        "prompt": "After a demerger, how do I split the cost of my original shares between the two companies for Indian capital gains?"
+      },
+      {
+        "prompt": "Is the TDS on dividends from Indian listed companies still deducted under ₹5,000? What is the threshold now?"
+      },
+      {
+        "prompt": "My rights entitlement got credited to demat. If I sell it on NSE, what is its cost and holding period?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "How do I back-adjust NSE bhavcopy close prices for a 1:5 split so my returns series has no cliff?",
+        "owner": "nse-bhavcopy-corporate-actions"
+      },
+      {
+        "prompt": "Is a listed share held exactly 12 months long term, and what is the LTCG rate?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "How do I match an IDCW Payout scheme name in CAMS against the Growth option in my Groww export?",
+        "owner": "mf-scheme-matching"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I bought 100 shares at ₹900 on 2024-05-02. A 1:1 bonus was allotted on 2025-09-15. My code rescales the lot to 200 shares at ₹450 each, dated 2024-05-02. If I sell 150 on 2026-06-01, is that right for Indian tax?",
+      "expectations": [
+        "No: bonus shares are a separate lot with nil cost, held from the allotment date",
+        "The 100 originals keep ₹90,000 cost and the 2024 date; the 50 bonus shares sold are short term with nil cost",
+        "Price-adjustment factors must not drive cost basis"
+      ],
+      "must_match": [
+        "(?i)\\bnil\\b|zero cost|cost (of )?(₹\\s*)?0\\b",
+        "(?i)allot"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*(yes|that is correct|that's correct)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "A listed company bought back 20 of my shares at ₹60 in January 2025. I paid ₹40 each. My tool reports a ₹400 capital gain. Correct?",
+      "expectations": [
+        "No: for a buyback between 1 Oct 2024 and 31 Mar 2026 the whole ₹1,200 is a deemed dividend taxed at slab",
+        "The ₹800 cost becomes a capital loss, because consideration is deemed nil"
+      ],
+      "must_match": [
+        "(?i)dividend",
+        "(?i)capital loss|1,?200"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*(yes|that is correct|that's correct)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Same question for a buyback in May 2026: 20 shares at ₹60, cost ₹40 each, I am not a promoter. Deemed dividend at slab?",
+      "expectations": [
+        "No: from 1 Apr 2026 (tax year 2026-27) buyback consideration is taxed as capital gains, ₹400 here",
+        "The promoter additional tax does not apply to a non-promoter"
+      ],
+      "must_match": [
+        "(?i)capital gain",
+        "(?i)2026|Finance Act"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes\\b"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "After a 1:1 demerger, my code apportions the parent's cost using the parent's ex-date price drop versus the new company's listing price. Is that the Indian tax method?",
+      "expectations": [
+        "No: cost moves by net book value of assets transferred over net worth of the demerged company, the ratio the company publishes",
+        "Resulting-company shares keep the parent's holding period"
+      ],
+      "must_match": [
+        "(?i)(net )?book value|net worth|published"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*(yes|that is correct|that's correct)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I bought a stock 2 months before its dividend record date and sold it a month later at a loss. Does India disallow the loss up to the dividend, like a wash sale?",
+      "expectations": [
+        "Dividend stripping only applies where the dividend is exempt; a resident individual's dividend is taxable, so the loss stands",
+        "India has no wash-sale rule"
+      ],
+      "must_match": [
+        "(?i)exempt"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes\\b"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I borrow to buy dividend stocks. In tax year 2026-27 can I deduct the interest against my dividend income, up to 20%?",
+      "expectations": [
+        "No: from tax year 2026-27 no deduction is allowed against dividend income; the 20% interest cap applied up to FY 2025-26"
+      ],
+      "must_match": [
+        "(?i)\\bno\\b[^.]{0,60}deduct|not (be )?(allowed|deductible)|nil"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes\\b"
+      ]
+    }
+  ]
+}

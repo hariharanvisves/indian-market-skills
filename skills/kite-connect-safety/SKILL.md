@@ -1,11 +1,12 @@
 ---
 name: kite-connect-safety
-description: Safety rules for integrating Zerodha Kite Connect and any Indian broker API — login and checksum flow, daily token expiry, server-side-only credentials, authorization (not just authentication), order-value ceilings, intent-derived idempotency keys, the UNKNOWN order outcome, stale-quote policy, live-path hard-disable, position-aware rebalancing, and MCP hygiene. Use when writing or reviewing broker login, order placement, rebalance or automation code, or any route that touches a broker token.
+description: Safety rules for integrating Zerodha Kite Connect (kiteconnect, pykiteconnect, Kite MCP) — login and checksum flow, daily token expiry, server-side-only credentials, authorization (not just authentication), order-value ceilings, intent-derived idempotency keys, the UNKNOWN order outcome, stale-quote policy, live-path hard-disable, position-aware rebalancing, and MCP hygiene. Use when writing or reviewing Kite login, request_token / access_token handling, order placement, rebalance or automation code on Zerodha, or any route that touches a Kite token.
 license: MIT
 compatibility: Written against Kite Connect v3 (https://kite.trade/docs/connect/v3/); the principles apply to any Indian broker REST API.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -15,6 +16,7 @@ Defects here move real money or leak the highest-value secret in the system.
 Each item: the rule, why, and a detector you can run. API facts cite the Kite
 Connect v3 docs as read on 2026-10-04; anything marked "verify" was not
 confirmed — check https://kite.trade/docs/connect/v3/ before relying on it.
+Other brokers and SEBI retail-algo rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
 
 ## 1. Login flow and checksum
 
@@ -145,7 +147,8 @@ again. Detector: submit the same intent twice; exactly one broker call.
 **8c. Three-state result.** `placed | rejected | unknown`. A timeout or a
 5xx/network failure **after** the request left is `unknown`, not `rejected`. The
 docs note that to know an order's true status you must scan order history or
-fetch the order by `order_id`.
+fetch the order by `order_id`. Detector: make the client time out after the
+request is sent; the result must be `unknown`, never `rejected`.
 
 **8d. UNKNOWN is not failure.** On `unknown`: **no retry, no auto-cancel**,
 suspend automation for that account until it resolves, and reconcile by
@@ -156,21 +159,34 @@ further placements and automation suspended.
 
 **8e. Stale quote.** A stale quote **warns a human** (acknowledge, show last-tick
 age) and **blocks a machine**. Blocking manual exits on thin stocks makes
-illiquid positions un-exitable during fast moves.
+illiquid positions un-exitable during fast moves. Detector: feed a quote older
+than the threshold; a manual order asks for acknowledgement, an automated one
+is refused.
 
 **8f. Contract identity for F&O.** Show underlying, expiry, strike, option type
-and lot size on confirmation, and check lot-size multiple and freeze quantity
-from the instrument dump, never assumed.
+and lot size on confirmation, and check the lot-size multiple against `lot_size` in the
+instrument dump. The dump has no freeze-quantity column; take freeze quantity
+from the exchange's published file, never assume it. Detector: an F&O order
+whose quantity is not a multiple of `lot_size` is rejected locally.
 
 **8g. Rate limits.** Per the exceptions page: orders 10/second, 400/minute and
 5000/day per user/API key; 25 modifications per order; quotes 1/second;
 historical candles 3/second; other endpoints 10/second. Throttle client-side;
-verify against the docs before hard-coding.
+verify against the docs before hard-coding. Detector: burst 20 orders in one
+second; the client must space them, not surface broker rate-limit errors.
+
+**8h. Static IP.** From 2026-04-01 API order placement must come from a
+whitelisted static IP (one primary, optionally one secondary; exchange rules
+allow one change per calendar week). WebSocket data and read endpoints such as
+orderbook and positions work from any IP
+(https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/static-ip).
+Detector: the deployed order path egresses from the registered IP; a dynamic
+cloud or laptop address breaks it.
 
 ## 9. Position-aware rebalance planner
 
-**Rule.** Diff targets against actual holdings and emit BUY / SELL / HOLD
-deltas.
+**Rule.** Diff targets against actual holdings and emit BUY / SELL / HOLD /
+IGNORE rows (IGNORE: held but not managed by the app).
 - Holdings quantity = settled + **T1** (unsettled same-day shares count as
   owned), else a re-run double-buys.
 - A **managed** gate: exits only touch symbols the app itself bought. A real
@@ -183,7 +199,7 @@ deltas.
 - **SELL before BUY** for cash; if a SELL fails, stop — do not proceed to BUYs.
 - Route exchange **per symbol** (NSE vs BSE). A hardcoded `NSE` errors on
   BSE-only holdings.
-- Persist the real side; skip HOLD rows. Persist each order **before** placing
+- Persist the real side; skip HOLD and IGNORE rows. Persist each order **before** placing
   the next so a crash cannot orphan live orders.
 
 **Detector.** Fixture with an ETF in holdings and not in the managed set — it
@@ -216,10 +232,27 @@ without a decision fails.
 ## 12. Terms of service
 
 Do not assert that paper-trading or automation is permitted. Verify the broker's
-terms and the exchange/SEBI retail-algo rules before enabling any automation.
+terms and the exchange/SEBI retail-algo rules before enabling any automation;
+the rules themselves: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
+
+## Verifying an implementation
+
+- One checksum function, pinned by a fixed-triple digest test (§1).
+- Expiry test at 05:59 and 06:01 IST; no retry loop around `TokenException` (§2).
+- A sentinel credential appears in no response body, log or client bundle (§3).
+- Unsupported capabilities throw; none return `[]` or `0` (§4).
+- Every broker route is 403 for a second valid user and for an unset owner (§5).
+- Connect without step-up is refused; the flag lives on the session (§6).
+- Execute with credentials cleared returns 409; dry run is the default (§7).
+- Over-ceiling order, duplicate intent and post-send timeout each make the
+  documented number of broker calls: zero, one, one (§8).
+- Planner fixture: unmanaged ETF is IGNORE, second run is all HOLD, a holdings
+  failure places nothing (§9).
+- Every orders-table FK asserts `ON DELETE SET NULL` (§10).
 
 ## Scope
 
+Kite Connect v3 integration safety: auth, tokens, orders, rebalancing, MCP.
 Engineering guidance, not legal or investment advice. Companion skills:
 [indian-equity-charges](../indian-equity-charges/SKILL.md),
 [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md).

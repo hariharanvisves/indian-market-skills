@@ -1,0 +1,70 @@
+{
+  "skill_name": "mf-scheme-matching",
+  "trigger": {
+    "positive": [
+      { "prompt": "Write a function that matches mutual-fund scheme names between my CAMS export and my Groww export." },
+      { "prompt": "After importing both my CAS and my Groww statement, the units of one fund doubled. How do I dedupe across sources?" },
+      { "prompt": "How do I look up the NAV for a scheme in AMFI's NAVAll.txt?" },
+      { "prompt": "My resolver merged the Direct and Regular plans of the same fund. How should scheme matching work?" }
+    ],
+    "negative": [
+      { "prompt": "openpyxl cannot open my CAMS .xls statement. What format is it?", "owner": "indian-broker-statement-formats" },
+      { "prompt": "How is a gain on a debt mutual fund bought in 2025 taxed?", "owner": "indian-capital-gains-tax" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I plan to match mutual-fund scheme names across sources with a Jaccard similarity threshold of 0.8. Good idea?",
+      "expectations": [
+        "Says no to similarity matching",
+        "Explains Direct vs Regular (or Growth vs IDCW) differ by one token but are different funds",
+        "Recommends a total parse into identity, plan and option slots, with renames only from a sourced allow-list"
+      ],
+      "must_match": ["(?i)\\bno\\b|don't|do not|avoid|never", "(?i)direct\\b[\\s\\S]*regular|regular\\b[\\s\\S]*direct|IDCW"],
+      "must_not_match": []
+    },
+    {
+      "id": 2,
+      "prompt": "A scheme name in one file mentions neither Growth nor IDCW. Should my resolver default it to Growth so it matches?",
+      "expectations": [
+        "Says no: an unstated option is null, and null must not equal growth",
+        "Says a default is allowed only from a per-scheme table with a cited source"
+      ],
+      "must_match": ["(?i)null|not stated|unresolved|per[- ]scheme"],
+      "must_not_match": ["(?i)\\byes,? default (it )?to growth"]
+    },
+    {
+      "id": 3,
+      "prompt": "The broker shows 12.34 units and CAMS shows 12.345 units of the same purchase on the same date, at slightly different NAVs. My dedupe key hashes scheme + date + units + NAV and misses it. Why?",
+      "expectations": [
+        "Says the cross-source key must be price-free, because NAV differs between sources by stamp duty and rounding",
+        "Says to compare units with an absolute tolerance, not a percentage and not round-to-2dp equality",
+        "Says the two records must come from different sources"
+      ],
+      "must_match": ["(?i)price[- ]free|without (the )?(price|nav)|(drop|remove|exclude) (the )?(price|nav)", "(?i)toleran"],
+      "must_not_match": []
+    },
+    {
+      "id": 4,
+      "prompt": "For FIFO capital-gains on mutual funds, should I group lots by scheme alone?",
+      "expectations": [
+        "Says to group by fund identity and folio where the source carries a folio",
+        "Explains that pooling folios changes which lots are sold, so the gain and holding period change"
+      ],
+      "must_match": ["(?i)folio"],
+      "must_not_match": []
+    },
+    {
+      "id": 5,
+      "prompt": "How should I select the right row in AMFI NAVAll.txt for a holding I already know the ISIN of?",
+      "expectations": [
+        "Says to select by ISIN, matched against both ISIN columns",
+        "Says not to select by scheme-name text",
+        "Says to read the column layout from the file header, since the current file has Plan and Option columns older copies lack"
+      ],
+      "must_match": ["(?i)ISIN", "(?i)both"],
+      "must_not_match": []
+    }
+  ]
+}

@@ -5,7 +5,8 @@ license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -87,8 +88,9 @@ be identical.
 **Rule.** Sharpe, Sortino and annualised volatility scale by
 `sqrt(periodsPerYear)` computed from the observed spacing, not a hardcoded
 `sqrt(252)` applied to per-rebalance returns.
-**Why.** Measured on NSE data: at a 21-day rebalance, hardcoded 252 inflated all
-three by ~4.6× (93% vs 16.87% annualised vol on identical performance).
+**Why.** At a 21-day rebalance, hardcoded 252 inflates all three by
+`sqrt(252/12) = sqrt(21) ≈ 4.6×` in theory. Measured on NSE data, the inflation was
+larger: 93% vs 16.87% annualised vol on identical performance, about 5.5×.
 **Detector.** Resample the same equity path daily and monthly; annualised vol
 must agree to within sampling error. Mutate the constant and watch it fail.
 
@@ -100,6 +102,7 @@ is derived from the requested start minus warm-up head-room, never a constant.
 date the floor of the whole run. A hardcoded fetch start silently capped every
 backtest years after the data begins.
 **Detector.** Request a start before the first-sorted symbol lists; assert it is honoured.
+Holidays and special sessions: [nse-trading-calendar](../nse-trading-calendar/SKILL.md).
 
 ### 9. Warm-up warnings are relative to what was asked
 
@@ -134,7 +137,9 @@ with a fee added after. Resizing a retained position charges nothing. The
 end-of-run close-out charges nothing (the curve marks to market and never
 liquidated). Slippage and commission are separate knobs: slippage changes the
 affordable quantity, commission only reduces cash.
-**Why.** Fee-after-sizing overdraws the allocation into negative cash.
+**Why.** Fee-after-sizing overdraws the allocation into negative cash. Flat
+per-scrip charges come off the budget before dividing; see
+[indian-equity-charges](../indian-equity-charges/SKILL.md) item 5.
 **Detector.** Assert spend ≤ budget at absurd costs (1000 bps stays finite and
 non-negative). **Invariant:** a zero-friction run must reproduce the frictionless
 numbers byte-for-byte, and trade count must be unchanged by costs (costs move
@@ -168,6 +173,7 @@ value; assert every output is finite.
 
 **Rule.** Return `null` (not a number) when there are too few periods or too
 short a span to estimate it; say why.
+**Why.** A ratio from a handful of returns is noise that reads as a measurement.
 **Detector.** Run a 3-month window; assert `sharpe === null`.
 
 ### 15. Aggregate across periods before clamping at zero
@@ -176,6 +182,8 @@ short a span to estimate it; say why.
 aggregate across sub-periods (eras) first, then clamp at nil.
 **Why.** Clamping each era at zero discards a losing era and overstates tax.
 Rates and eras: [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
+**Detector.** Build one year with a gain era and a loss era; tax must equal tax
+on the netted total, not on the gain era alone.
 
 ## D. Regime filters and benchmarks
 
@@ -220,8 +228,8 @@ configuration would produce. Do not bump for derived reporting over an unchanged
 ledger. Quarantine rows from older versions rather than mixing them.
 **Why.** A fix that changes results on one population only (gap-heavy symbols)
 looks like a no-op on the test universe and gets shipped as a tidy-up. A
-volatility-estimator change moved inverse-vol weights by up to 0.205pp, so it was
-a bump even though a pure scale factor would have cancelled.
+volatility-estimator change is a bump even though a pure scale factor would
+cancel: [momentum-factor-research](../momentum-factor-research/SKILL.md) §2.
 **Detector.** Characterise the input shape the bug needs, count rows with that
 shape, and re-measure there before deciding "no delta".
 
@@ -235,8 +243,10 @@ Apply by **trade date**: pick the rule in force for each date in the backtest.
 two-way trading), a buy at the upper limit or a sell at the lower limit cannot
 fill. Skip or defer, do not fill at the limit.
 **Why.** Price bands of 2/5/10/20% apply to non-F&O stocks and are revised
-periodically; F&O stocks have no fixed band (a 10% operating range that flexes at
-7% and 12% of base). Source: NSE price-bands page (verified 2026-10-04).
+periodically. F&O stocks have no cash-market band, only a 10% dummy order-entry
+filter that NSE relaxes near the limit; stock-futures bands flex 10% to 15% to 20%
+(triggers at 9.90% and 14.90% of base). Source: NSE FAQ on price band / operating
+range flex; NSE/FAOP/63405 and NSE/FAOP/64995 (verified 2026-11-11).
 **Detector.** Count fills on bars where high == low == a band limit; expect zero.
 
 ### 21. Market halts, settlement and closing-price regime
@@ -251,10 +261,19 @@ close-based backtest must say which closing-price method applies on each date:
   (15:15–15:35; reference VWAP 15:00–15:15, ±3% band, matching 15:30–15:35) and
   continuous trading for them ends at 15:15. Non-F&O stocks keep the 30-minute
   VWAP close with trading to 15:30.
+- **From 7 Dec 2026** (SEBI circular 15 Oct 2026), the auction is 15:30–15:40 with
+  reference VWAP of the last 15 minutes of continuous trading (15:15–15:30), so
+  continuous trading for F&O stocks runs to 15:30. The circular's applicability
+  and band paragraphs are not restated in its amended text: treat F&O-only and
+  ±3% as unchanged until read.
+Expiry-day derivative settlement prices changed on the same dates: see
+[nse-options-mechanics](../nse-options-mechanics/SKILL.md).
 Pre-open order collection was 9:00–9:08 before 7 Sep 2026; from that date it is
 9:00–9:05 (limit and market), 9:05–9:10 (limit only), with continuous trading
-from 9:15. Source: SEBI circular dated 16 Jan 2026; NSE T+0 page (verified
-2026-10-04).
+from 9:15. Source: SEBI circulars dated 16 Jan 2026 and 15 Oct 2026 (verified
+2026-11-11); NSE T+0 page (verified 2026-10-04).
+**Why.** "The close" is a different print under each regime, and an intraday
+fill across a halt never traded.
 **Detector.** A backtest filling "at the close" after 3 Aug 2026 on an F&O stock
 is filling at an auction price; confirm the data source records that print.
 
@@ -262,18 +281,29 @@ is filling at an auction price; confirm the data source records that print.
 
 **Rule.** BE and BZ series settle trade-for-trade (gross, every trade
 deliverable). Do not model intraday netting there. Stage II–IV GSM names are
-trade-for-trade as well.
-**Why.** Source: NSE series legend; NSE ASM FAQ (verified 2026-10-04).
+trade-for-trade as well, and Stage III–IV trade only once a week (first trading
+day of the week).
+**Why.** Netting a same-day buy and sell there models a trade that settles
+gross. Source: NSE series legend; NSE GSM FAQ (verified 2026-11-11).
+**Detector.** On a BE/BZ or GSM Stage II–IV name, a same-day buy and sell must
+book two deliverable trades; a Stage III–IV fill on any day other than the
+week's first trading day is impossible.
 
 ### 23. F&O ban and surveillance lists
 
 **Rule.** A stock enters the F&O ban when futures-equivalent open interest
 exceeds 95% of MWPL. MWPL is the lower of 15% of free float and 65× average
-daily delivery value (floor 10% of free float), recalculated quarterly. The exit
-threshold (80%) is from an older NSE page and **unconfirmed under the futures-
-equivalent method: verify against the current NSE circular**. ASM raises margins
-from 50% up to 100%; GSM Stage I is 100% margin with a band of 5% or less. Source:
-SEBI circular 29 May 2025; NSE ASM FAQ (verified 2026-10-04).
+daily delivery value (floor 10% of free float), recalculated quarterly; both
+apply from 1 Oct 2025 (before: MWPL 20% of free float, plain open interest). The
+exit threshold (80%) is from an older NSE page and **unconfirmed under the
+futures-equivalent method: verify against the current NSE circular**. Long-term
+ASM on F&O stocks: F&O margin at least 50% at Stage I rising to 100%, MWPL cut to
+75% / 50% from Stage II / III, no fresh contracts at Stage IV; cash margin 100%
+from Stage I, Stage IV gross settlement with a 5% band. GSM Stage I is 100%
+margin with a band of 5% or less. Source: SEBI circular 29 May 2025 (paras 5.2,
+6); NSE ASM and GSM FAQs (verified 2026-11-11).
+**Why.** Ban, margin and band rules decide whether a position could be opened
+and at what cost; ignoring them fills trades that never existed.
 **Detector.** A derivatives backtest that opens positions in a banned name, or a
 cash backtest that ignores a 5% band on a GSM name, is unfillable as modelled.
 
@@ -285,14 +315,29 @@ unadjusted prices, fails before any engine rule matters. See
 [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) and
 [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md).
 
-## Checks that prove a guard
+## Verifying an implementation
 
-Remove the guard, watch the specific test fail, restore it; a mutant killed by
-the wrong assertion is untested. Build fixtures that can express the defect (a
-low-volatility series cannot show variance drag). Assert the resolved count of
-any list-taking call, not its exit status.
+- **Look-ahead first:** the perturbation test (§1) and a gap / null-close
+  fixture (§2, §3). They catch the largest fake edge.
+- **Time and scale:** `years` and annualised vol agree across daily and monthly
+  rebalancing of one path (§6, §7).
+- **Ledger A/B:** a trade-ledger change moves trade counts and leaves CAGR
+  byte-identical (§10).
+- **Costs:** a zero-friction run reproduces frictionless numbers byte-for-byte;
+  trade count is unchanged by costs (§11).
+- **Metrics:** every output is finite on a curve with a zero value (§13).
+- **Prove each guard:** remove it, watch the specific test fail, restore it; a
+  mutant killed by the wrong assertion is untested. Build fixtures that can
+  express the defect (a low-volatility series cannot show variance drag). Assert
+  the resolved count of any list-taking call, not its exit status.
 
 ## Scope
+
+Engine mechanics and NSE fill realism for equity backtests. Charge rates:
+[indian-equity-charges](../indian-equity-charges/SKILL.md). Tax on gains:
+[indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md). Factor method:
+[momentum-factor-research](../momentum-factor-research/SKILL.md). Option pricing:
+[nse-options-mechanics](../nse-options-mechanics/SKILL.md).
 
 Engineering guidance, not investment advice. Rates and market rules cited above
 carry a verification date; confirm against the primary source before relying on

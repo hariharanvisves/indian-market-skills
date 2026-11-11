@@ -1,0 +1,198 @@
+{
+  "schema": 1,
+  "as_of": "2026-11-11",
+  "note": "Machine-readable copy of rates owned by the skills. scripts/validate.py fails if a `display` string is missing from its owner skill. Not tax advice; re-verify before use.",
+  "rates": [
+    {
+      "id": "equity.delivery.stt",
+      "value": 0.001,
+      "unit": "fraction_of_turnover",
+      "display": "0.1%",
+      "side": "both",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.intraday.stt",
+      "value": 0.00025,
+      "unit": "fraction_of_turnover",
+      "display": "0.025%",
+      "side": "sell",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.nse.transaction_charge",
+      "value": 3.07e-05,
+      "unit": "fraction_of_turnover",
+      "display": "0.00307%",
+      "side": "both",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.bse.transaction_charge.group_a_b",
+      "value": 3.75e-05,
+      "unit": "fraction_of_turnover",
+      "display": "0.00375%",
+      "side": "both",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.sebi_turnover_fee",
+      "value": 1e-06,
+      "unit": "fraction_of_turnover",
+      "display": "₹10 per crore",
+      "side": "both",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.delivery.stamp_duty",
+      "value": 0.00015,
+      "unit": "fraction_of_turnover",
+      "display": "0.015%",
+      "side": "buy",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "equity.intraday.stamp_duty",
+      "value": 3e-05,
+      "unit": "fraction_of_turnover",
+      "display": "0.003%",
+      "side": "buy",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "gst.on_charges",
+      "value": 0.18,
+      "unit": "fraction_of_base",
+      "display": "18%",
+      "base": "brokerage + SEBI fee + transaction charge",
+      "owner": "indian-equity-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "cg.listed_equity.stcg_rate",
+      "value": 0.2,
+      "unit": "fraction_of_gain",
+      "display": "**20%**",
+      "effective_from": "2024-07-23",
+      "keyed_on": "sale_date",
+      "owner": "indian-capital-gains-tax",
+      "source": "https://egazette.gov.in/WriteReadData/2025/265620.pdf"
+    },
+    {
+      "id": "cg.listed_equity.ltcg_rate",
+      "value": 0.125,
+      "unit": "fraction_of_gain",
+      "display": "**12.5%**",
+      "effective_from": "2024-07-23",
+      "keyed_on": "sale_date",
+      "owner": "indian-capital-gains-tax",
+      "source": "https://egazette.gov.in/WriteReadData/2025/265620.pdf"
+    },
+    {
+      "id": "cg.listed_equity.ltcg_annual_exemption",
+      "value": 125000,
+      "unit": "inr_per_year_aggregate",
+      "display": "₹1,25,000",
+      "effective_from": "2024-07-23",
+      "owner": "indian-capital-gains-tax",
+      "source": "https://egazette.gov.in/WriteReadData/2025/265620.pdf"
+    },
+    {
+      "id": "cg.listed_equity.long_term_threshold_months",
+      "value": 12,
+      "unit": "calendar_months_strictly_more_than",
+      "display": "more than 12 months",
+      "owner": "indian-capital-gains-tax",
+      "source": "https://egazette.gov.in/WriteReadData/2025/265620.pdf"
+    },
+    {
+      "id": "cg.loss_carry_forward_years",
+      "value": 8,
+      "unit": "years",
+      "display": "8 years",
+      "condition": "return filed by the original due date",
+      "owner": "indian-capital-gains-tax",
+      "source": "https://egazette.gov.in/WriteReadData/2025/265620.pdf"
+    },
+    {
+      "id": "fno.futures.stt_sell",
+      "value": 0.0005,
+      "unit": "fraction_of_traded_value",
+      "display": "**0.05%**",
+      "side": "sell",
+      "effective_from": "2026-04-01",
+      "keyed_on": "trade_date",
+      "owner": "fno-tax-and-charges",
+      "source": "https://nsearchives.nseindia.com/ (NSE circular NSE/FATAX/73524, 31 Mar 2026)"
+    },
+    {
+      "id": "fno.options.stt_sell",
+      "value": 0.0015,
+      "unit": "fraction_of_premium",
+      "display": "**0.15%**",
+      "side": "sell",
+      "effective_from": "2026-04-01",
+      "keyed_on": "trade_date",
+      "owner": "fno-tax-and-charges",
+      "source": "https://nsearchives.nseindia.com/ (NSE circular NSE/FATAX/73524, 31 Mar 2026)"
+    },
+    {
+      "id": "fno.options.stt_exercise",
+      "value": 0.0015,
+      "unit": "fraction_of_intrinsic_value",
+      "display": "**0.15%**",
+      "side": "purchaser",
+      "effective_from": "2026-04-01",
+      "keyed_on": "trade_date",
+      "owner": "fno-tax-and-charges",
+      "source": "https://nsearchives.nseindia.com/ (NSE circular NSE/FATAX/73524, 31 Mar 2026)"
+    },
+    {
+      "id": "fno.nse.futures.transaction_charge",
+      "value": 1.83e-05,
+      "unit": "fraction_of_turnover",
+      "display": "0.00183%",
+      "side": "both",
+      "effective_from": "2026-03-01",
+      "owner": "fno-tax-and-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "fno.nse.options.transaction_charge",
+      "value": 0.0003553,
+      "unit": "fraction_of_premium",
+      "display": "0.03553%",
+      "side": "both",
+      "effective_from": "2026-03-01",
+      "owner": "fno-tax-and-charges",
+      "source": "https://zerodha.com/charges"
+    },
+    {
+      "id": "fno.futures.stamp_duty",
+      "value": 2e-05,
+      "unit": "fraction_of_turnover",
+      "display": "0.002%",
+      "side": "buy",
+      "effective_from": "2020-07-01",
+      "owner": "fno-tax-and-charges",
+      "source": "https://www.nseindia.com (investor levies page)"
+    },
+    {
+      "id": "fno.options.stamp_duty",
+      "value": 3e-05,
+      "unit": "fraction_of_premium",
+      "display": "0.003%",
+      "side": "buy",
+      "effective_from": "2020-07-01",
+      "owner": "fno-tax-and-charges",
+      "source": "https://www.nseindia.com (investor levies page)"
+    }
+  ]
+}

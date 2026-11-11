@@ -1,12 +1,13 @@
 ---
 name: mf-scheme-matching
-description: Rules for matching Indian mutual-fund scheme names across CAS, CAMS, KFintech, Groww and AMFI data without silently merging different funds — total-parse matching, plan and option slots, rename aliases, AMFI NAVAll.txt lookup by ISIN, folio-aware FIFO grouping, and price-free cross-source dedupe. Use when importing mutual-fund transactions from more than one source, writing a scheme resolver, fixing duplicate or merged holdings, or changing anything that feeds FIFO lots or realised capital gains.
+description: Rules for matching Indian mutual-fund scheme names across CAS, CAMS, KFintech, Groww and AMFI data without silently merging different funds — total-parse matching, plan and option slots (Direct/Regular, Growth/IDCW), rename aliases, AMFI NAVAll.txt lookup by ISIN, folio-aware FIFO grouping, and price-free cross-source dedupe. Use when importing mutual-fund transactions from more than one source, writing a scheme resolver or fuzzy name matcher, fixing duplicate or merged holdings, or changing anything that feeds FIFO lots or realised capital gains.
 license: MIT
 compatibility: Applies to AMFI, CAMS, KFintech and broker-app scheme naming conventions as of the SEBI 2021 IDCW rename.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
+  verified: "2026-11-11"
 ---
 
 # Mutual-Fund Scheme Matching
@@ -48,7 +49,8 @@ tell a rename from a different fund.
 
 ## 3. `option: null` is not Growth
 
-**Rule.** A name that never states an option has `option = null`. Default it only
+**Rule.** A name that never states an option has `option = null` (the "not
+stated" value of section 1). Default it only
 by a **per-scheme** table with a cited source, never globally. Compare null to
 null; never null to growth.
 
@@ -79,13 +81,16 @@ Direct vs Regular is the standard probe.
   `fund` / `scheme` as identity boundaries and read the option only from the
   tail.
 
+**Why.** A loosened rule applies to every name; a vocabulary entry applies only
+to the token it defines.
+
 **Tell.** A fix that edits the comparison function instead of a vocabulary table.
 
 ## 5. Renames and dividend-to-IDCW: explicit and sourced
 
 **Rule.** Hold scheme renames as an allow-list of name groups, each with a
 source. AMC renames (house name changes) are **flagged for review, never
-matched**. SEBI's 2021 rename of Dividend options to IDCW is a vocabulary map
+matched**. SEBI's rename of Dividend options to IDCW (1 Apr 2021) is a vocabulary map
 you add deliberately; do not let the matcher treat the two words as equal by
 default.
 
@@ -104,27 +109,34 @@ hit is **unique** (0 = unknown, more than 1 = ambiguous; both reject); and only
 the *stored* name may be the longer one. A declared AMC that does not match is
 disqualifying evidence, not missing evidence.
 
+**Why.** Each relaxed condition admits a same-suffix fund of another house, and
+that merge is silent.
+
 **Tell.** Two stored funds both satisfying the suffix test: the row must stay
 unresolved.
 
 ## 7. Prefer the ISIN; pick AMFI schemes by ISIN
 
 **Rule.** When a source carries the ISIN (CAS scheme headers do), key on it and
-treat name matching as the fallback. The AMFI `NAVAll.txt` file is
-semicolon-delimited, with columns:
+treat name matching as the fallback. The AMFI `NAVAll.txt` file
+(`portal.amfiindia.com/spages/NAVAll.txt`; the `www.amfiindia.com` URL redirects) is
+semicolon-delimited. Checked 2026-11-11, the header has 8 columns:
 
 ```
-Scheme Code ; ISIN Div Payout / ISIN Growth ; ISIN Div Reinvestment ; Scheme Name ; Net Asset Value ; Date
+Scheme Code ; ISIN Div Payout/ ISIN Growth ; ISIN Div Reinvestment ; Scheme Name ; Plan ; Option ; Net Asset Value ; Date
 ```
 
+Older copies had 6 columns, without `Plan` and `Option`. Missing ISINs are `-`;
+`Plan` and `Option` are empty on matured schemes; dates are `dd-Mon-yyyy`.
 Section headers (category lines, AMC name lines) and blank lines are
-interleaved with data rows; skip anything that does not split into the full
-column count. Select the row by **ISIN**, which identifies the plan/option;
+interleaved with data rows; skip anything that does not split into the header's
+column count. Select the row by **ISIN**, matched against **both** ISIN columns;
 selecting by name text re-introduces everything above.
 
-**Why.** One scheme code can appear under similar names across plans; the ISIN
-is the only stable per-option identifier. Verify the column order against the
-file header on a fresh download.
+**Why.** A scheme code is one plan/option, and the ISIN is the stable per-option
+identifier across sources. `Option` is spelled many ways (`IDCW`, `Growth Option`,
+`Payout of Income Distribution cum capital withdrawal option`), so do not match on
+it. Read the column order from the file header on every download.
 
 **Tell.** An NAV looked up by a name search returning a Regular-plan NAV for a
 Direct holding.
@@ -137,8 +149,11 @@ the duplicate check on `asset class | resolved symbol | side | date | units`,
 
 - **Price-free:** NAV differs between sources by stamp duty and rounding, units
   do not. A price-including hash can never dedupe across sources.
+  Never dedupe on amount alone: a second SIP instalment has a near-identical amount.
 - **Precision-tolerant:** broker apps often report units to 2 decimals and RTAs
-  to 3. Compare `|a - b| <= tolerance` as an **absolute** unit bound, never
+  to 3. Compare `|a - b| <= tolerance` as an **absolute** unit bound (guard the float
+  boundary as in
+  [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md) §8), never
   `round2(a) === round2(b)` (sources that round `x.xx5` down disagree with
   half-up rounding) and never a percentage (a percentage scales with trade size).
 - **Date-tolerant:** the same transaction can differ by a few days between order
@@ -150,8 +165,10 @@ the duplicate check on `asset class | resolved symbol | side | date | units`,
   never matches.
 
 **Tell.** Units of a fund double after importing a second statement.
-Aggregate per fund before comparing; a fund held on three platforms legitimately
-shows ratios other than 1, and a switch pair is not a duplicate.
+Reconcile per fund against a holdings statement: expect a ratio of **1.000**;
+exactly 2.000 is a duplicate; 1.1-1.9 usually means one source covers only part of
+the position. Aggregate the statement per fund first (a fund in two folios reads as
+a spurious multiple), and a switch pair is not a duplicate.
 
 ## 9. Folio belongs in the FIFO grouping key
 
@@ -179,7 +196,7 @@ the tax figure. This is the one end-to-end check that sees both defects.
 files before declaring an importer done; unit tests pin the key, not the
 outcome.
 
-## 11. Verification
+## 11. Verifying an implementation
 
 - **Anti-over-merge cases per slot:** Direct vs Regular; Growth vs IDCW
   Payout vs IDCW Reinvestment; "X Fund" vs "X Focused Fund"; a name with the
@@ -191,8 +208,16 @@ outcome.
   the anti-over-merge test fail, then restore.
 - **Unresolved is a reported outcome:** return the list of unresolved names to
   the user; a silent skip is the same defect as a wrong merge.
+- **Run the re-import gate on real files** (section 10) before calling an
+  importer done.
 
 ## Scope
+
+Scheme identity, NAV lookup, cross-source dedupe and FIFO grouping for Indian
+mutual funds. Source file layouts are in
+[indian-broker-statement-formats](../indian-broker-statement-formats/SKILL.md);
+tax on the realised gains is in
+[indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
 
 Naming conventions differ by AMC and change at SEBI re-categorisations. Use
 synthetic names in tests, for example "Example Flexi Cap Fund - Direct Growth".

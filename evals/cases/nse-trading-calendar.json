@@ -1,0 +1,73 @@
+{
+  "skill_name": "nse-trading-calendar",
+  "trigger": {
+    "positive": [
+      { "prompt": "Generate the list of NSE trading days for my 2020-2026 backtest in pandas." },
+      { "prompt": "Is the Indian stock market open on Diwali, and is the Muhurat session a trading day for my calendar?" },
+      { "prompt": "Compute the T+1 settlement date for an NSE equity trade, accounting for holidays." },
+      { "prompt": "The Nifty weekly expiry falls on a market holiday. Which day does it expire?" },
+      { "prompt": "Can I work out NSE holidays from the dates where bhavcopy files are missing?" }
+    ],
+    "negative": [
+      { "prompt": "How do I compute time to expiry in years for a Nifty option at 14:00 on expiry day?", "owner": "nse-options-mechanics" },
+      { "prompt": "Which bhavcopy URL format should I use for NSE files after July 2024?", "owner": "nse-bhavcopy-corporate-actions" },
+      { "prompt": "What stamp duty is charged on an NSE delivery buy?", "owner": "indian-equity-charges" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "For my NSE backtest I build trading days with pd.bdate_range and pandas USFederalHolidayCalendar. Good enough?",
+      "expectations": [
+        "No: business days and US holidays are wrong for NSE; use the exchange's per-segment holiday list (NSE circular or holiday-master API) stored as dated config",
+        "Mentions that special sessions such as Muhurat or weekend budget sessions must be added"
+      ],
+      "must_match": ["(?i)holiday[- ](list|master|calendar)|circular|nseindia"],
+      "must_not_match": ["(?i)USFederalHolidayCalendar (is|works|will be) (fine|correct|ok|good enough)"]
+    },
+    {
+      "id": 2,
+      "prompt": "NSE Nifty weekly options expire on Tuesday. Tuesday 10 Nov 2026 is a trading holiday. When does that weekly contract expire?",
+      "expectations": ["On the previous trading day, Monday 9 Nov 2026, not the next trading day"],
+      "must_match": ["(?i)previous trading day|9(th)? Nov|Nov(ember)? 9|2026-11-09|Monday"],
+      "must_not_match": ["(?i)expires? on (the )?(next|following) (trading )?day|expires? on wednesday"]
+    },
+    {
+      "id": 3,
+      "prompt": "I bought NSE shares on Wednesday 18 Feb 2026. With T+1, which day do they settle?",
+      "expectations": [
+        "Friday 20 Feb 2026, because 19 Feb 2026 is a clearing (settlement) holiday even though equity trading is open",
+        "Settlement counts days on the clearing calendar, not the trading calendar"
+      ],
+      "must_match": ["(?i)20(th)? Feb|Feb(ruary)? 20|2026-02-20"],
+      "must_not_match": ["(?i)settles? (on )?(thursday,? )?(19(th)? Feb|Feb(ruary)? 19|2026-02-19)"]
+    },
+    {
+      "id": 4,
+      "prompt": "My NSE calendar drops every Saturday and Sunday. Is that correct for 2026?",
+      "expectations": [
+        "No: 2026 had live sessions on Sunday 1 Feb (Union Budget) and Sunday 8 Nov (Muhurat), each announced by circular",
+        "Those sessions are trading days with settlement obligations"
+      ],
+      "must_match": ["(?i)muhurat|budget"]
+    },
+    {
+      "id": 5,
+      "prompt": "To find NSE holidays I loop over dates and treat any date where sec_bhavdata_full returns HTTP 200 as a trading day. Any problem?",
+      "expectations": [
+        "Yes: on a holiday the URL can return 200 with the previous trading day's file, so check the date inside the file",
+        "Cross-check file presence and absence against the exchange holiday list instead of inferring holidays"
+      ],
+      "must_match": ["(?i)DATE1|date inside|previous (trading )?day|holiday[- ](list|master)|cross[- ]check"]
+    },
+    {
+      "id": 6,
+      "prompt": "I am backtesting Nifty weekly options from 2024 to 2026 and assume every weekly expiry is a Tuesday. OK?",
+      "expectations": [
+        "No: NIFTY weeklies expired on Thursday before the change; Tuesday applies to contracts expiring on or after 1 Sep 2025",
+        "The expiry weekday must be a dated lookup, with holiday shifts to the previous trading day"
+      ],
+      "must_match": ["(?i)thursday", "(?i)sep(tember)?[ .]*(1|01|2|02),? 2025|2025-09-0[12]|\\b(1|01|2|02)(st|nd)? sep(tember)?,? 2025"]
+    }
+  ]
+}

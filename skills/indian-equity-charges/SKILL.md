@@ -2,10 +2,11 @@
 name: indian-equity-charges
 description: Itemised transaction charges for Indian equity trades — STT, exchange transaction charge, SEBI turnover fee, stamp duty, brokerage, GST and DP charges, with the correct base and buy/sell side for each. Use when computing or reviewing trade costs, building a brokerage calculator, modelling backtest friction, reconciling against a contract note, or when a rupee charge figure is asserted in code or a test. Covers the NSE/BSE cash segment (delivery and intraday).
 license: MIT
-compatibility: Rates verified 2026-08-20 against broker charge schedules; re-verify before relying on them, as they change with the Union Budget and exchange circulars.
+compatibility: Rates verified 2026-11-11 against Zerodha and Groww published charge schedules; re-verify before relying on them, as they change with the Union Budget and exchange circulars.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -21,12 +22,12 @@ them does not scale with trade value at all. This skill holds the structure.
 |---|---|---|---|
 | STT | 0.1% | **both** | turnover |
 | Exchange transaction charge (NSE) | 0.00307% | both | turnover |
-| Exchange transaction charge (BSE) | varies by scrip group | both | turnover |
+| Exchange transaction charge (BSE) | varies by scrip group (0.00375% for groups A/B at Zerodha) | both | turnover |
 | SEBI turnover fee | ₹10 per crore (0.0001%) | both | turnover |
 | Stamp duty | 0.015% (₹1,500/crore) | **buy only** | turnover |
 | Brokerage | ₹0 at discount brokers for delivery | — | — |
 | GST | 18% | both | **brokerage + SEBI fee + transaction charge** |
-| DP charge | ~₹20 per scrip (varies by broker) | **sell only** | **flat, per scrip** |
+| DP charge | varies by broker: ₹15.34 at Zerodha (includes its own GST); ₹3.5 + ₹16.5 plus 18% GST at Groww | **sell only** | **flat, per scrip** |
 
 ## Equity **intraday** differs on three lines
 
@@ -37,8 +38,9 @@ them does not scale with trade value at all. This skill holds the structure.
 | Brokerage | typically 0.03% or ₹20/order, whichever is lower |
 | DP charge | **none** |
 
-Using the delivery table for an intraday trade overstates STT fourfold on the buy
-leg and understates nothing — a silent, one-directional error.
+Using the delivery table for an intraday trade charges STT on the buy leg that
+does not exist, overstates sell-leg STT fourfold and buy-side stamp duty fivefold,
+and adds a DP charge that intraday does not carry — a silent, one-directional error.
 
 ## Five things implementations get wrong
 
@@ -80,13 +82,13 @@ GST reads a subtotal, so order matters:
 
 ```
 turnover   = qty * fill_price
-stt        = round(turnover * STT_RATE)          # to nearest rupee
+stt        = round(turnover * STT_RATE)          # to nearest rupee; intraday: sell side only
 txn        = turnover * EXCHANGE_RATE            # NSE != BSE
 sebi       = turnover * 0.000001                 # Rs 10 per crore
-stamp      = is_buy  ? turnover * STAMP_RATE : 0
+stamp      = is_buy  ? turnover * STAMP_RATE : 0  # STAMP_RATE differs for intraday
 brokerage  = per broker and product
 gst        = 0.18 * (brokerage + sebi + txn)
-dp         = is_sell ? DP_PER_SCRIP : 0
+dp         = (is_sell && is_delivery) ? DP_PER_SCRIP : 0  # broker's all-in figure; its GST is not in the gst line above
 total      = stt + txn + sebi + stamp + brokerage + gst + dp
 ```
 
@@ -102,6 +104,10 @@ A charge model is a money path, so a plausible-range assertion is not a test.
   wrongly applied to both legs.
 - **Pin the GST base.** Change the STT rate and assert GST does not move. If it
   does, the base is wrong.
+- **Pin STT rounding.** Pick a turnover whose STT ends in ₹0.50 or more and
+  assert the STT line is a whole rupee, rounded at its own step.
+- **Size at absurd costs.** Assert `qty * fill_price + charges <= budget` with
+  the DP charge larger than one share's price; quantity-first sizing fails it.
 - **Test a tiny trade.** If the DP charge is modelled as a rate, a ₹500 sell will
   under-charge; if modelled flat, it will dominate. Both are informative.
 - **Report gross and net side by side** wherever a cost drag is shown. A drag
@@ -110,7 +116,8 @@ A charge model is a money path, so a plausible-range assertion is not a test.
 
 ## Keeping the rates honest
 
-**Every rate above is a moving target.** STT changed on 2024-10-01, and NSE's
+**Every rate above is a moving target.** Cash-equity STT (0.1% / 0.025%) was not
+touched by the F&O STT revisions of 2024 and Budget 2026, but NSE's cash
 transaction charge changed with a 2026-03-01 circular. Two rules:
 
 - **Load rates from a dated, single-owner table**, never inline them at a call
@@ -129,7 +136,8 @@ rate presented as fact is worse than a missing one, because it looks right.
 
 Cash segment (delivery and intraday) only. **Futures and options have different
 rates, different sides, and for options a base of premium or intrinsic value
-rather than turnover** — do not reuse this table for derivatives.
+rather than turnover** — do not reuse this table for derivatives. F&O charges
+and tax: [fno-tax-and-charges](../fno-tax-and-charges/SKILL.md).
 
 These are **transaction charges**, not tax on gains. STT reduces proceeds; it
 never nets against a capital gain. For gain taxation see

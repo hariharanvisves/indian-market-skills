@@ -1,0 +1,125 @@
+{
+  "skill_name": "indian-capital-gains-tax",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "Is a listed share held for exactly one year treated as long term in India?"
+      },
+      {
+        "prompt": "I'm porting our US tax-loss harvesting module to Indian equities. Which rules change?"
+      },
+      {
+        "prompt": "Can my long-term capital loss on shares be set off against this year's short-term gains?"
+      },
+      {
+        "prompt": "How do I compute the cost of shares bought in 2016 under the 31 January 2018 grandfathering rule for 112A?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "I lost ₹4 lakh trading Nifty options this year. How is that taxed and do I need a tax audit?",
+        "owner": "fno-tax-and-charges"
+      },
+      {
+        "prompt": "Which ITR schedule do my 112A gains go in, and how must Schedule CYLA reconcile with Schedule CG?",
+        "owner": "itr-filing-schedules"
+      },
+      {
+        "prompt": "What are the total charges on a ₹1 lakh delivery buy on NSE: STT, stamp duty, GST?",
+        "owner": "indian-equity-charges"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I bought listed shares (STT paid) on 2023-03-01 and sold them on 2024-03-01. That is 366 days. Is the gain STCG or LTCG?",
+      "expectations": [
+        "Classifies the gain as short term, because the holding is exactly 12 months and LTCG needs more than 12 months",
+        "Explains that the period is counted in calendar months, not days, so 366 days across 29 February does not make it long term"
+      ],
+      "must_match": [
+        "(?i)\\b(short[- ]term|STCG)\\b",
+        "(?i)calendar month|12 months|twelve months"
+      ],
+      "must_not_match": [
+        "(?i)\\b(this|it|the gain) (is|counts as|qualifies as) (a )?(long[- ]term|LTCG)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "This financial year I have ₹3,00,000 of STCG on listed shares, ₹0 LTCG, and a ₹2,00,000 long-term capital loss on other shares. How much STCG is taxable?",
+      "expectations": [
+        "States that a long-term capital loss can be set off only against LTCG, never STCG",
+        "Concludes the full ₹3,00,000 STCG stays taxable",
+        "Says the ₹2,00,000 LTCL is carried forward as a long-term loss"
+      ],
+      "must_match": [
+        "(?i)only\\b[^.]{0,40}\\bagainst (long[- ]term|LTCG)|can(not|'t|’t)\\b[^.]{0,40}\\b(set off|offset|reduce|be used)|not (be )?(set off|offset)",
+        "(?i)carr(y|ied|ies|ying)[- ]forward"
+      ],
+      "must_not_match": [
+        "(?i)taxable (STCG|short[- ]term (capital )?gain) (of|is|=|becomes) ₹?\\s?1,?00,?000\\b"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I sold my Infosys shares at a ₹40,000 short-term loss and bought the same shares back the next morning. Does a wash-sale rule disallow the loss in India?",
+      "expectations": [
+        "States India has no wash-sale rule, so the loss is allowed despite the re-purchase",
+        "If it mentions an Indian analogue, describes §94(7) as limited to an exempt dividend around a record date, capped at the dividend, not a re-entry window"
+      ],
+      "must_match": [
+        "(?i)\\bno\\b.{0,30}wash[- ]sale|wash[- ]sale.{0,60}(not|n't)\\b"
+      ],
+      "must_not_match": [
+        "(?i)loss (is|will be) disallowed",
+        "(?i)30[- ]day (window|rule) (applies|disallows)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "In FY 2025-26 I sold two listed-equity lots held over two years, STT paid, each with a ₹1,00,000 gain. What LTCG tax do I owe before surcharge and cess?",
+      "expectations": [
+        "Applies the ₹1,25,000 exemption once to the aggregate ₹2,00,000 LTCG, not per trade",
+        "Taxes the remaining ₹75,000 at 12.5%, giving ₹9,375"
+      ],
+      "must_match": [
+        "75,?000",
+        "9,?375"
+      ],
+      "must_not_match": []
+    },
+    {
+      "id": 5,
+      "prompt": "I have a ₹3 lakh short-term capital loss on stocks this year, no capital gains, and ₹18 lakh salary. Like the US $3,000 rule, how much of the loss can I deduct from salary?",
+      "expectations": [
+        "States none of the capital loss can be set off against salary or other ordinary income",
+        "Says the loss carries forward for 8 years, only if the return is filed by the §139(1) due date"
+      ],
+      "must_match": [
+        "(?i)(none|nothing|cannot|can't|not (be )?(deduct|set off|offset)|no (such )?(deduction|equivalent))",
+        "(?i)\\b(8|eight) (assessment |tax )?years",
+        "(?i)due date|139\\(1\\)|on time"
+      ],
+      "must_not_match": [
+        "(?i)(deduct|offset|set off) (up to )?(₹|rs\\.?|\\$)\\s?3,?000"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I bought listed shares in March 2016 at ₹100. Their fair market value on 31 January 2018 was ₹200. I sold them in FY 2025-26 at ₹150. What is my cost of acquisition and gain under 112A?",
+      "expectations": [
+        "Uses cost = max(actual cost, min(FMV on 31 Jan 2018, sale consideration)) = max(100, min(200, 150)) = ₹150",
+        "Concludes the gain is zero, not a ₹50 loss"
+      ],
+      "must_match": [
+        "(?i)(cost|basis)\\D{0,60}150\\b",
+        "(?i)\\b(zero|nil|no)\\s+(capital\\s+)?(gain|loss)|\\bneither\\b[^.]{0,30}\\bgain\\b[^.]{0,15}\\bloss|gain (of|is|=) ₹?\\s?0\\b|₹\\s?0\\b"
+      ],
+      "must_not_match": [
+        "(?i)(you have|you book|results in|giving|gives) a (capital )?loss of ₹?\\s?50\\b"
+      ]
+    }
+  ]
+}

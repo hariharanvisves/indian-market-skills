@@ -1,12 +1,13 @@
 ---
 name: nse-bhavcopy-corporate-actions
-description: Building a price history from NSE bhavcopy and the NSE corporate-actions API — file formats and where each is served, series filtering, column-layout traps, parsing split/bonus/dividend subject text, adjustment rules, banded post-action price walks, and caching Yahoo fetches. Use when ingesting NSE bhavcopy, adjusting prices for splits and bonuses, parsing corporate-action subjects, debugging a price cliff or a missing symbol history, or fetching Yahoo Finance prices for NSE tickers.
+description: Building a price history from NSE bhavcopy (legacy cm*bhav.csv, sec_bhavdata_full, CM-UDiFF) and the NSE corporate-actions API — file formats and where each is served, series filtering (EQ vs BE/BZ), column-layout traps, parsing split/bonus/dividend subject text, adjustment rules, banded post-action price walks, and caching Yahoo fetches. Use when ingesting NSE bhavcopy, adjusting prices for splits and bonuses, parsing corporate-action subjects, debugging a price cliff or a missing symbol history, or fetching Yahoo Finance prices for .NS tickers.
 license: MIT
 compatibility: Applies to NSE cash-market bhavcopy files and the nseindia.com corporate-actions API. Format dates apply to NSE only.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
+  verified: "2026-11-11"
 ---
 
 # NSE Bhavcopy and Corporate Actions
@@ -23,9 +24,9 @@ notice; re-probe before depending on one.
 
 | Format | Range | Notes |
 |---|---|---|
-| `content/historical/EQUITIES/<YYYY>/<MON>/cm<DDMONYYYY>bhav.csv.zip` | 2010+ (legacy) | OHLC, volume, turnover, prev close; ISIN column in roughly 2012-2019 |
-| `products/content/sec_bhavdata_full_<DDMMYYYY>.csv` | about Oct 2019+ | adds trade count and delivery quantity/percent; no ISIN column |
-| CM-UDiFF common bhavcopy | from 8 Jul 2024 | replaces the legacy file (NSE circular 62424, 12 Jun 2024) |
+| `content/historical/EQUITIES/<YYYY>/<MON>/cm<DDMONYYYY>bhav.csv.zip` | served back to 1995; last file 5 Jul 2024 (legacy) | OHLC, volume, turnover, prev close; `TOTALTRADES` and `ISIN` columns from about late 2011 (absent in Jan 2011 files) |
+| `products/content/sec_bhavdata_full_<DDMMYYYY>.csv` | 30 Sep 2019+, still published | adds average price and delivery quantity/percent; no ISIN column |
+| `content/cm/BhavCopy_NSE_CM_0_0_0_<YYYYMMDD>_F_0000.csv.zip` (CM-UDiFF common bhavcopy) | from 8 Jul 2024 | replaces the legacy file (NSE circular 62424, 12 Jun 2024); has ISIN, no average price, no delivery data |
 
 Source for the UDiFF date: NSE all-reports page. Legacy bhavcopy was discontinued
 on 8 Jul 2024. A pipeline hard-wired to the legacy name stops getting files on that
@@ -33,14 +34,17 @@ date without an error unless it checks.
 
 Rules:
 - Use `nsearchives.nseindia.com`. `archives.nseindia.com` returned 403 for the same
-  paths. A plain browser User-Agent was enough; no cookies for these files.
-- Delivery quantity and trade count **do not exist before about Oct 2019** (a
-  2019-07-01 request 404s, 2019-10-01 serves). Emit them **empty, never 0**, so a
-  real zero-delivery session and an unavailable field do not look alike.
+  paths earlier but served them on 2026-11-11; do not depend on it. A plain browser
+  User-Agent was enough; no cookies for these files.
+- Delivery quantity **does not exist before 30 Sep 2019** (a 2019-09-27 request
+  404s, 2019-09-30 serves) and is absent from UDiFF, so after 8 Jul 2024 it comes
+  only from `sec_bhavdata_full`. Trade count is absent before about late 2011.
+  Emit unavailable fields **empty, never 0**, so a real zero-delivery session and an
+  unavailable field do not look alike.
 - Likewise leave `AvgPrice` empty for layouts that lack it. A synthetic
   `(high+low)/2` is indistinguishable from the exchange's figure downstream.
-- A missing file returning HTTP 200 with an HTML body is a common failure shape on
-  NSE-adjacent hosts. Verify `PK`/CSV header bytes, not the status.
+- A missing file can come back as an HTML body: HTTP 404 on `nsearchives`, HTTP 200
+  on `niftyindices.com`. Verify `PK`/CSV header bytes, not the status.
 
 Detector: assert each date range parsed yields the expected column set; fail if a
 trading day returns zero rows.
@@ -57,7 +61,7 @@ SM and ST are the same security under a trading restriction. Of 151+ series code
 the N-series, Y/Z/W series, GS, GB, MF and the like carried different ISINs, so
 they are different instruments.
 
-Why it matters: BE and BZ are trade-for-trade segments (NSE series legend). A
+Why: BE and BZ are trade-for-trade segments (NSE series legend). A
 symbol moved into one is the same listing under surveillance, not a delisting.
 Dropping those series from the liveness test fabricates a termination date at the
 migration. One symbol was measured as ending 252 days early with 68 sessions
@@ -73,7 +77,9 @@ series; a gap of months is the signature of a series migration.
 
 ## 3. Column layout: the symbol is not column 1
 
-An exported file named `daily_prices` keyed on symbol, with header
+Rule: read the header before any positional read.
+
+Why: an exported file named `daily_prices` keyed on symbol, with header
 `Date,Symbol,...`, has the **date** first. Two sessions in one hour got it wrong:
 `grep -c '^SYMBOL,'` returned 0 on a symbol with thousands of rows, and
 `cut -f1 | sort -u | wc -l` reported 4,194 "symbols", which is the count of distinct
@@ -87,12 +93,15 @@ Rules:
   than a data failure.
 - Anchor one side of any comparison on an independently known quantity (a manifest
   symbol count), so a wrong column cannot agree with itself.
-- Raw bhavcopy: modern files have a leading space after each comma (`ZOMATO, EQ`),
-  legacy files do not. `grep '^ZOMATO,EQ,'` silently finds nothing.
-- Legacy layout has no previous-close column in the position the newer layout uses.
-  Reading index 3 in the legacy layout returns `LOW`, which once produced hundreds
-  of consecutive daily "splits" per symbol. Guard the **extraction**, not just the
-  comparison.
+- `sec_bhavdata_full` has a leading space after each comma (`ZOMATO, EQ`); legacy and
+  UDiFF files do not. `grep '^ZOMATO,EQ,'` silently finds nothing.
+- The legacy layout carries `PREVCLOSE` at 0-based index 7, while `sec_bhavdata_full`
+  has `PREV_CLOSE` at index 3. Reading index 3 of a legacy row returns `HIGH`, which
+  once produced hundreds of consecutive daily "splits" per symbol. Guard the
+  **extraction**, not just the comparison.
+
+Detector: compare a distinct-symbol count against a manifest count. A count equal
+to the number of distinct dates means the date column was read.
 
 ## 4. Snapshot identity: content hash, not row count
 
@@ -117,8 +126,11 @@ to move.
 
 ## 5. Corporate-actions API
 
-`nseindia.com/api/corporates-corporateActions` is **cookie-gated** (GET the homepage
-first) and must be queried **one year at a time**. It serves 2010+. The `subject`
+`nseindia.com/api/corporates-corporateActions?index=equities&from_date=DD-MM-YYYY&to_date=DD-MM-YYYY`
+needs `index=equities` (otherwise `Missing index`). It was earlier cookie-gated (GET
+the homepage first) and queried one year at a time; on 2026-11-11 it answered a bare
+curl and a 2000-2024 range in one call (39,046 rows), and serves back to at least
+2000. Keep cookie priming and year chunks as the safe default. The `subject`
 field is free text; every trap below was found by reading unparsed rows, which took
 price-affecting unparsed rows from 27 to 1.
 
@@ -160,7 +172,8 @@ change cannot zero a field silently.
   ex-date bar already trades adjusted. A 09:15 bar on the ex-date counts as on it.
   Compare dates, not timestamps. Volume scales inversely.
 - Keep full precision. Re-rounding to tick size makes a 1:10 split accumulate drift.
-- A 1-for-2 split is factor 0.5 (from/to). Bonus 5:7 is 7/12.
+- A 1-for-2 split (one share becomes two) is factor 0.5. A face-value split Rs.10
+  to Rs.2 is 2/10 = 0.2 (new over old). Bonus 5:7 is 7/12.
 - **Rights are not adjusted by default.** They are only partly a price event
   (discounted, requires subscription), and a naive share-count ratio overstates it.
 - **Dividends stay raw.** Ordinary dividends leave the price series untouched; a
@@ -174,8 +187,8 @@ change cannot zero a field silently.
 Whether bhavcopy prices are unadjusted for corporate actions: NSE publishes no
 statement that settles it. **Verify empirically on a known split date**: pick a
 symbol with a documented split, compare the close the day before and the day of, and
-require a cliff of about the split ratio. One such check (a 5:1 split, raw 2273 to
-454, adjusted 227.34 to 227.00) is how the pipeline's adjustment is proven.
+require a cliff of about the split ratio. One such check (a 5:1 split, raw close
+2273 to 454, a 0.2 cliff) is how the pipeline's adjustment is proven.
 
 Detector for that check: compare only **consecutive trading days** (cap the gap at
 about 5). A partially harvested cache leaves a seam, and comparing across it reports
@@ -205,22 +218,25 @@ Rules:
 
 ## 8. Price-sanity guard on the bhavcopy path
 
-A bhavcopy loader without a sanitiser serves the raw split cliff. A hedge ETF held
+Rule: the bhavcopy path needs its own sanitiser.
+
+Why: a bhavcopy loader without a sanitiser serves the raw split cliff. A hedge ETF held
 across a 1:100 split booked a fabricated total loss (-99%). Yahoo was protected only
 by accident because its sanitiser discards the pre-split scale.
 
-Apply the rule from the pitfalls skill: keep the **longest clean run**, and the
-defect bar belongs to neither segment. Do not cut everything before the last defect.
-A defect at index `i` means the move into `i` is bad, so `i` is the untrustworthy
-print and the surviving later segment starts at `i + 1`. Measure where defects fall
-in your own series before shipping; one recent-demerger series lost 1,823 bars to the
+Apply the rules in §3 of
+[indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md) (longest
+clean run; the defect bar belongs to neither segment). One recent-demerger series lost 1,823 bars to the
 "cut before the last defect" rule.
 
 Do not retry a market-wide derivation of splits from the next day's previous-close.
 It failed three ways: it was noise-dominated (12,062 breaks over 1,776 sessions,
-mostly cache gaps where "yesterday" was a week old); the field does not exist in the
-legacy layout (§3); and the one symbol it was built for split on the layout
+mostly cache gaps where "yesterday" was a week old); the field sits at a different
+index in the legacy layout (§3); and the one symbol it was built for split on the layout
 changeover day.
+
+Detector: load a symbol across a known split through the bhavcopy path and fail
+on any one-bar move near the split ratio.
 
 ## 9. Fetching Yahoo prices for NSE tickers
 
@@ -237,13 +253,35 @@ changeover day.
 - Skip any per-symbol politeness delay on a cache hit, or most of the runtime
   remains. In one measurement a cold run took 23.3s and a warm one 3.5s with
   byte-identical output.
-- Yahoo serves nothing for retired NSE tickers (see the universe skill); this cache
-  does not change that.
+- Yahoo serves nothing for retired NSE tickers (see
+  [nse-universe-survivorship](../nse-universe-survivorship/SKILL.md) §9); this
+  cache does not change that.
 
 Detector: stub the network; assert two keys differing only by exchange, period or
 interval do not collide, and a rejected fetch is retried on the next call.
 
+## Verifying an implementation
+
+- Each format's date range yields its expected column set; a trading day with
+  zero rows fails; unavailable delivery and `AvgPrice` are empty, not 0 (§1).
+- Prices use `EQ` only; liveness uses the same-listing series set (§2).
+- Editing one price without changing the row count moves the content hash (§4).
+- The corporate-action parser prints its coverage ratio, and fixtures include
+  `Re.1`, a bonus-plus-split compound, `Bonus Deb`, a two-dividend subject and a
+  `10:2` split (§5).
+- Adjustment uses `date < exDate`; a known split shows a raw cliff of about the
+  ratio and a flat adjusted series across consecutive trading days; blanking the
+  adjusted column or inverting the factor fails the check (§6).
+- Each banded-walk gate has its own synthetic fixture and mutation (§7).
+- Yahoo cache keys differing by exchange, period or interval do not collide, and a
+  rejected fetch is retried (§9).
+
 ## Scope
+
+NSE cash-segment prices and corporate actions. Universe membership and renames
+are in [nse-universe-survivorship](../nse-universe-survivorship/SKILL.md); tax
+treatment of bonus and split is in
+[indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
 
 Informational engineering guidance. Verify any date, URL or layout against NSE's
 own pages before depending on it; the bhavcopy-unadjusted behaviour in particular

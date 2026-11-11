@@ -1,17 +1,18 @@
 ---
 name: nse-universe-survivorship
-description: Building survivorship-free NSE index universes — reconstructing point-in-time membership from index-change press releases, why an ever-member union is a weaker claim, press-release parser defects, and deriving ticker renames without merging distinct companies. Use when backtesting over Nifty 50/100/200/500 or other NSE indices, ingesting NSE index-change releases or constituent CSVs, building a symbol rename map, or when a backtest return looks too good against the index's own buy-and-hold.
+description: Building survivorship-free NSE index universes — reconstructing point-in-time membership from index-change press releases, why an ever-member union is a weaker claim, press-release parser defects, and deriving ticker renames without merging distinct companies. Use when backtesting over Nifty 50/100/200/500 or other NSE indices, ingesting NSE index-change releases or constituent CSVs (ind_nifty50list.csv), building a symbol rename map, handling delisted tickers, or when a backtest return looks too good against the index's own buy-and-hold.
 license: MIT
 compatibility: Applies to NSE index data (nseindia.com, niftyindices.com) and NSE equity tickers. BSE needs a different, browser-driven route.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
+  verified: "2026-11-11"
 ---
 
 # NSE Universe Survivorship
 
-Goes deeper than §2 and §3 of [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md),
+Goes deeper than §2 of [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md),
 which states the basic bias. Read that first. Price-side defects (formats,
 series, corporate actions) are in
 [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
@@ -24,14 +25,14 @@ without notice. Re-probe before relying on one.
 Rule: never apply today's list to past dates.
 
 Why: measured on one backtest set, strategies reported 19.5-29.0% CAGR against a
-9.66% Nifty 50 buy-and-hold over the same 2018-2026 window, 11.8-19.3pt of
+9.66% Nifty 50 buy-and-hold over the same 2018-2026 window, 9.8-19.3pt of
 "alpha" where published Indian momentum research lands at 3-6pt. A wider
 universe made it worse: Nifty 50 21.5%, Nifty 100 40.0%, Nifty 200 66.1% CAGR.
 Broader indices hold smaller, more volatile names, so survivors are more extreme
 winners and the failures are absent from the list entirely.
 
-Detector: run the same strategy on the index's own buy-and-hold CAGR for the
-window. An excess in the teens is the bias, not a finding. Never propose a
+Detector: compare the strategy's CAGR with the index's own buy-and-hold CAGR over
+the same window. An excess in the teens is the bias, not a finding. Never propose a
 broader universe as a mitigation.
 
 Scale caveat: with membership held fixed and only the price source varied
@@ -52,10 +53,10 @@ was not present to remove").
 
 Source: NSE's press-release CMS endpoint,
 `GET https://www.nseindia.com/api/press-release-cms20?fromDate=DD-MM-YYYY&toDate=DD-MM-YYYY`
-(cookie-gated; load a nseindia.com page first). Four traps:
+(earlier cookie-gated; a bare curl worked on 2026-11-11, so keep loading a nseindia.com page first only as a fallback). Four traps:
 
-1. Filter `field_type` **case-insensitively**. It is `"NSE INDICES"` in older
-   records and `"NSE Indices"` from about mid-2025. An exact `===` drops every
+1. Filter `content.field_type` **case-insensitively**. It is `"NSE INDICES"` in older
+   records and `"NSE Indices"` from May 2025. An exact `===` drops every
    recent release and looks exactly like an archive that ended in May 2025.
 2. Not the circulars endpoint. It is a different stream (about 1,100 records for
    early 2018 and zero index changes).
@@ -204,6 +205,9 @@ midsmallcap 400 date from about 2016, large-midcap 250 from 2018.
   endpoints return only the top 30 for every index, which looks plausible and
   silently truncates.
 
+Detector: reject a body that starts with `<`, and a list shorter than the index's
+member count.
+
 ## 8. Ticker renames: a map applied to prices is an identity claim
 
 Prices key on the symbol as it traded that day, so an unfolded rename truncates
@@ -213,9 +217,13 @@ a different ticker in the window.
 
 Rules, each measured:
 
-1. **ISIN reach is partial.** One bhavcopy layout carries ISIN (about 2012-2019);
-   the later layout dropped it. A rename is ISIN-derivable only if the old ticker
-   traded in an ISIN-bearing window. Renames after 2019 are invisible to it.
+1. **ISIN reach depends on which files you load.** The legacy bhavcopy carries ISIN
+   from about late 2011 to 5 Jul 2024 and UDiFF carries it after; only
+   `sec_bhavdata_full` has none (formats in
+   [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) §1). A pipeline that
+   switched to `sec_bhavdata_full` in 2019 loses ISIN for later renames. A rename is
+   ISIN-derivable only if the old ticker traded in an ISIN-bearing window of the
+   files you loaded.
 2. **ISIN wins conflicts.** Where price continuity and ISIN disagree, the ISIN is on
    the correct final ticker and continuity stopped at an intermediate hop.
 3. **Do not chain hops.** Chaining assumes every intermediate is in the map; one
@@ -243,8 +251,8 @@ Rules, each measured:
 8. **Uniqueness is not identity.** Promoting a candidate because it is the only
    survivor converts every killed rival into a confident rename with no evidence.
    Track a separate `identityConfirmed` flag; "applied" is not "confirmed".
-9. **Series set for "is this listing alive".** Use the same-listing series (see the
-   bhavcopy skill). Dropping them fabricates a termination date and opens a false
+9. **Series set for "is this listing alive".** Use the same-listing series
+   ([nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) §2). Dropping them fabricates a termination date and opens a false
    successor window.
 10. **Regeneration is a semantic change.** A wider price corpus reduced candidate
     counts without raising identity certainty and promoted ambiguous entries to
@@ -282,12 +290,35 @@ load equals size in the file.
 
 ## 11. Guards left on by default are modelling decisions
 
-A symbol-count cap (30) applied to a 82-name point-in-time union discarded 63% of
-it and cost 4.6pt of CAGR, an order of magnitude larger than the survivorship
-effect at the same configuration. Resolve any sampling limit against the real
-universe size once membership is known, and report what was dropped.
+Rule: resolve any sampling limit against the real universe size once membership
+is known, and report what was dropped.
+
+Why: a symbol-count cap (30) applied to an 82-name union of point-in-time
+snapshots discarded 63% of it and cost 4.6pt of CAGR, an order of magnitude
+larger than the survivorship effect at the same configuration.
+
+## Verifying an implementation
+
+- Strategy CAGR is reported beside the index's own buy-and-hold for the same
+  window (§1).
+- Membership is built backwards from a verified current list, and its earliest
+  covered date is a field on every result (§2).
+- Deleting one real 1-for-1 review makes the build complain; a warning
+  quarantines the output (§3).
+- A union artifact carries a caveat field, and a test asserts the text (§4).
+- The parser's emitted symbol set has no all-digit, single-character or
+  legal-suffix entries; any duplicate row aborts the write (§5).
+- Each index has an event-count floor per naming era, and no factor index bleeds
+  in (§6).
+- The rename map's confirmed set is asserted by name; many-to-one folds and
+  ambiguous successors stay unapplied (§8).
+- No universe file holds a suffix; size after load equals size in the file (§10).
 
 ## Scope
+
+Index membership and ticker identity for NSE indices. Price formats and
+corporate actions are in
+[nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
 
 Informational engineering guidance, not investment advice. Source URLs and field
 names are observed behaviour, not a published contract.

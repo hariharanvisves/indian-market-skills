@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Unverified claims list
+    url: https://github.com/hariharanvisves/indian-market-skills/blob/main/docs/unverified-claims.md
+    about: Claims waiting on a primary source. Confirm one here before opening a new issue.

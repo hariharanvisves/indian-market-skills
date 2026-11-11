@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "indian-market-skills",
+  "description": "Agent Skills and reviewer agents for Indian equity markets, tax and broker data.",
+  "owner": {
+    "name": "hariharanvisves",
+    "url": "https://github.com/hariharanvisves"
+  },
+  "plugins": [
+    {
+      "name": "indian-market-skills",
+      "source": "./",
+      "description": "Agent Skills and read-only reviewer agents for Indian equity markets, tax and broker data.",
+      "version": "1.1.0",
+      "category": "finance"
+    }
+  ]
+}

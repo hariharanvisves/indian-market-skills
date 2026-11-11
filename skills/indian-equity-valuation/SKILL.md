@@ -1,11 +1,12 @@
 ---
 name: indian-equity-valuation
-description: India-specific adjustments for DCF and comparable-company valuation of listed Indian equities — corporate tax regime inputs, risk-free rate source, beta and ERP currency consistency, Ind AS 116 EBITDA comparability, consolidated vs standalone, reporting lag and point-in-time data, promoter pledge, dividend taxation, and which sectors need a different model. Use when building or reviewing a DCF, a peer-multiple table, a dividend discount model or a valuation screen for NSE/BSE companies.
+description: India-specific adjustments for DCF and comparable-company valuation of listed Indian equities — corporate tax regime inputs, risk-free rate source, beta and ERP currency consistency, Ind AS 116 EBITDA comparability, consolidated vs standalone, reporting lag and point-in-time data, promoter pledge, dividend taxation, and which sectors need a different model. Use when building or reviewing a DCF, WACC or cost-of-equity input, a peer-multiple (EV/EBITDA, P/E) table, a dividend discount model or a valuation screen for NSE/BSE companies.
 license: MIT
 compatibility: Applies to NSE/BSE-listed non-financial companies. Method-agnostic; covers only the India deltas to standard DCF and comps practice.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
+  verified: "2026-11-11"
   jurisdiction: India
 ---
 
@@ -79,6 +80,9 @@ present it as a statistic. It must also sit below the discount rate with a
 comfortable spread, and the terminal reinvestment rate must be consistent with
 it (`g = reinvestment × ROIC`).
 
+**Why.** Terminal value is often most of EV, and explodes as g nears the
+discount rate.
+
 **Detector.** Terminal value share of EV is reported; above ~75% is flagged for
 sensitivity. Run a table of ±100 bp on g and on WACC.
 
@@ -105,6 +109,8 @@ holding-company or sum-of-the-parts analysis, and then apply an explicit
 holding-company discount to listed-subsidiary stakes. Minority interest and
 associates must be in the EV-to-equity bridge.
 
+**Why.** Standalone omits subsidiaries, so mixed bases mismatch EV and EBITDA.
+
 **Detector.** Numerator (market cap + net debt + minorities) and denominator
 (EBITDA) come from the same basis; mixing standalone EBITDA with consolidated
 net debt is the common slip.
@@ -119,6 +125,8 @@ FY, not calendar year.
 Build TTM from quarterly results: `TTM = last FY + current YTD − prior-year YTD`.
 In a **backtest**, a figure is usable only from its **disclosure date**, not its
 period end; and restated numbers must not overwrite what was knowable then.
+
+**Why.** Joining on period end trades on results not yet published: look-ahead.
 
 **Detector.** Each fundamental row carries `periodEnd` and `disclosedAt`; a
 backtest join uses `disclosedAt <= decisionDate`. Test: a quarter ending 31 Dec
@@ -143,6 +151,8 @@ date it; do not use a pledge figure from a stale snapshot.
 **post-tax** dividends at the holder's slab rate; for an institution, the
 treatment differs — state which.
 
+**Why.** The holder now pays the tax; a pre-tax DDM overstates value to them.
+
 **Detector.** The DDM names the holder type and tax treatment; no pre-2020
 "dividend after DDT" assumption survives.
 
@@ -162,12 +172,20 @@ before any statistics are computed.
 deposits, and purchases from promoter entities can shift margin and cash. Adjust
 or at least flag; do not silently normalise.
 
+**Why.** Related-party terms need not be arm's length, so margins built on them
+may not persist.
+
+**Detector.** The model lists each related-party item as adjusted or flagged;
+an empty list for a group with material related-party flows is a gap.
+
 ## 12. Peer set
 
 **Rule.** Peers are **listed Indian companies** on the same accounting basis
 (Ind AS, consolidated, same lease treatment), similar business mix, size and
 growth. Foreign peers need a country-risk and tax adjustment you state. Report
 **median and range** with the count, and drop a peer only with a written reason.
+
+**Why.** A mean over a few mismatched peers is one outlier's number.
 
 **Detector.** Fewer than ~5 peers → say so; do not print a mean as if it were
 a market consensus.
@@ -180,8 +198,19 @@ publishing research for consideration can fall under the SEBI Investment
 Advisers or Research Analysts regulations. Whether a given use is in scope is a
 legal question — take counsel; this skill is not legal advice.
 
+## Verifying an implementation
+
+- No bare `0.25` / `0.30` tax constant; `taxRegime` is an explicit input (§1).
+- rf, ERP and every cash flow carry `{value, asOfDate, source, currency}`; a
+  currency mismatch is rejected (§2, §3).
+- Terminal value share of EV is reported, with ±100 bp tables on g and WACC (§4).
+- Each multiple states its lease treatment and statement basis (§5, §6).
+- A quarter ending 31 Dec is not visible on 15 Jan in a backtest join (§7).
+- Financials are excluded from EV-based multiples before statistics run (§10).
+
 ## Scope
 
-Informational engineering guidance. For tax on gains see
+India deltas to DCF, comps and DDM for NSE/BSE-listed companies; not a full
+valuation method. Informational engineering guidance. For tax on gains see
 [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md); for data
 hazards see [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md).

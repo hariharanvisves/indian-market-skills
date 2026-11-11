@@ -1,0 +1,13 @@
+{
+  "name": "indian-market-skills",
+  "version": "1.1.0",
+  "description": "Agent Skills and read-only reviewer agents for Indian equity markets, tax and broker data: capital gains, ITR schedules, transaction charges, NSE data, backtests, options and broker API safety.",
+  "author": {
+    "name": "hariharanvisves",
+    "url": "https://github.com/hariharanvisves"
+  },
+  "homepage": "https://github.com/hariharanvisves/indian-market-skills",
+  "repository": "https://github.com/hariharanvisves/indian-market-skills",
+  "license": "MIT",
+  "keywords": ["india", "nse", "bse", "capital-gains", "income-tax", "itr", "zerodha", "kite-connect", "mutual-funds", "backtesting", "options"]
+}

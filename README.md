@@ -1,5 +1,8 @@
 # Indian Market Skills
 
+[![validate](https://github.com/hariharanvisves/indian-market-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/hariharanvisves/indian-market-skills/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [Agent Skills](https://agentskills.io) for Indian equity markets, tax and broker
 data. Portable across Claude Code, Cursor, Codex, Gemini CLI and other
 skills-compatible agents.
@@ -25,6 +28,11 @@ because the **rules** differ. These skills exist to close that gap.
 | [`momentum-factor-research`](skills/momentum-factor-research/) | Performance/volatility factors, estimator choice, parameter sensitivity, factor-vs-portfolio validation, safe formula engines |
 | [`kite-connect-safety`](skills/kite-connect-safety/) | Kite Connect login and token handling, order safety (ceiling, idempotency, UNKNOWN state), authorization, position-aware rebalancing |
 | [`indian-equity-valuation`](skills/indian-equity-valuation/) | India deltas for DCF and comps: corporate tax regimes, FBIL risk-free rate, Ind AS 116, consolidated accounts, results lag, pledges |
+| [`fno-tax-and-charges`](skills/fno-tax-and-charges/) | F&O and intraday as business income (non-speculative vs speculative), ITR-3, tax-audit turnover, F&O STT, stamp duty and exchange charges |
+| [`corporate-action-taxation`](skills/corporate-action-taxation/) | Cost basis and holding period across bonus, split, rights, demerger and merger; buybacks in three dated regimes (deemed dividend from 1 Oct 2024 to 31 Mar 2026, capital gains again from 1 Apr 2026); dividend and bonus stripping |
+| [`foreign-equity-for-residents`](skills/foreign-equity-for-residents/) | US stocks and RSUs for resident Indians: 24-month threshold, SBI TT rate conversion, LRS and TCS, DTAA withholding and Form 67/44, Schedule FA on a calendar year |
+| [`nse-trading-calendar`](skills/nse-trading-calendar/) | Trading and clearing holidays by segment, Muhurat and special sessions, T+1 dates, expiry shifts and the dated weekly-expiry history |
+| [`indian-broker-api-safety`](skills/indian-broker-api-safety/) | SEBI's retail algo framework (algo IDs, static IP, order-rate threshold) and auth, token, idempotency and order-state deltas across Upstox, Dhan, Angel One, ICICI Breeze and Fyers |
 
 ## Agents
 
@@ -56,6 +64,73 @@ mostly against US markets — use them for the method, and take every India rule
 
 ## Install
 
+**Any agent, one command.** The [skills CLI](https://github.com/vercel-labs/skills)
+installs into Claude Code, Codex, Cursor, Gemini CLI and many other agents:
+
+```bash
+npx skills add hariharanvisves/indian-market-skills                  # all 18 skills
+npx skills add hariharanvisves/indian-market-skills --list           # browse first
+npx skills add hariharanvisves/indian-market-skills --skill indian-capital-gains-tax
+```
+
+This installs skills only. Use a native plugin below to get the reviewer agents
+and the `/review-*` commands as well.
+
+<details>
+<summary><b>Claude Code (recommended)</b></summary>
+
+```
+/plugin marketplace add hariharanvisves/indian-market-skills
+/plugin install indian-market-skills@indian-market-skills
+```
+
+On Claude Code 2.1.275 or later, one step:
+
+```
+/plugin install indian-market-skills --marketplace hariharanvisves/indian-market-skills
+```
+
+Plugin skills, agents and commands are namespaced:
+`/indian-market-skills:review-tax`, `@agent-indian-market-skills:indian-tax-reviewer`.
+
+If cloning over SSH fails, add the marketplace by its HTTPS URL instead:
+`/plugin marketplace add https://github.com/hariharanvisves/indian-market-skills.git`.
+
+For local development, run `claude --plugin-dir /path/to/indian-market-skills`.
+
+</details>
+
+<details>
+<summary><b>Codex</b></summary>
+
+```bash
+codex plugin marketplace add hariharanvisves/indian-market-skills
+codex plugin add indian-market-skills@indian-market-skills
+```
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+```bash
+gemini extensions install https://github.com/hariharanvisves/indian-market-skills
+```
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+```bash
+npx skills add hariharanvisves/indian-market-skills -a cursor
+```
+
+</details>
+
+<details>
+<summary><b>Manual copy</b></summary>
+
 Copy a skill directory into your agent's skills folder, and an agent file into its agents folder:
 
 ```bash
@@ -66,6 +141,20 @@ cp indian-market-skills/agents/indian-tax-reviewer.md ~/.claude/agents/
 
 Or place it in a project at `.claude/skills/` so it loads only for that repo.
 Restart the agent session and the skill is available.
+
+</details>
+
+## Commands
+
+Each command runs the matching reviewer agent on a path or git range. If you
+give no target, it reviews the current diff.
+
+| Command | Agent |
+|---|---|
+| `/review-tax` | `indian-tax-reviewer` |
+| `/review-ingestion` | `statement-ingestion-reviewer` |
+| `/review-backtest` | `backtest-reviewer` |
+| `/review-broker` | `broker-safety-reviewer` |
 
 ## Four rules that make US-authored tax code wrong in India
 
@@ -80,8 +169,10 @@ Called out here because they cause silent, wrong-direction errors:
 4. **Carry-forward is 8 years and conditional** on filing by the §139(1) due
    date — not indefinite.
 
-A fifth, for the boundary: LTCG requires **more than** 12 months, so a holding of
-exactly 365 days is short term. `>= 365` flips a 20% rate to 12.5%.
+A fifth, for the boundary: LTCG requires **more than** 12 months, counted in
+calendar months, not days. A holding of exactly 12 months is short term, so
+`>=` flips a 20% rate to 12.5%. A `days_held > 365` check is also wrong when the
+window spans 29 February.
 
 ## On the rates
 
@@ -101,16 +192,27 @@ Informational and engineering guidance only. **Not tax, legal or investment
 advice.** Consult a qualified professional. Nothing here constitutes a
 recommendation to buy or sell any security.
 
-Coverage is the **NSE/BSE cash segment**. Derivatives have different charge bases
-and sides. Virtual digital assets (crypto) are a separate regime under §115BBH —
+Coverage is the **NSE/BSE cash segment** and resident individuals. Equity and
+index derivatives are covered only in `fno-tax-and-charges`, `nse-options-mechanics`
+and the calendar skill. NRIs are out of scope, except for pointers in
+`foreign-equity-for-residents`. Virtual digital assets (crypto) are a separate regime under §115BBH —
 flat 30%, no set-off, no carry-forward — so harvesting and offsetting concepts do
 not apply to them at all.
 
+## Evals and rate data
+
+- [`evals/`](evals/) holds trigger and answer cases for every skill. To run them, use
+  `python3 scripts/run_evals.py`, or add `--baseline` to see what the skills add.
+- [`data/rates.json`](data/rates.json) is a dated, machine-readable copy of the
+  charge and capital-gains rates. CI fails if it drifts from the skill that owns each rate.
+- [`docs/unverified-claims.md`](docs/unverified-claims.md) lists claims still
+  waiting on a primary source.
+
 ## Contributing
 
-Corrections welcome, especially on rates and effective dates. Please cite a
-primary source (statute, exchange circular, or a broker's published schedule)
-rather than a blog or search summary.
+Corrections welcome, especially on rates and effective dates. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the sourcing rule, file format and
+validation steps.
 
 ## License
 

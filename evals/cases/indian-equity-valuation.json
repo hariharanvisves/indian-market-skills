@@ -1,0 +1,57 @@
+{
+  "skill_name": "indian-equity-valuation",
+  "trigger": {
+    "positive": [
+      { "prompt": "Build a DCF for an NSE-listed manufacturer. What tax rate goes into NOPAT?" },
+      { "prompt": "Which risk-free rate should I use in the WACC for an Indian company?" },
+      { "prompt": "Compare EV/EBITDA across listed Indian retailers, some of which lease most of their stores." },
+      { "prompt": "Can I value an Indian private bank with an FCFF DCF?" }
+    ],
+    "negative": [
+      { "prompt": "How is LTCG on my listed Infosys shares taxed after 2 years?", "owner": "indian-capital-gains-tax" },
+      { "prompt": "What brokerage, STT and stamp duty will I pay buying ₹2 lakh of Reliance shares?", "owner": "indian-equity-charges" }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "What tax rate should the terminal-year NOPAT use for an Indian company that has opted into the concessional 22% corporate tax regime?",
+      "expectations": [
+        "25.168% effective (22% + 10% surcharge + 4% cess)",
+        "Use the statutory regime rate, not the historical effective rate"
+      ],
+      "must_match": ["25\\.17|25\\.168"],
+      "must_not_match": ["(?i)\\buse (a |the )?21\\s*%"]
+    },
+    {
+      "id": 2,
+      "prompt": "Which 10-year rate should I use as the risk-free rate for an INR DCF, and what should I record with it?",
+      "expectations": ["FBIL 10-year G-Sec benchmark, with its as-of date and benchmark security; never a number from memory"],
+      "must_match": ["(?i)FBIL"]
+    },
+    {
+      "id": 3,
+      "prompt": "Can I use the US 10-year Treasury yield plus a US equity risk premium to discount INR cash flows of a Nifty company?",
+      "expectations": ["No: currency mismatch; use INR rf + INR ERP, or USD inputs with an inflation-differential adjustment"],
+      "must_match": ["(?i)inflation[- ]differential|currency (mismatch|consisten)|mixed[- ]currency"]
+    },
+    {
+      "id": 4,
+      "prompt": "Run an FCFF DCF and EV/EBITDA comps on HDFC Bank.",
+      "expectations": ["Do not use FCFF or EV/EBITDA on banks; use P/B vs RoE (justified P/B), residual income"],
+      "must_match": ["(?i)P/?B|price[- ]to[- ]book|residual income|\\bRoE\\b"]
+    },
+    {
+      "id": 5,
+      "prompt": "In my fundamentals backtest I use October–December quarter results from 31 December onward. Okay?",
+      "expectations": ["No: usable only from disclosure date; LODR allows 45 days for quarterly results, so 31 Dec data is not visible on 15 Jan"],
+      "must_match": ["(?i)disclos|45 days|look[- ]ahead|announce"]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm plotting EV/EBITDA for an Indian retailer from FY2016 to FY2025. Anything to adjust?",
+      "expectations": ["Ind AS 116 from 1 Apr 2019 raises EBITDA; break the series or restate, and put lease liabilities in net debt consistently"],
+      "must_match": ["(?i)Ind AS 116|lease"]
+    }
+  ]
+}

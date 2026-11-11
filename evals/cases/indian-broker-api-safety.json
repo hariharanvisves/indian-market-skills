@@ -1,0 +1,82 @@
+{
+  "skill_name": "indian-broker-api-safety",
+  "trigger": {
+    "positive": [
+      { "prompt": "Does my Python bot that places about 5 orders a second through the Dhan API need to be registered with the exchange under SEBI's retail algo rules?" },
+      { "prompt": "I want to deploy my Upstox trading bot on AWS Lambda. Anything I should know about IP addresses?" },
+      { "prompt": "Write one order-status adapter that works across Upstox, Angel One SmartAPI and Fyers." },
+      { "prompt": "Compare token expiry and order rate limits for the Fyers, ICICI Breeze and Angel One APIs." },
+      { "prompt": "Can I let my friend run my registered algo on his own broker account in India?" }
+    ],
+    "negative": [
+      { "prompt": "How do I compute the checksum for the Kite Connect access-token exchange?", "owner": "kite-connect-safety" },
+      { "prompt": "What STT applies when I sell shares bought for delivery on NSE?", "owner": "indian-equity-charges" },
+      { "prompt": "How do I place a paper-trading order with the Alpaca API?", "owner": null }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My Upstox bot only sends about 3 orders a second, so it is under the SEBI threshold. That means I can run it from my laptop on home broadband with no extra setup, right?",
+      "expectations": [
+        "Says the 10 orders-per-second threshold only waives algo registration",
+        "Says API order placement still needs a broker-whitelisted static IP, which a home broadband or dynamic address does not provide",
+        "Says orders below the threshold are still tagged with an exchange-issued generic algo ID"
+      ],
+      "must_match": ["(?i)static IP", "(?i)regist"],
+      "must_not_match": ["(?i)\\b(yes|correct)\\b[^.]{0,40}no (extra )?setup", "(?i)static IP (is )?not (needed|required)"]
+    },
+    {
+      "id": 2,
+      "prompt": "Dhan's place-order response came back with orderStatus TRANSIT. Since it never reached the exchange, my code treats it as failed and sends the order again. Is that right?",
+      "expectations": [
+        "Says TRANSIT is a not-yet-final state, not a rejection",
+        "Says the order must not be retried; treat it as pending or unknown and reconcile by correlationId or order id",
+        "Says an adapter should never map such a state to REJECTED"
+      ],
+      "must_match": ["(?i)(pending|unknown|not (yet )?final|unconfirmed)", "(?i)(correlationId|reconcil)"],
+      "must_not_match": ["(?i)\\b(yes|correct)\\b[^.]{0,30}(retry|resend|send it again)"]
+    },
+    {
+      "id": 3,
+      "prompt": "Kite tokens expire at 6 AM IST, so I'll schedule one 6 AM re-login job for my Upstox and Fyers accounts too. Good plan?",
+      "expectations": [
+        "Says the Upstox access token expires at 3:30 AM the next day",
+        "Says the Fyers access token expires at 6:30 AM daily",
+        "Recommends per-broker expiry constants instead of reusing Kite's"
+      ],
+      "must_match": ["3:30", "6:30"],
+      "must_not_match": ["(?i)\\b(yes|good plan)\\b[^.]{0,40}6 ?AM (for|works for) (all|both|every)"]
+    },
+    {
+      "id": 4,
+      "prompt": "I built a fast algo that I registered with the exchange through my broker. Can my friend and my brother-in-law run it on their accounts?",
+      "expectations": [
+        "Says a self-built registered algo may be used only for family: self, spouse, dependent children and dependent parents",
+        "Says friends and in-laws are outside that definition, and serving them makes you an algo provider who needs exchange empanelment"
+      ],
+      "must_match": ["(?i)spouse", "(?i)dependent"],
+      "must_not_match": ["(?i)\\byes\\b[^.]{0,30}(both|they) can"]
+    },
+    {
+      "id": 5,
+      "prompt": "For my ICICI Breeze algo I set order_type to market so that exits always fill. Any issue?",
+      "expectations": [
+        "Says algo orders may not be market orders under the exchange rules, and Breeze does not permit market orders through the API",
+        "Recommends limit orders, or a broker's market-protection mechanism where one exists"
+      ],
+      "must_match": ["(?i)limit"],
+      "must_not_match": ["(?i)\\b(no issue|that's fine|that is fine)\\b"]
+    },
+    {
+      "id": 6,
+      "prompt": "I use a 32-character hex UUID as the order tag so I can find orders again. I'm sending the same tag to Kite, Angel One and Dhan. OK?",
+      "expectations": [
+        "Says Kite tags are alphanumeric with at most 20 characters, Angel One tags must be under 20, and Dhan's correlationId allows at most 30",
+        "Recommends a portable short form of 19 or fewer alphanumeric characters derived from the idempotency key"
+      ],
+      "must_match": ["(?i)\\b(19|20)\\b"],
+      "must_not_match": ["(?i)^\\s*(yes|ok|fine)\\b"]
+    }
+  ]
+}

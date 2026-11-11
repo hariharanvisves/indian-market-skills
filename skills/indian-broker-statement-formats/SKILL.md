@@ -1,12 +1,13 @@
 ---
 name: indian-broker-statement-formats
-description: Format facts and parse-safety rules for Indian broker and RTA statements — Zerodha Console tradebook and tax P&L, Groww stock and mutual-fund xlsx, CAMS xls/json, KFintech vs CAMS servicing split, CAS PDFs, INDmoney xls, AIS, ITD acknowledgement PDFs. Use when writing or debugging a statement importer, when a parse returns suspiciously few rows, when SIP vs lumpsum labelling is wrong, or when imported capital gains are double-counted.
+description: Format facts and parse-safety rules for Indian broker and RTA statements — Zerodha Console tradebook and tax P&L, Groww stock and mutual-fund xlsx, CAMS xls/json, KFintech vs CAMS servicing split, CAS PDFs, INDmoney xls, AIS, ITD acknowledgement PDFs. Use when writing or debugging a statement importer or upload parser, when a broker .xls will not open or a parse returns suspiciously few rows, when SIP vs lumpsum labelling is wrong, or when imported capital gains are double-counted.
 license: MIT
 compatibility: Describes export formats as observed; vendors change layouts without notice, so detect by header signature and verify on a current file.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
+  verified: "2026-11-11"
 ---
 
 # Indian Broker Statement Formats
@@ -110,7 +111,7 @@ RTA statement and apply it in the parser, not by picking a file.
 the field names match the `.xls`. The NAV column is named `PRICE`, not `NAV`.
 
 **Why.** A `scheme name + units` signature matches Groww's; without a `PRICE`
-based signature CAMS falls to `generic` (section 3).
+based signature CAMS falls to `generic` (section 1).
 
 **Tell.** CAMS rows detected as the Groww parser, or a `.json`/`.zip` upload
 rejected as unsupported when the shape is already handled.
@@ -160,6 +161,9 @@ cheap structural check that rejects non-transaction lines.
 separate signature regex that drifts out of sync. A destatementisation request
 form or an 80C summary reading "no transactions found" must return zero rows
 and say so.
+
+**Why.** A signature regex drifts from the parser it guards; the parser's own
+output cannot.
 
 **Tell.** A "successful" import of a form that contains no trades.
 
@@ -251,10 +255,28 @@ filing evidence looks missing.
 
 ## 19. Never merge two sources by trusting either one's dedupe
 
-Cross-source MF duplicates use a price-free key (NAV differs by stamp duty) and
-a tolerance on units; the rule and its tolerances are in
-[mf-scheme-matching](../mf-scheme-matching/SKILL.md) section 8. Equity
-dedupe may hash price; MF cross-source must not.
+**Rule.** Equity dedupe may hash price; MF cross-source dedupe must not. The
+key and its tolerances are owned by
+[mf-scheme-matching](../mf-scheme-matching/SKILL.md) section 8.
+
+**Why.** Each source dedupes only against itself, and NAV differs between
+sources, so a price-including key never sees the cross-source pair.
+
+**Tell.** Units of a fund double after a second source is imported.
+
+## Verifying an implementation
+
+- Rename a CAMS `.xls` to `.xlsx`: it still routes to the CAMS parser (§1).
+- A title banner above the header parses the same as a file without one (§2).
+- Two schemes of one AMC yield two instruments, not one (§3).
+- Adding the Zerodha P&L summary beside the tax P&L leaves gains unchanged (§4).
+- An ETF with an `INF` ISIN is classed equity, not mutual fund (§5).
+- A Groww `PURCHASE` is "Not stated"; each §9 string maps to its own class.
+- Every parser reports the coverage ratio and asserts the amount identity
+  (§12, §13).
+- `"1,999"` reads as 1999; one Excel-serial converter exists (§14).
+- A non-statement PDF yields zero rows and a clear error (§11); an encrypted PDF
+  yields the password-required `code` (§15).
 
 ## Scope
 
