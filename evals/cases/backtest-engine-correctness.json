@@ -55,7 +55,7 @@
         "(?i)elapsed|365\\.25|(last|end)[ _]?date[^.]{0,40}(first|start)[ _]?date|calendar time"
       ],
       "must_not_match": [
-        "(?i)`?\\byears\\b`?\\W{0,3}(is|are|comes out|becomes|ends up)\\b[^.\\n]{0,25}too (large|big|high)",
+        "(?i)(?<!/)(?<!/ )`?\\byears\\b`?\\W{0,3}(is|are|comes out|becomes|ends up)\\b[^.\\n]{0,25}too (large|big|high)",
         "(?i)CAGR[^.\\n]{0,30}(collaps|deflat|understat)"
       ]
     },

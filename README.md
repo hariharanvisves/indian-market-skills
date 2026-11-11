@@ -235,6 +235,12 @@ They cause silent errors that push results the wrong way:
   (9 skills) or a corrected check (17 evals). The last full run passed 99 of 103.
   Its 4 misses were wording the checks didn't accept, and after fixing those,
   all 103 saved answers pass.
+- **With vs without the plugin.** In a side-by-side run on Sonnet, the same agent passed
+  **103 of 103** evals with the plugin and **84 of 103** without it. That was
+  after one check that misread a correct answer was fixed. Both runs start in an
+  empty folder, so the baseline can't read the skills from disk. The misses
+  without the plugin cluster in statement formats, data pitfalls, MF scheme
+  matching, survivorship and foreign equity.
 
 Rates change with each Finance Act and exchange circular. Load them from a dated
 table in your own code, and re-check before relying on any figure here.
