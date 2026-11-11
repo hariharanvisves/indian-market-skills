@@ -104,6 +104,9 @@ codex plugin add indian-market-skills@indian-market-skills
 gemini extensions install https://github.com/hariharanvisves/indian-market-skills
 ```
 
+Gemini gets the 18 skills and `AGENTS.md`. The reviewer agents use Claude Code
+tool names, so Gemini does not load them.
+
 </details>
 
 <details>
@@ -123,7 +126,7 @@ Copy a skill directory into your agent's skills folder, and an agent file into i
 ```bash
 git clone https://github.com/hariharanvisves/indian-market-skills.git
 cp -R indian-market-skills/skills/indian-capital-gains-tax ~/.claude/skills/
-cp indian-market-skills/agents/indian-tax-reviewer.md ~/.claude/agents/
+cp indian-market-skills/reviewers/indian-tax-reviewer.md ~/.claude/agents/
 ```
 
 Or place it in a project at `.claude/skills/` so it loads only for that repo.
@@ -189,10 +192,10 @@ or place orders. Each one loads its skills and reports findings as
 
 | Command | Agent | Reviews |
 |---|---|---|
-| `/review-tax` | [`indian-tax-reviewer`](agents/indian-tax-reviewer.md) | Classification, boundaries, set-off ordering, rounding, schedule identities |
-| `/review-ingestion` | [`statement-ingestion-reviewer`](agents/statement-ingestion-reviewer.md) | Parsers and importers: false merges, duplicates, coverage, unit and date shifts, PII in tracked files |
-| `/review-backtest` | [`backtest-reviewer`](agents/backtest-reviewer.md) | Look-ahead, survivorship, costs, metrics, engine versioning, tests that can't fail |
-| `/review-broker` | [`broker-safety-reviewer`](agents/broker-safety-reviewer.md) | Fail-open guards, secret leakage, live-path gating, idempotency, rebalance safety |
+| `/review-tax` | [`indian-tax-reviewer`](reviewers/indian-tax-reviewer.md) | Classification, boundaries, set-off ordering, rounding, schedule identities |
+| `/review-ingestion` | [`statement-ingestion-reviewer`](reviewers/statement-ingestion-reviewer.md) | Parsers and importers: false merges, duplicates, coverage, unit and date shifts, PII in tracked files |
+| `/review-backtest` | [`backtest-reviewer`](reviewers/backtest-reviewer.md) | Look-ahead, survivorship, costs, metrics, engine versioning, tests that can't fail |
+| `/review-broker` | [`broker-safety-reviewer`](reviewers/broker-safety-reviewer.md) | Fail-open guards, secret leakage, live-path gating, idempotency, rebalance safety |
 
 Pass a path or git range (`/review-tax src/tax/`). With no target, a command reviews the current diff.
 
@@ -251,7 +254,7 @@ table in your own code, and re-check before relying on any figure here.
 
 ```
 skills/<name>/SKILL.md      18 skills (Agent Skills format)
-agents/<name>.md            4 read-only reviewer agents
+reviewers/<name>.md         4 read-only reviewer agents
 commands/review-*.md        slash commands that run the reviewers
 evals/cases/<name>.json     trigger and answer evals, one file per skill
 data/rates.json             dated rate table, checked against the skills

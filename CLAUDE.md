@@ -1,7 +1,7 @@
 # indian-market-skills
 
 A Markdown-only repo of Agent Skills (`skills/<name>/SKILL.md`) and read-only
-reviewer agents (`agents/<name>.md`). It ships as a Claude Code plugin and
+reviewer agents (`reviewers/<name>.md`). It ships as a Claude Code plugin and
 marketplace through `.claude-plugin/`.
 
 - Conventions, sourcing rule and fact-ownership map: [CONTRIBUTING.md](CONTRIBUTING.md)

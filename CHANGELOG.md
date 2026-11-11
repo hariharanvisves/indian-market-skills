@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2 — 2026-11-11
+
+### Fixed
+- Gemini CLI install printed four "Error loading agent" warnings. Gemini loads
+  every file in `agents/` and rejects Claude Code tool names. The reviewers now
+  live in `reviewers/`, and `.claude-plugin/plugin.json` lists them under
+  `agents`, so Claude Code loads them and Gemini skips them.
+- `scripts/validate.py` fails if a root `agents/` folder returns or if the
+  plugin's `agents` list and `reviewers/` disagree.
+
 ## 1.1.1 — 2026-11-11
 
 ### Added

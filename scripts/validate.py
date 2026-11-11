@@ -64,7 +64,9 @@ def check_links(path):
 
 def main():
     skills = sorted(p for p in (ROOT / "skills").iterdir() if p.is_dir())
-    agents = sorted((ROOT / "agents").glob("*.md"))
+    agents = sorted((ROOT / "reviewers").glob("*.md"))
+    if (ROOT / "agents").exists():
+        err(ROOT / "agents", "Gemini CLI loads agents/ and rejects Claude tool names; keep reviewers in reviewers/")
     if not skills or not agents:
         err(ROOT / "README.md", "no skills or agents found")
 
@@ -96,10 +98,11 @@ def main():
         if f"(skills/{d.name}/)" not in readme:
             err(ROOT / "README.md", f"skills table missing {d.name}")
     for md in agents:
-        if f"(agents/{md.name})" not in readme:
+        if f"(reviewers/{md.name})" not in readme:
             err(ROOT / "README.md", f"agents table missing {md.stem}")
 
     check_manifests()
+    check_plugin_agents(agents)
     check_commands({md.stem for md in agents})
     check_evals({d.name for d in skills})
     check_rates({d.name for d in skills})
@@ -132,6 +135,16 @@ def load_json(rel):
     except json.JSONDecodeError as e:
         err(path, f"invalid JSON: {e}")
         return None
+
+
+def check_plugin_agents(agents):
+    data = load_json(PLUGIN_MANIFESTS[0]) or {}
+    listed = set(data.get("agents", []))
+    expected = {f"./reviewers/{md.name}" for md in agents}
+    for path in sorted(expected - listed):
+        err(ROOT / PLUGIN_MANIFESTS[0], f"agents list missing {path}")
+    for path in sorted(listed - expected):
+        err(ROOT / PLUGIN_MANIFESTS[0], f"agents list names missing file {path}")
 
 
 def check_manifests():
