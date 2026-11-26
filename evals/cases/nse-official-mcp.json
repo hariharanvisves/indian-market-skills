@@ -1,0 +1,67 @@
+{
+  "skill_name": "nse-official-mcp",
+  "trigger": {
+    "positive": [
+      { "prompt": "How do I connect Claude Code to NSE's official MCP server?" },
+      { "prompt": "I'm pulling 2 years of daily prices from the nse-bhavcopy MCP get_stock_history tool to compute momentum. Anything to watch?" },
+      { "prompt": "Can my trading app use mcp.nseindia.in as its market data provider?" },
+      { "prompt": "Which NSE MCP tool gives me the Nifty option chain and open interest?" },
+      { "prompt": "The cm-market MCP quote looks wrong at 8 pm. Why?" }
+    ],
+    "negative": [
+      {
+        "prompt": "Which bhavcopy URL format should I use for NSE files after July 2024?",
+        "owner": "nse-bhavcopy-corporate-actions"
+      },
+      {
+        "prompt": "Should my Kite MCP server expose order placement tools?",
+        "owner": "kite-connect-safety"
+      },
+      {
+        "prompt": "How do I compute implied volatility for a Bank Nifty option?",
+        "owner": "nse-options-mechanics"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I fetch daily closes for a stock from NSE's nse-bhavcopy MCP (get_stock_history) and compute 12-month momentum directly from them. The stock had a 1:1 bonus last year. Is the result right?",
+      "expectations": [
+        "No: the MCP's history prices are not adjusted for splits or bonus issues, so the bonus shows as a roughly 50% drop",
+        "Says to adjust pre-ex-date prices using get_corporate_actions (adjustmentFactor) before computing returns"
+      ],
+      "must_match": ["(?i)not (split[- ]|bonus[- ])?adjusted|unadjusted"],
+      "must_not_match": ["(?i)\\b(are|is) (already )?(split[- ]|bonus[- ])?adjusted for (splits|bonus)"]
+    },
+    {
+      "id": 2,
+      "prompt": "Which NSE official MCP tool should I call to get the Nifty option chain with open interest?",
+      "expectations": [
+        "Says NSE's official MCP servers cover the cash market only and have no option-chain, OI or futures tool",
+        "Points to another source such as the F&O bhavcopy or a broker API"
+      ],
+      "must_match": ["(?i)(no|not|none|doesn't|does not)[^.]{0,80}(option[- ]chain|open interest|\\bOI\\b|F&O|derivatives)|cash[- ]market only"],
+      "must_not_match": ["(?i)\\bcall (the )?`?\\w*option_?chain\\w*`? tool"]
+    },
+    {
+      "id": 3,
+      "prompt": "NSE's MCP is free and needs no API key. Can I use it as the price feed for my paid stock-screener SaaS and to fine-tune a model on its history?",
+      "expectations": [
+        "No: NSE's terms say the data is for information and learning, not for commercial products, and grant no right to train or fine-tune AI models",
+        "Advises reading NSE's Terms of Use or getting a licence before building on it"
+      ],
+      "must_match": ["(?i)commercial|fine[- ]tun|train"],
+      "must_not_match": ["(?i)\\byes,? you can use it (for|as)"]
+    },
+    {
+      "id": 4,
+      "prompt": "get_corporate_actions from the NSE MCP returned an empty list with an error field for a stock. Can I treat that as the stock having no splits or bonuses?",
+      "expectations": [
+        "No: an error or empty result means the lookup failed, not that there were no actions; retry or raise"
+      ],
+      "must_match": ["(?i)fail|retry|raise|error"],
+      "must_not_match": ["(?i)\\byes,? (you can|it means|that means)"]
+    }
+  ]
+}

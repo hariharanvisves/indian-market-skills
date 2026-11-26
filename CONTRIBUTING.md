@@ -33,6 +33,7 @@ Put the citation in the pull request description.
   - tax effect of corporate actions (cost basis, buybacks): `corporate-action-taxation`
   - foreign shares, RSUs, LRS/TCS, Schedule FA: `foreign-equity-for-residents`
   - holidays, sessions, expiry-day shifts: `nse-trading-calendar`
+  - NSE's official MCP servers (mcp.nseindia.in), their tools and terms: `nse-official-mcp`
   - general broker-API safety principles: `kite-connect-safety`
   - SEBI retail-algo rules and non-Kite broker deltas: `indian-broker-api-safety`
   - ITR forms, schedules, rounding, advance tax: `itr-filing-schedules`

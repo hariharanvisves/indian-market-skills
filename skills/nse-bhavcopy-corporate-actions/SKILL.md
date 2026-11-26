@@ -142,7 +142,8 @@ the homepage first) and queried one year at a time; on 2026-11-11 it answered a 
 curl and a 2000-2024 range in one call (39,046 rows), and serves back to at least
 2000. Keep cookie priming and year chunks as the safe default. The `subject`
 field is free text; every trap below was found by reading unparsed rows, which took
-price-affecting unparsed rows from 27 to 1.
+price-affecting unparsed rows from 27 to 1. NSE's official MCP exposes the same data
+as `get_corporate_actions`: [nse-official-mcp](../nse-official-mcp/SKILL.md).
 
 1. **`Re` versus `Rs`.** NSE writes the singular for one rupee (`To Re.1/-`).
    Requiring `Rs` left every split-to-Re.1 unparsed, including large well-known

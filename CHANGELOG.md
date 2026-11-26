@@ -3,6 +3,12 @@
 ## 1.2.0 — 2026-11-26
 
 ### Added
+- New skill `nse-official-mcp`: NSE's two cash-market MCP servers
+  (`nse-bhavcopy`, `cm-market`) and their 36 read-only tools. It covers the
+  non-commercial and no-AI-training terms, history prices that are not adjusted
+  for splits or bonuses, empty results as failures, holiday date snapping,
+  3-month history chunks, freshness outside market hours, and the absence of any
+  F&O or option-chain server. With eval cases.
 - `indian-capital-gains-tax`: STT is not deductible in computing capital gains.
   The specified-mutual-fund test now covers the fund-of-funds limb, the order of
   classification checks, and failing closed on an unknown sub-category.

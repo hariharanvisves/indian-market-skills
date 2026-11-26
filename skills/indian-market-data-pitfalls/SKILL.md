@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE/BSE market data and Indian broker/RTA statement formats.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -80,6 +80,8 @@ Bonus and split are **not transfers**. For their cost and acquisition-date
 treatment see [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md); do
 not assume the two behave alike. Parsing and adjustment rules are in
 [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
+NSE's official MCP serves unadjusted history; see
+[nse-official-mcp](../nse-official-mcp/SKILL.md).
 
 ## 4. Broker statement format drift
 

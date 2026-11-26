@@ -242,6 +242,8 @@ without a decision fails.
   read-only tool subsets.
 - Do not expose portfolio tools through MCP if ownership checks live only in
   HTTP handlers — direct service calls bypass them.
+- NSE's own MCP servers are read-only market data with non-commercial terms:
+  [nse-official-mcp](../nse-official-mcp/SKILL.md).
 
 ## 12. Terms of service
 
