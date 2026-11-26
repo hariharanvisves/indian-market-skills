@@ -55,6 +55,14 @@
   specified-mutual-fund definition before 1 Apr 2026, the Income-tax Act 2025
   section numbers read only on mirror sites, and Circular 07/2026.
 
+- Eight Income-tax Act 2025 section numbers are now confirmed against the Gazette
+  text (Act No. 30 of 2025). §115BBH maps to §194(1) Table Sl. 4. The 31 August
+  due date and the §428(b) revised-return fee are marked as Finance Act 2026
+  changes; the enacted text of that Act was not read.
+- `nse-official-mcp`: added three limits from NSE's general Terms of Use. They bar
+  scraping the website, storing or redistributing its content, and using its data
+  for virtual trading or simulation.
+
 ### Fixed
 - `indian-capital-gains-tax` said all transaction charges never net against a
   gain. Only STT is barred.

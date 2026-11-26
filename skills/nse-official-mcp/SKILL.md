@@ -74,12 +74,27 @@ Quoted from the landing page (2026-11-26):
   which are linked from that page.
 
 Both servers' `instructions` say the data is "for educational and research purposes
-only" and is not investment advice. No rate limit or quota is published.
+only" and is not investment advice. No rate limit or quota is published on any of
+the four pages.
+
+NSE's general Terms of Use (https://www.nseindia.in/static/nse-terms-of-use, read
+2026-11-26) contain no MCP or AI-training clause; that clause is on the MCP page only.
+They add three limits that bind anything built around the MCP:
+
+- "User is prohibited to conduct any systematic or automated data collection
+  activities (including scraping, data mining, data extraction and data harvesting)"
+  on the website. A scraper fallback for when the MCP fails is ruled out.
+- Content may not be "copied, … stored (either in hardcopy or in an electronic
+  retrieval system), … disseminated, distributed, displayed, … without prior written
+  permission of NSE."
+- Data may not be used "for any gaming, virtual trading or simulation activities
+  under any circumstances whatsoever." That covers paper-trading apps and
+  backtest simulators that serve users.
 
 **Rule.** Use it as agent research data inside a session. Do not ship it as a
 product's data feed, store it as an app's price history, put its output in test
-fixtures or seeds, or use it to train or fine-tune a model, unless NSE grants a
-licence. Read the full Terms of Use before building anything. This is engineering
+fixtures or seeds, feed a paper-trading or simulation product, or use it to train
+or fine-tune a model, unless NSE grants a licence. Read the full Terms of Use before building anything. This is engineering
 guidance, not legal advice.
 
 **Detector.** An app's provider layer, cron job or dataset builder that calls

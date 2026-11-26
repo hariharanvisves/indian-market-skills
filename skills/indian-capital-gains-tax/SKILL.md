@@ -58,8 +58,8 @@ sections. The capital-gains group moved: **111A to 196, 112 to 197, 112A to 198*
 the 1961 numbers because most statements, schedules and ITR JSON field names
 still carry them; check the field names of the schema you are emitting. Other
 sections cited below are 1961-Act numbers: §94(7) is §175(8), §47(viic) is
-§70(1)(x), §50AA is §76 and §55(2)(ac) is §90(7) of the 2025 Act; verify §115BBH
-against statute for its 2025 equivalent.
+§70(1)(x), §50AA is §76, §55(2)(ac) is §90(7) and §115BBH is §194(1) Table Sl. 4
+of the 2025 Act (Gazette text, Act No. 30 of 2025).
 
 Years: **financial year (FY)** means 1 April–31 March and is the period every
 rule here works on. A return for FY 2025-26 is **AY 2026-27** (1961 Act); from

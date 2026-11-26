@@ -334,7 +334,12 @@ cannot be re-verified and silently applies to the wrong year.
 
 ## 11. Filing window: due date, belated and revised returns
 
-**Rule.** The due date (§263(1)(c); §139(1) in 1961 numbering) depends on the assessee:
+**Rule.** The due date (§263(1)(c); §139(1) in 1961 numbering) depends on the assessee.
+The Act as passed (Gazette, Act No. 30 of 2025,
+https://egazette.gov.in/WriteReadData/2025/265620.pdf) has 31 July, 31 October and
+30 November. The 31 August row for non-audit business cases comes from the e-filing
+portal FAQ for AY 2026-27 and the Finance Act 2026 change to that table; the enacted
+Finance Act 2026 text was not read (unverified).
 
 | Assessee | Due date |
 |---|---|
