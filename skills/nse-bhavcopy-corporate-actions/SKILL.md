@@ -2,10 +2,10 @@
 name: nse-bhavcopy-corporate-actions
 description: Building a price history from NSE bhavcopy (legacy cm*bhav.csv, sec_bhavdata_full, CM-UDiFF) and the NSE corporate-actions API — file formats and where each is served, series filtering (EQ vs BE/BZ), column-layout traps, parsing split/bonus/dividend subject text, adjustment rules, banded post-action price walks, and caching Yahoo fetches. Use when ingesting NSE bhavcopy, adjusting prices for splits and bonuses, parsing corporate-action subjects, debugging a price cliff or a missing symbol history, or fetching Yahoo Finance prices for .NS tickers.
 license: MIT
-compatibility: Applies to NSE cash-market bhavcopy files and the nseindia.com corporate-actions API. Format dates apply to NSE only.
+compatibility: Applies to NSE cash-market bhavcopy files and the NSE corporate-actions API. Format dates apply to NSE only.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -36,6 +36,16 @@ Rules:
 - Use `nsearchives.nseindia.com`. `archives.nseindia.com` returned 403 for the same
   paths earlier but served them on 2026-11-11; do not depend on it. A plain browser
   User-Agent was enough; no cookies for these files.
+- API host (fetch failures seen from about 2026-11-16, observed 2026-11-26, no NSE announcement found):
+  `www.nseindia.com` pages and `/api/...` paths 301-redirect to the same path on
+  `www.nseindia.in`. The `.com` homepage returns 403 (Akamai) to scripted clients,
+  so a client that primes cookies on the `.com` homepage never gets cookies for
+  `.in`. On 2026-11-26 `GET https://www.nseindia.in/api/corporates-corporateActions?index=equities`
+  returned 200 JSON with no cookie priming. `nsearchives.nseindia.com` archive paths
+  (bhavcopy zips, circular PDFs) still served 200 with no redirect. Keep the API
+  host in one constant, call the `.in` host or follow redirects, and make a stalled
+  export or last-date-lag check fail loudly: a nightly fetch failed silently and
+  the export stalled for days when this changed.
 - Delivery quantity **does not exist before 30 Sep 2019** (a 2019-09-27 request
   404s, 2019-09-30 serves) and is absent from UDiFF, so after 8 Jul 2024 it comes
   only from `sec_bhavdata_full`. Trade count is absent before about late 2011.
@@ -253,6 +263,12 @@ on any one-bar move near the split ratio.
 - Skip any per-symbol politeness delay on a cache hit, or most of the runtime
   remains. In one measurement a cold run took 23.3s and a warm one 3.5s with
   byte-identical output.
+- Yahoo's chart API is unofficial and undocumented. Observed 2026-11-26 on
+  `RELIANCE.NS` with `interval=1d`: `meta.chartPreviousClose` was the close before
+  the range start for `range=1mo` and equalled the first returned bar's close for
+  `5d` and `1y`; `meta.previousClose` was absent. It is not the previous session's
+  close beyond `1d`. Compute the daily change from the last two bar closes, and
+  verify against raw bar closes, not another endpoint of the same app.
 - Yahoo serves nothing for retired NSE tickers (see
   [nse-universe-survivorship](../nse-universe-survivorship/SKILL.md) §9); this
   cache does not change that.

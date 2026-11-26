@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to AMFI, CAMS, KFintech and broker-app scheme naming conventions as of the SEBI 2021 IDCW rename.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -71,6 +71,8 @@ Direct vs Regular is the standard probe.
 - Abbreviations: `DG` (direct growth), `RG` (regular growth), `DP` (direct
   plan), `Dir`, `Reg`, `Gr`.
 - Custody suffix such as `(Non-Demat)`.
+- Plan detection is whole-word: `Direct` must not match inside another token of
+  a Regular plan name.
 - Rename annotations `(formerly ...)` / `(erstwhile ...)`: strip the annotation
   **before** tokenizing, so the old name is not parsed as part of the identity.
 - A repeated identical option ("Direct Growth Plan Growth Option") is one
@@ -90,7 +92,7 @@ to the token it defines.
 
 **Rule.** Hold scheme renames as an allow-list of name groups, each with a
 source. AMC renames (house name changes) are **flagged for review, never
-matched**. SEBI's rename of Dividend options to IDCW (1 Apr 2021) is a vocabulary map
+matched**. SEBI's rename of Dividend options to IDCW (1 Apr 2021; SEBI/HO/IMD/DF3/CIR/P/2020/194, 5 Oct 2020, para 7, <https://www.sebi.gov.in/sebi_data/attachdocs/oct-2020/1601906688276.pdf>) is a vocabulary map
 you add deliberately; do not let the matcher treat the two words as equal by
 default.
 
@@ -131,7 +133,10 @@ Older copies had 6 columns, without `Plan` and `Option`. Missing ISINs are `-`;
 Section headers (category lines, AMC name lines) and blank lines are
 interleaved with data rows; skip anything that does not split into the header's
 column count. Select the row by **ISIN**, matched against **both** ISIN columns;
-selecting by name text re-introduces everything above.
+selecting by name text re-introduces everything above. For a CAS scheme, resolve
+by ISIN first, then carry the matched folio, plan and option onto the lot.
+Normalise folios in one shared helper: `1234 / 56` and `1234/56` are the same
+folio, and two spellings double the imported units.
 
 **Why.** A scheme code is one plan/option, and the ISIN is the stable per-option
 identifier across sources. `Option` is spelled many ways (`IDCW`, `Growth Option`,
@@ -169,6 +174,13 @@ Reconcile per fund against a holdings statement: expect a ratio of **1.000**;
 exactly 2.000 is a duplicate; 1.1-1.9 usually means one source covers only part of
 the position. Aggregate the statement per fund first (a fund in two folios reads as
 a spurious multiple), and a switch pair is not a duplicate.
+
+**Unit dust.** Float residue (about 1e-14 units) trips a strict FIFO oversell
+check, so give it a tolerance (see the float-boundary rule in
+[indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md) §8). A
+broker's 2dp units against the RTA's 3dp leave an exited fund with a residual
+holding. Unit-balance checks must allow 2dp rounding per coarse row and run per
+ISIN: a ledger-level check is not a holdings check.
 
 ## 9. Folio belongs in the FIFO grouping key
 

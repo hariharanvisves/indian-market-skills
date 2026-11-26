@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.2.0 — 2026-11-26
+
+### Added
+- `indian-capital-gains-tax`: STT is not deductible in computing capital gains.
+  The specified-mutual-fund test now covers the fund-of-funds limb, the order of
+  classification checks, and failing closed on an unknown sub-category.
+  Grandfathering explicitly covers equity-oriented fund units.
+- `itr-filing-schedules`: a new section on the filing window. It covers due dates
+  (31 Jul, 31 Aug, 31 Oct, 30 Nov), belated returns that cannot opt out of the new
+  regime, and the 12-month revised-return window with its fee. The §87A rebate is
+  resident-only, so a missing residential status must be an error. Schedule CG
+  must use the same netted records as the tax engine.
+- `indian-broker-statement-formats` and `mf-scheme-matching`: Groww reversal
+  twins, rejecting a capital-gains report uploaded as a transaction ledger, CAS
+  PDF folio and stamp-duty traps, and matching a CAS scheme by ISIN first. Also
+  one shared folio normaliser, whole-word plan detection, and unit-dust tolerance.
+- `kite-connect-safety`: planning separated from approved execution, with one
+  sole order-placing function. Owned quantity counts final-status rows only. A
+  test trap where SQL `SUM` skips NULL.
+- `momentum-factor-research`: rank only symbols priced on the latest session.
+- `backtest-engine-correctness`: what a cached backtest result must be keyed on.
+- `nse-bhavcopy-corporate-actions`: the observed `www.nseindia.com` to
+  `www.nseindia.in` redirect, and a caveat that Yahoo's `chartPreviousClose` is
+  not the previous session's close.
+
+### Changed
+- `indian-broker-api-safety`: Fyers API rate limits from 16 Oct 2026. The NSE
+  10-orders-per-second threshold now cites NSE/INVG/67858.
+- `itr-filing-schedules`: ITR-1 allows up to two house properties for AY 2026-27.
+- Primary citations were added for NSE/FA/73061, NSE/FATAX/73524, NSE/FAOP/68747
+  and the 2020 SEBI circular that introduced the IDCW name.
+- `docs/unverified-claims.md`: three rows resolved and removed, and two narrowed.
+  New rows cover the NSE host redirect, Yahoo `chartPreviousClose`, the
+  specified-mutual-fund definition before 1 Apr 2026, the Income-tax Act 2025
+  section numbers read only on mirror sites, and Circular 07/2026.
+
+### Fixed
+- `indian-capital-gains-tax` said all transaction charges never net against a
+  gain. Only STT is barred.
+
 ## 1.1.3 — 2026-11-11
 
 ### Fixed

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Describes export formats as observed; vendors change layouts without notice, so detect by header signature and verify on a current file.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -70,7 +70,14 @@ date whose quantity and consideration equal the per-lot sum.
 to three times: undated aggregate rows, plain and exchange-suffixed (`-E`)
 symbols. The inflation equals the aggregate rows' sum, so it is plausible.
 
-**Tell.** Gains rise when a second file is added; rows with null buy date.
+**Also.** Claim a file as Zerodha only when it carries the tax P&L layout. An
+aggregate P&L summary must fall to "no parser matched", not parse to zero rows.
+
+**Why.** A confident zero-row parse reads as a successful empty import; no
+match is an error the user can act on.
+
+**Tell.** Gains rise when a second file is added; rows with null buy date; a
+Zerodha detection that yields 0 trades.
 
 ## 5. Zerodha tradebook: stock vs ETF vs mutual fund
 
@@ -82,6 +89,12 @@ but trades and is taxed like equity. If the ISIN branch runs first, every ETF is
 classed as a mutual fund and gets the wrong tax treatment. Non-equity ETFs
 (gold, silver, international) then need their own bucket; see
 [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
+
+**Also.** An ETF with an `INF` ISIN but no `BEES`/`ETF` suffix (a gold ETF, for
+example) must still resolve to ETF from a stock tradebook. An explicit `stock`
+type on a known listed-ETF symbol is a conflict to reject, not a silent
+override. Matching by scheme name belongs to
+[mf-scheme-matching](../mf-scheme-matching/SKILL.md).
 
 **Tell.** A `*BEES` or `*ETF` symbol with asset type `mutual_fund`. A new ETF
 must be added to the symbol list; a suffix regex is only a backstop.
@@ -101,6 +114,16 @@ means absent at source; "Unclassified" implies a recoverable failure.
 order-date vs allotment-date, a real semantic difference, not a timezone bug.
 The allotment date moves the 12-month boundary, so decide the rule against the
 RTA statement and apply it in the parser, not by picking a file.
+
+**Reversal twins (observed).** Groww MF exports can carry reversed entries:
+a same-scheme, same-day buy and sell pair with identical units; a
+capital-gains lot whose purchase date is after its redeem date; one redemption
+listed on consecutive days with identical units, NAV and amount. Skip these with
+a warning, and diff against the store on `(date, type, units)` before inserting.
+
+**Also.** A realised-gains or capital-gains report uploaded where a transaction
+ledger is expected must be rejected by header signature. A generic alias scan
+otherwise binds `Scheme Name` and `Purchase Date` and turns every row into a BUY.
 
 **Tell.** Two exports of one FY with different row sets or names.
 
@@ -153,6 +176,18 @@ Scheme headers carry the ISIN: read it, do not infer it.
 **Why.** A permissive regex also matches page furniture. The balance line is a
 cheap structural check that rejects non-transaction lines.
 
+**Also.** Observed layout traps in CAS text:
+- The `Folio No` line prints **before** the scheme header; clearing state at the
+  header loses the folio.
+- An inline stamp-duty line (`<date> *** Stamp Duty *** <amt>`) belongs to the
+  preceding purchase, not a row of its own.
+- Handle bare instalment rows, split SWP rows, additional-allotment rows (an
+  undated line with the balance plus a dated line with units) and ISINs wrapped
+  across lines.
+- Reconcile every scheme block to its printed Closing Unit Balance and surface
+  mismatches; a layout change can silently drop transactions (seen after a 2025
+  layout change).
+
 **Tell.** Rows with no balance, or a running balance that does not reconcile.
 
 ## 11. Reject non-statement PDFs by outcome
@@ -201,6 +236,12 @@ stamp-duty or rounding rule.
 - Convert serials and date strings from parts, never via `toISOString()`; see
   [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md) item 1.
 - Default ambiguous `dd/mm/yyyy` to day-first and say so.
+- Use one shared number reader for Indian (`1,23,456.78`) and Western grouping,
+  and one calendar-checked date parser. Convert day-first CSV dates to ISO
+  before validation and reject impossible dates (`31/02`).
+- Count rejected rows by reason, and flag a parse that covers under about 90%
+  of the file's data rows (see §12).
+- Validate order status against an allow-list, not a deny-list of bad states.
 
 **Tell.** A uniform 1-day offset across a whole file.
 

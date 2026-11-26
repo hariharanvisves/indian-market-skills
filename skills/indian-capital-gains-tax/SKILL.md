@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rates verified 2026-11-11 against the Income-tax Act 2025 (§196, §198) and the Finance Act 2026, for AY 2026-27 and tax year 2026-27; re-verify before use, as they change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -116,6 +116,12 @@ and read an on-time-filing flag; one pooled bucket or no expiry is a defect.
 There is no step where a loss reaches ordinary income, and no step where an LTCL
 reaches STCG.
 
+**STT is not deductible** in computing capital gains: not as cost, not as a
+transfer expense (§72(3)(b), §76(4) of the 2025 Act; proviso to §48 in 1961
+numbering). A parser that subtracts STT from sale consideration, or adds it to
+cost, understates tax.
+**Detector.** An STT term anywhere in a gain or cost expression.
+
 ## The 12-month boundary
 
 "More than 12 months", counted in **calendar months** (a month is a British-calendar
@@ -152,7 +158,8 @@ gain (actual cost) and not a ₹50 loss (FMV alone).
 
 Implementing only `max(actual_cost, fmv)` is the common error and it manufactures
 losses on every such holding. Grandfathering applies to §112A assets only, so
-non-equity ETFs are excluded. If no 31-Jan-2018 fair market value is available,
+non-equity ETFs are excluded; units of an equity-oriented fund are covered, with the
+31-Jan-2018 NAV as the fair market value (§90(7) of the 2025 Act). If no 31-Jan-2018 fair market value is available,
 return the lot untouched rather than guessing — and say so, rather than emitting a
 figure that looks derived.
 
@@ -196,6 +203,18 @@ slab, always, whatever the holding period; there is no long-term bucket. Units
 bought before that date keep a long-term path. Route on the **purchase** date,
 not the sale date, and verify the current thresholds against statute before
 coding either.
+
+The *specified mutual fund* definition (§76(5)(b) of the 2025 Act; §50AA in 1961
+numbering) changed on **1 April 2026**. From then a fund is specified if it invests
+**more than 65%** of its proceeds in debt and money-market instruments, or **65% or
+more** in units of such a fund (the fund-of-funds limb), measured on the annual
+average of the daily closing figures. A tax-year loop over 2023-24 to 2025-26 must
+use the pre-2026 definition, not this one
+([open claim](../../docs/unverified-claims.md)). Test debt FoF, bond index,
+target-maturity, gilt and money-market funds as specified **before** any generic
+FoF, index or international rule; equity-oriented hybrids and arbitrage funds are
+not specified. An unknown or missing MF sub-category must reject (fail closed),
+never default to equity.
 
 **Non-equity ETFs** (gold, silver, international) are under §112 (§197), not
 §112A. So **no ₹1.25L exemption** and no §112A grandfathering. Keep them out of
@@ -250,5 +269,5 @@ Not here: F&O and intraday ([fno-tax-and-charges](../fno-tax-and-charges/SKILL.m
 buybacks, splits, demergers ([corporate-action-taxation](../corporate-action-taxation/SKILL.md));
 US stocks, LRS/TCS, Schedule FA ([foreign-equity-for-residents](../foreign-equity-for-residents/SKILL.md));
 ITR forms and schedules ([itr-filing-schedules](../itr-filing-schedules/SKILL.md));
-transaction charges, which never net against a gain
-([indian-equity-charges](../indian-equity-charges/SKILL.md)).
+transaction charge rates ([indian-equity-charges](../indian-equity-charges/SKILL.md));
+STT never nets against a gain (see "STT is not deductible" above).

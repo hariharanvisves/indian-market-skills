@@ -5,7 +5,7 @@ license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -234,6 +234,15 @@ volatility-estimator change is a bump even though a pure scale factor would
 cancel: [momentum-factor-research](../momentum-factor-research/SKILL.md) §2.
 **Detector.** Characterise the input shape the bug needs, count rows with that
 shape, and re-measure there before deciding "no delta".
+
+**Result cache key.** Key a stored result on the canonical request, the engine
+version, a hash of the engine code and a hash of the **whole price manifest**.
+A content hash of one file misses manifest fields such as an unadjusted-from
+marker. Refuse to cache a run whose inputs have no content identity (live-fetched
+provider prices), and store only if the key did not change during the run.
+**Related defect.** A long-lived worker that loads prices once but re-reads
+snapshot provenance per call serves old prices labelled with the new snapshot
+hash after a data refresh.
 
 ## F. NSE fill realism
 

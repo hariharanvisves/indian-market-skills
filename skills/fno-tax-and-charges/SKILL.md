@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rates verified 2026-11-11 against NSE circular 02/2026, the Finance Act 2026 and Zerodha and Upstox charge schedules; sections against the gazetted Income-tax Act 2025; turnover against the ICAI Guidance Note on Tax Audit (Revised 2026). Re-verify before use, as rates change with each Finance Act and exchange circular.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -28,7 +28,7 @@ holds both structures. Cash-segment equity lives elsewhere (see Scope).
 | Stamp duty | 0.002% | 0.003% | **buy only** | buy-side turnover; options: premium turnover as brokers bill it (unverified against the Stamp Act) |
 | GST | 18% | 18% | both | brokerage + SEBI fee + transaction charge |
 
-Sources: STT rates from NSE circular 02/2026 (NSE/FATAX/73524, 31 Mar 2026),
+Sources: STT rates from NSE circular 02/2026 (NSE/FATAX/73524, 31 Mar 2026, <https://nsearchives.nseindia.in/content/circulars/FATAX73524.pdf>), transaction charges (0.00183% futures, 0.03553% options premium, including ₹0.01/crore IPFT) from NSE/FA/73061 (27 Feb 2026, effective 1 Mar 2026, <https://nsearchives.nseindia.in/content/circulars/FA73061.pdf>),
 which applies Finance Act 2026 §159 amending §98 of the Finance (No. 2) Act 2004.
 STT bases and payer from NSE's equity-derivatives STT page. Transaction charges
 from the Zerodha and Upstox schedules, effective 1 Mar 2026. Stamp duty from NSE's

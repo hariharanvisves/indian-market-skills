@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to resident-individual returns on the Indian e-filing portal. Form, schedule and rule facts verified 2026-11-11 for AY 2026-27 and tax year 2026-27. Not tax advice; rates and thresholds are deliberately left to the capital-gains skill and the statute.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -66,7 +66,7 @@ that forced it.
 | Foreign asset, foreign income, or signing authority abroad | ITR-2 or ITR-3 (Schedule FA/FSI/TR); never ITR-1 |
 | Brought-forward loss, or a loss to carry forward | Not ITR-1 or ITR-4 |
 | Director in a company, or unlisted equity held at any time in the year | Not ITR-1 or ITR-4 |
-| Salary/one house/interest only, within ITR-1 limits | ITR-1 |
+| Salary, up to two house properties, interest only, within ITR-1 limits | ITR-1 |
 
 ITR-1/ITR-4 total-income ceiling is 50 lakh, excluding §112A LTCG within the
 form's ₹1,25,000 limit (AY 2026-27 portal instructions); eligibility should be evaluated at **record**
@@ -97,6 +97,12 @@ reason; (e) only a small §112A LTCG must not.
 - AL: assets and liabilities, required when total income exceeds 1 crore
   (AY 2026-27 ITR-2 utility; raised from 50 lakh).
 - TI / TTI: total income / total tax and refund.
+
+Schedule CG and the portal's capital-gains tables must be built from the **same
+netted records** as the tax engine (after exemptions, deemed gains, transfer
+expenses and substituted cost); two code paths drift. Chapter VI-A (Part C)
+deduction keys must reach the engine with their caps. A pass-through map that
+silently drops an unknown key loses the deduction, so reject unknown keys instead.
 
 **Why.** A figure computed in two schedules by two code paths drifts, and the
 portal either rejects the mismatch or accepts it.
@@ -163,6 +169,11 @@ Classification defects seen in practice (per project notes):
   and an unrealized path; change both or neither. A fix to one left gold/foreign
   under-stated in the realized path for 366-729 day holds.
 - §112 and §112A rates may be equal yet are separate levers; never substitute.
+- The rebate (§156; §87A in 1961) is for **resident** individuals only; the portal
+  rejects it for a non-resident. A missing residential status must be a validation
+  error, never a default to resident, which gives a non-resident zero tax. Use one
+  shared residency predicate for the tax engine and for Schedule CG and foreign-income
+  filtering.
 - Rebate and surcharge: marginal relief must use the same rounded base as the
   tax; the 15% surcharge cap covers specified capital-gain and dividend income but
   **not** winnings or VDA income (which take the full band).
@@ -318,6 +329,43 @@ cannot be re-verified and silently applies to the wrong year.
 
 **Detector.** List constants lacking an adjacent date or source.
 
+## 11. Filing window: due date, belated and revised returns
+
+**Rule.** The due date (§263(1)(c); §139(1) in 1961 numbering) depends on the assessee:
+
+| Assessee | Due date |
+|---|---|
+| Others (salary, capital gains, no business head) | 31 July |
+| Business or profession, no audit (ITR-3/ITR-4; partners of non-audited firms) | 31 August |
+| Audit case | 31 October |
+| Transfer-pricing report case | 30 November |
+
+The clock keys on whether the return has a **business head** (presumptive, books, or
+F&O, even at a loss), not on the form alone. Late fee, §234A interest and the
+`ItrFilingDueDate` field all read it. Check CBDT extensions before fixing a date;
+Circular 07/2026 reportedly moved the AY 2026-27 audit-case date to 21 Nov 2026
+(unverified).
+
+- **Belated return** (§263(4); §139(4)). A filer without business income can opt out
+  of the new regime (§202(4)(b); §115BAC(6)) only in a return filed by the due
+  date, so a belated return cannot select the old regime; the portal rejects it.
+  Business-income filers opt out by Form 10-IEA by the due date. The portal also
+  requires current-year STCL and LTCL to be zero on a §139(4) return; a belated
+  return carries no capital or business loss forward (owner: capital-gains rule 4). A filing section
+  the code cannot map must fail closed, never emit §139(1).
+- **Revised return.** The window is 12 months from the end of the tax year (was 9).
+  One filed after 9 months pays ₹1,000 if total income is ₹5 lakh or less, else
+  ₹5,000 (§428(b); §263(5) as substituted by the Finance Act 2026). For AY 2026-27
+  under the 1961 Act this is the §234-I fee on a §139(5) return filed after
+  31 Dec 2026, with the window to 31 Mar 2027.
+
+**Why.** A wrong clock mis-states late fee and interest, and a belated return
+silently forfeits the old regime and the loss carry-forward.
+
+**Detector.** Fixtures: ITR-3 with F&O loss only and no audit is a 31 August case; a return filed
+one day after the due date with the old regime selected must be rejected; an
+unmapped filing section must raise.
+
 ## Verifying an implementation
 
 Run each Detector above as a test. The minimum fixture set:
@@ -330,6 +378,7 @@ Run each Detector above as a test. The minimum fixture set:
 - TDS: a TAN-less stub plus its TAN-bearing row yield one credit.
 - FTC: foreign tax above Indian tax caps the credit; the Indian-tax column is never 0.
 - Advance tax: all gains in the last quarter show no earlier shortfall.
+- Filing window: due-date clock keyed on business head; belated return cannot select the old regime; unmapped filing section raises.
 - Units: one emitted total re-derived in rupees from raw rows matches.
 
 ## Scope

@@ -5,7 +5,7 @@ license: MIT
 compatibility: SEBI and NSE circulars and broker API docs as read on 2026-11-11. Broker limits change without notice; re-check each broker's docs before hard-coding.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -71,7 +71,7 @@ than one person outside the family (§6) means you are an algo provider.
   ¶2.8; NSE FAQ Q8).
 - The Threshold Order Per Second (TOPS) is **10 orders per second per exchange/segment**. It
   is measured on the broker server's calendar second, and the exchange may change it after
-  notice (NSE/INVG/67858 §B.2, §F).
+  notice (NSE/INVG/67858 §B.2, §F, 5 May 2025, <https://nsearchives.nseindia.in/content/circulars/INVG67858.pdf>). TOPS starts at 10 orders/s; orders above it need exchange registration. Kite limits: 10/s, 400/min, 5,000/day (<https://kite.trade/docs/connect/v3/exceptions/>).
 - **At or below 10 OPS**, the client does not register. The exchange still issues a
   *generic* algo ID, and the broker sends `99999` in the algo ID field (NSE/INVG/69255 ¶8.2.4).
 - **Above 10 OPS**, the client registers the algo with each exchange through the broker,
@@ -201,7 +201,7 @@ Each cell comes from the broker's own docs or support pages, read 2026-11-11.
 | Dhan | `correlationId`, max 30, `[a-zA-Z0-9 _-]` | 10/s, 250/min, 1000/h, 7000/day; 25 modifications per order | `TRANSIT` ("did not reach the exchange server"), `PENDING` | Yes, closed environment, not paper trading (dhan.co support) |
 | Angel One | `ordertag`, under 20 chars (`AB4008`) | `placeOrder`, `modifyOrder`, `cancelOrder`: each 9/s, 500/min, 1000/h | `open pending`, `trigger pending`, `modify pending`, `after market order req received`, `modify after market order req received` | None documented |
 | ICICI Breeze | `user_remark`, no spaces or special characters; length unverified | 100 calls/min, 5000/day; 10 orders/s combined over place, modify, cancel and square-off | `Requested`, `Queued`; meaning of `Ordered` and `Freezed` unverified, so map them to `UNKNOWN` | None documented |
-| Fyers | `orderTag`, 1–30 alphanumeric, not the client ID or `Untagged` | Standard plan: 10/s, 200/min, 100000/day; place, modify and cancel stay within 10/s | `4` Transit, `6` Pending; async place returns `id_fyers`, not an order ID | None documented |
+| Fyers | `orderTag`, 1–30 alphanumeric, not the client ID or `Untagged` | From 16 Oct 2026, Standard plan (no Prime subscription): transaction APIs 10/s, 200/min, 100000/day, data APIs 5/s, 50/min, 5000/day; Prime: 10/s, 500/min, 500000/day for both ([notice](https://fyers.in/notice-board/changes-to-fyers-api-rate-limits-and-usage)); place, modify and cancel stay within 10/s | `4` Transit, `6` Pending; async place returns `id_fyers`, not an order ID | None documented |
 
 More traps from the same pages:
 - Upstox Place Order only works from 5:30 AM to 12:00 AM IST (`UDAPI100074`).

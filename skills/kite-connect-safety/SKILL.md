@@ -5,7 +5,7 @@ license: MIT
 compatibility: Written against Kite Connect v3 (https://kite.trade/docs/connect/v3/); the principles apply to any Indian broker REST API.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -201,6 +201,20 @@ IGNORE rows (IGNORE: held but not managed by the app).
   BSE-only holdings.
 - Persist the real side; skip HOLD and IGNORE rows. Persist each order **before** placing
   the next so a crash cannot orphan live orders.
+
+**Two-phase plan and approve.** The rebalance function only **plans**. Executing
+with `dryRun: false` requires an approved plan id, and one executor function is
+the sole caller of `placeOrder`. This sits behind the §7 gate.
+
+**Owned quantity.** Take it from the app's own order ledger as BUY minus SELL
+filled quantity over **final-status** rows only, per exchange.
+
+**Input validation.** Validate an empty or invalid universe or symbol list
+before the exchange lookup, so the route returns 4xx, not 500.
+
+**Test trap.** A mutant that drops the final-status filter survives when the
+fixture's non-final row has NULL `filled_quantity`, because SQL `SUM` ignores
+NULL. Use a non-final row with a partial fill.
 
 **Detector.** Fixture with an ETF in holdings and not in the managed set — it
 must come out `IGNORE`. Run the planner twice — second run all HOLD. Make the

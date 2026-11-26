@@ -5,7 +5,7 @@ license: MIT
 compatibility: NSE (India) cash, F&O, currency and commodity segments; BSE equity-derivatives expiry days. Holiday lists, sessions and expiry rules change by circular; dates verified against NSE, NSE Clearing and BSE sources as of 2026-11-11.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -207,7 +207,7 @@ date). Never use a constant.
 | contracts expiring after 3 Jan 2025 | SENSEX weekly Friday → Tuesday; monthly last Friday → last Tuesday | BSE 20241128-70 |
 | from EOD 1 Jan 2025 | BANKNIFTY (last Wed), FINNIFTY (last Tue), MIDCPNIFTY (last Mon), NIFTYNXT50 (last Fri) monthly → last Thursday; NIFTY unchanged on Thursday | NSE/FAOP/65336 |
 | proposed 4 Apr 2025 | Move to Monday. **Deferred on 27 Mar 2025 and never applied** | NSE/FAOP/66938, NSE/FAOP/67338 |
-| contracts expiring on or after 1 Sep 2025 | NSE: all equity derivatives on Tuesday, monthly on last Tuesday; first Tuesday weekly 2 Sep 2025 | SEBI/HO/MRD/TPD-1/P/CIR/2025/76 (26 May 2025); NSE/FAOP/68589, 68747 |
+| contracts expiring on or after 1 Sep 2025 | NSE: all equity derivatives on Tuesday, monthly on last Tuesday; first Tuesday weekly 2 Sep 2025 | SEBI/HO/MRD/TPD-1/P/CIR/2025/76 (26 May 2025); NSE/FAOP/68589, 68747 (<https://nsearchives.nseindia.in/content/circulars/FAOP68747.pdf>) |
 | contracts expiring after 1 Sep 2025 | BSE: SENSEX weekly Tuesday → Thursday; monthly → last Thursday | BSE 20250617-11, 20250623-59 |
 
 **Why.** A backtest of NIFTY weeklies over 2024–2026 with "Tuesday" throughout

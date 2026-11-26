@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE index data (nseindia.com, niftyindices.com) and NSE equity tickers. BSE needs a different, browser-driven route.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -53,7 +53,7 @@ was not present to remove").
 
 Source: NSE's press-release CMS endpoint,
 `GET https://www.nseindia.com/api/press-release-cms20?fromDate=DD-MM-YYYY&toDate=DD-MM-YYYY`
-(earlier cookie-gated; a bare curl worked on 2026-11-11, so keep loading a nseindia.com page first only as a fallback). Four traps:
+(earlier cookie-gated; a bare curl worked on 2026-11-11, so keep loading a nseindia.com page first only as a fallback; the `.com` host now redirects to `.in`, see [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) §1). Four traps:
 
 1. Filter `content.field_type` **case-insensitively**. It is `"NSE INDICES"` in older
    records and `"NSE Indices"` from May 2025. An exact `===` drops every

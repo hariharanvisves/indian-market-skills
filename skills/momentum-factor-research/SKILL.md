@@ -5,7 +5,7 @@ license: MIT
 compatibility: Daily NSE close data. Figures marked "measured on NSE data" are dated findings from one codebase; re-measure on yours.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -146,6 +146,17 @@ mis-parses ranks every symbol on a wrong number.
 8. **Async tests must actually run.** A synchronous harness passes any async
    assertion without running it; mutate an expected value to a false one and
    confirm it fails.
+
+## 8. Live scoring ranks only current series
+
+**Rule.** In a live scorer or scanner, rank only symbols whose last bar is the
+latest session. Report the excluded count; never drop them silently. Share one
+staleness predicate between scanner and scorer.
+**Why.** A series that ends early (a provider truncating at an unadjusted split,
+for example) ranks on stale momentum. A guard in one path and not the other is
+the observed defect.
+**Detector.** Fixture with one symbol ending a session early: it is excluded,
+counted in the output, and both paths agree.
 
 ## Verifying an implementation
 

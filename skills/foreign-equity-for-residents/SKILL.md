@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rules verified 2026-11-11 against the Income-tax Act 2025, Finance Act 2026, Income-tax Rules 2026 and the AY 2026-27 ITR-2. Covers FY 2025-26 (1961 Act) and tax year 2026-27 onward (2025 Act). Not tax advice; re-verify each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -232,7 +232,9 @@ stays ₹21,250.
   2026 §160 extends that carve-out to prosecution (§49, §50).
 - That relief removes the **penalty, not the duty to report**: the form has no de
   minimis. Finance Act 2026 Chapter IV also creates a Foreign Assets of Small
-  Taxpayers Disclosure Scheme, 2026, starting on a notified date; check its status.
+  Taxpayers Disclosure Scheme, 2026 (FAST-DS), starting on a notified date; check its
+  status. Reported, not primary-confirmed: notified 14 Aug 2026 (Notification
+  114/2026), in force 16 Aug 2026, declarations by 31 Dec 2026; verify.
 
 **Why.** If FA is built from the FY capital-gains ledger, it misses calendar-year
 holdings. That is the incomplete disclosure the penalty is aimed at.
