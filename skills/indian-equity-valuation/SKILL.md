@@ -40,8 +40,8 @@ verify per schema.
 |---|---|---|
 | §200 (old 115BAA) | 22% + 10% surcharge + 4% cess = **25.168%** | Opt-in; forgoes most deductions and incentives |
 | §201 (old 115BAB) | 15% base, **17.16%** effective | **Closed to new units** — manufacturing had to commence by 31-03-2024 |
-| Non-opting domestic company | 25% if turnover in the reference year is ≤ ₹400 cr, else 30%; surcharge 7% (>₹1 cr–10 cr), 12% (>₹10 cr); cess 4% | Reference year was 2024-25 in the 2026 source read; verify for the year you model |
-| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Old regime: MAT is a final tax, and no new credit accrues. Existing MAT credit can be set off only under the new regime, capped at 25% of liability |
+| Non-opting domestic company | 25% if turnover in the reference year is ≤ ₹400 cr, else 30%; surcharge 7% (>₹1 cr–10 cr), 12% (>₹10 cr); cess 4% | For tax year 2026-27 the reference year is 2024-25 (Finance Bill 2026, Part I-B, Paragraph E, as introduced); check the enacted Finance Act for later years |
+| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Old regime: MAT is a final tax, and no new credit accrues. Existing MAT credit can be set off only under the new regime, capped at 25% of the tax payable on total income under the other provisions (Finance Bill 2026 clause 50, as introduced). The Act as passed still says 15% (§206(1)(b)(ii)) |
 
 **Why.** A flat 25% or 30% misstates NOPAT by several points, and the opt-in
 regime changes whether past MAT credit is usable at all.
@@ -63,7 +63,7 @@ nopat = ebit * (1 - tax)
 ## 2. Risk-free rate: a dated FBIL figure, never memory
 
 **Rule.** Use the 10-year G-Sec yield from the FBIL benchmark (FBIL, not RBI or
-CCIL), published on Mumbai business days around 19:00 IST. Record the **as-of
+CCIL), published on Mumbai business days at 19:00 IST (data collection 17:00; FBIL release of 10 Feb 2023, effective 13 Feb 2023; check FBIL for later changes). Record the **as-of
 date and the benchmark security** — the benchmark rotates (6.48% GS 2035 from
 6 Oct 2025 per FBIL's methodology notice). Never type a risk-free number from
 recall.
@@ -197,7 +197,7 @@ date it; do not use a pledge figure from a stale snapshot.
 
 **Rule.** Dividend Distribution Tax was abolished for dividends after
 31-03-2020; dividends are taxed in the **shareholder's** hands. TDS applies at
-10% above a **₹10,000** per-year threshold from 1 Apr 2025 (was ₹5,000), under
+10% above a **₹10,000** per-year threshold, per paying company, from 1 Apr 2025 (was ₹5,000), under
 §393 of the 2025 Act (FB 2025 memo; tax mechanics are owned by
 [corporate-action-taxation](../corporate-action-taxation/SKILL.md)). A DDM for a taxable holder should discount
 **post-tax** dividends at the holder's slab rate; for an institution, the

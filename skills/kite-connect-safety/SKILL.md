@@ -28,7 +28,8 @@ rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
 4. Authenticate, authorize the owner, then rate limit; an unset owner setting means 403 (§5).
 5. The live path stays hard-disabled (409) until the owner authorises it (§7).
 6. A local order-value ceiling exists from day one and fails closed (§8a).
-7. Derive the idempotency key from the order's intent, not the click (§8b).
+7. Derive the idempotency key from the order's intent, not the click, and claim it
+   atomically before sending (§8b).
 8. A timeout after send is `unknown`, not `rejected`: no retry, no auto-cancel, suspend
    automation, reconcile by `tag` or order id (§8c, §8d).
 9. API orders need a whitelisted static IP from 2026-04-01; reads and WebSocket work
@@ -152,15 +153,23 @@ and absent mean dry run.
 
 **8a. Default order-value ceiling.** A ceiling exists from account creation
 (lesser of an absolute rupee cap and a percentage of equity). Above it, reject
-locally and name the ceiling. Raising it is step-up. Detector: place an order
-over the cap; the broker client must not be called.
+locally and name the ceiling. A missing, NaN, zero or negative value, or a
+non-finite ceiling, also rejects. Raising it is step-up. Detector: place an order
+over the cap, and one valued NaN; the broker client must not be called.
 
 **8b. Intent-derived idempotency key.** Derive the key from the order's intent —
 `(account, instrument, side, qty, type, price, trigger, product, pad-session)` —
 not from the click. Two presses of an unchanged pad replay one key and return
 the original order. Kite's `tag` field is optional, alphanumeric, max 20 chars
 (orders docs); use it to carry the key's short form so the order can be found
-again. Detector: submit the same intent twice; exactly one broker call.
+again. Store the exact tag sent in the order record and reconcile by that stored value,
+never by deriving it again; other brokers' tag lengths are in
+[indian-broker-api-safety](../indian-broker-api-safety/SKILL.md) §8. Claim the key with an
+atomic insert-if-absent (a unique-key insert) of a `pending` record **before** sending, so
+two concurrent presses cannot both send. A stored result, `rejected` included, is replayed
+for the same key: retrying a rejected order takes a new intent (a new pad session gives a
+new key). Detector: submit the same intent twice, also from two threads at once; exactly
+one broker call.
 
 **8c. Three-state result.** `placed | rejected | unknown`. A timeout or a
 5xx/network failure **after** the request left is `unknown`, not `rejected`. The
@@ -181,38 +190,47 @@ def intent_key(a):        # a: account, instrument, side, qty, otype, price, tri
                                     a.price, a.trigger, a.product, a.pad_session))
     return hashlib.sha256(raw.encode()).hexdigest()
 
-def check_ceiling(order_value, ceiling):                 # 8a
-    if ceiling is None or order_value is None:           # unset or unpriceable: fail closed
-        raise LocalReject("no ceiling or no order value")
-    if order_value > ceiling:                            # ceiling = min(ABS_CAP, PCT * equity)
-        raise LocalReject(f"order value {order_value} exceeds ceiling {ceiling}")
+def check_ceiling(order_value, ceiling):                 # 8a: fail closed
+    try:                                                 # ceiling = min(ABS_CAP, PCT * equity)
+        ok = math.isfinite(order_value) and math.isfinite(ceiling) and 0 < order_value <= ceiling
+    except TypeError:                                    # None or not a number
+        ok = False
+    if not ok:                                           # NaN, <= 0, over the cap, inf ceiling
+        raise LocalReject(f"order value {order_value!r} not within ceiling {ceiling!r}")
 
 def place_once(store, broker, a, order_value, ceiling):
     key = intent_key(a)
-    if (prior := store.get(key)) is not None:
-        return prior                                     # 8b: same intent, one broker call
+    tag = key[:20]                                       # 8b: Kite tag, alphanumeric, max 20
     if store.suspended(a.account):
         raise Suspended(a.account)                       # 8d: an earlier unknown is unresolved
     check_ceiling(order_value, ceiling)
-    tag = key[:20]                                       # 8b: Kite tag, alphanumeric, max 20
+    if not store.claim(key, Result("pending", tag=tag)): # atomic insert-if-absent, before send
+        prior = store.get(key)
+        if prior.status == "pending":                    # in flight, or a crash after send
+            return Result("unknown", tag=prior.tag)      # reconcile; never send again
+        return prior                                     # placed, rejected or unknown: replay
     try:
-        result = Result("placed", broker.place(a, tag=tag))
+        result = Result("placed", tag=tag, order_id=broker.place(a, tag=tag))
     except BrokerRejected as e:                          # explicit rejection from the broker
-        result = Result("rejected", reason=str(e))
-    except (TimeoutError, ConnectionError, ServerError): # 8c: request may have left
+        result = Result("rejected", tag=tag, reason=str(e))
+    except Exception:                                    # 8c: anything else, the request may have left
         result = Result("unknown", tag=tag)
+        store.update(key, result)                        # record first, then suspend
         store.suspend(a.account)                         # no retry, no auto-cancel
-    store.put(key, result)
+        return result
+    store.update(key, result)
     return result
 
-def reconcile(broker_orders, tag):                       # 8d: by tag, never by a fuzzy tuple
-    hits = [o for o in broker_orders if o.tag == tag]
+def reconcile(broker_orders, record):                    # 8d: by the stored tag, never a fuzzy tuple
+    hits = [o for o in broker_orders if o.tag == record.tag]
     return hits[0] if len(hits) == 1 else None           # 0 or several: a human decides
 ```
 
 Wrong: `except TimeoutError: return place_order(...)` sends a second live order when the first
 reached the exchange. Right: the second call returns `unknown` with automation suspended,
-and `reconcile` finds the order by `tag`.
+and `reconcile` finds the order by the tag stored in the record. A `pending` record left
+by a crash between send and update also reads as `unknown`; on startup, suspend the
+account of every `pending` record and reconcile it.
 
 **8e. Stale quote.** A stale quote **warns a human** (acknowledge, show last-tick
 age) and **blocks a machine**. Blocking manual exits on thin stocks makes
@@ -285,7 +303,9 @@ without a decision fails.
 - A stdio MCP server's **stdout is the JSON-RPC channel**; diagnostics go to
   stderr. Detector: spawn it, send `initialize`, assert every stdout line
   parses as JSON.
-- The hosted Kite MCP needs interactive OAuth per user; config is read at client
+- The hosted Kite MCP (`mcp.kite.trade`) is read-only: login via Kite, no credential
+  sharing with the AI tool, and no order tools ("excludes potentially destructive
+  trading operations", zerodha/kite-mcp-server README). Config is read at client
   startup. It is distinct from your own SDK-based order code.
 - A **self-hosted** Kite MCP exposes order-placement tools to whatever model is
   attached. Treat that as a live path: do not enable it unattended, and prefer

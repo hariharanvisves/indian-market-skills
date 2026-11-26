@@ -25,9 +25,9 @@ the rule, why it matters, and a **Detector** to run against code.
 2. **Every figure has one owning schedule**; CYLA, BFLA, CFL, TI and TTI read CG and OS outputs ([section 2](#2-schedule-map)).
 3. **Assert cross-schedule identities** on the final emitted document, not the builder ([section 3](#3-cross-schedule-reconciliation-identities)).
 4. **Set-off order is CYLA, then BFLA, then CFL**; a long-term loss never nets against short-term gain ([section 4](#4-capital-gains-ordering-inside-the-schedules)).
-5. **FX rate is the SBI TT buying rate** at the last day of the month before the event; foreign tax credit is the lower of foreign tax and Indian tax. **Form 67 becomes Form 44** from tax year 2026-27 ([section 5](#5-foreign-income-and-tax-credit)).
+5. **FX rate is the SBI TT buying rate** at the last day of the month before the event (the cost-side reading is unsettled: [foreign-equity-for-residents section 4](../foreign-equity-for-residents/SKILL.md#4-currency-conversion-sbi-tt-buying-rate-month-before)); foreign tax credit is the lower of foreign tax and Indian tax. **Form 67 becomes Form 44** from tax year 2026-27 ([section 5](#5-foreign-income-and-tax-credit)).
 6. **§288A/§288B rounding:** drop the paise first, then round to the nearest ₹10, only at total income and final tax ([section 6](#6-rounding-288a-and-288b-are-the-same-rule)).
-7. **One TDS credit per (section, date, amount)**; a TAN-less 26AS stub is not a second credit ([section 7](#7-tds-de-duplication-across-26as-ais-and-the-portal)).
+7. **A TAN-less 26AS stub is not a second credit:** collapse it only into a TAN-bearing row with the same (section, date, amount), and flag it; rows with different TANs stay separate ([section 7](#7-tds-de-duplication-across-26as-ais-and-the-portal)).
 8. **§234C:** a shortfall from income arising after an instalment date is excused if the tax is paid in the remaining instalments ([section 8](#8-advance-tax-and-the-instalment-schedule)).
 9. **Convert units once, at the emitter**; a missing value is a validation error, never `0` ([section 9](#9-json-emit-boundary-units-and-schema-per-year)).
 10. **JSON keys keep 1961 literals** whatever the year; translate section numbers only in labels ([law version](#law-version-caveat-read-first)).
@@ -115,8 +115,10 @@ at the emit boundary, in the final document.
 Identities to assert (all on emitted values, in one unit):
 
 1. Sum of CG line gains by bucket == the bucket totals CYLA starts from.
-2. CYLA + BFLA set-off + CFL carry-forward == loss available (none created or
-   destroyed); CFL == loss unabsorbed after CYLA and BFLA.
+2. CYLA + BFLA set-off + CFL carry-forward == loss available, meaning the
+   current-year loss plus the brought-forward loss (none created or destroyed;
+   leave out a brought-forward loss past its 8-year window); CFL == loss
+   unabsorbed after CYLA and BFLA.
 3. Total of §112A-schedule rows == the corresponding CG line.
 4. TR claimed credit == sum over FSI country rows of the allowed credit; never
    more than Indian tax on that income.
@@ -136,8 +138,9 @@ schedule.
 ```python
 def reconcile(doc):
     bad = []
-    cg = doc["CG"]["loss_available"]
-    if doc["CYLA"]["setoff"] + doc["BFLA"]["setoff"] + doc["CFL"]["carry"] != cg:
+    cg = doc["CG"]
+    available = cg["loss_current"] + cg["loss_brought_forward"]
+    if doc["CYLA"]["setoff"] + doc["BFLA"]["setoff"] + doc["CFL"]["carry"] != available:
         bad.append("loss created or destroyed across CYLA/BFLA/CFL")
     fsi = sum(r["allowed_credit"] for r in doc["FSI"]["countries"])
     if doc["TR"]["claimed"] != fsi:
@@ -150,7 +153,10 @@ loss counted in both CYLA and CFL, or a credit in both FSI and TR, only
 shows when you add across.
 
 **Detector.** Run `reconcile(doc)` over every golden fixture and over the final
-emitted JSON. Prove it fires by perturbing one schedule by one unit.
+emitted JSON. Prove it fires by perturbing one schedule by one unit. Include a
+fixture with a brought-forward loss: current-year loss 100 (CYLA 60), brought-forward
+loss 50 (BFLA 20), CFL 70 reconciles; comparing against the current-year loss alone
+fails that valid document.
 
 ## 4. Capital-gains ordering inside the schedules
 
@@ -180,7 +186,9 @@ LTCG = 0; expect STCG unchanged and 50 carried forward.
   month of transfer; tax-credit conversion (**Rule 128(5)**; Rule 76(7)) uses the
   same rate on the last day of the month preceding the month the foreign **tax was
   paid or deducted**. Keep the rate table per financial year with a source; a stale
-  table silently mis-converts.
+  table silently mis-converts. For capital gains the month-before-transfer rate is
+  settled for the sale side only; whether cost converts at the purchase-side rate is
+  unsettled, per [foreign-equity-for-residents](../foreign-equity-for-residents/SKILL.md#4-currency-conversion-sbi-tt-buying-rate-month-before).
 - **Form 67** (Form 44 from tax year 2026-27) must be filed within 12 months
   after the end of the financial year of the income, with the return itself filed
   under §139(1) or §139(4); for an updated return, by the date that return is filed.
@@ -245,9 +253,10 @@ paise case are commonly untested).
 
 **Rule.** The same deduction can appear in several sources. A Form 26AS row
 without a TAN (a stub) and a TAN-bearing row for the same deduction are one
-credit, not two. Key credits on (section, deduction date, amount), **not** on the
-TAN, so the stub matches its real row; keep the TAN-bearing row and flag the
-TAN-less one as a probable duplicate rather than adding it.
+credit, not two. Match on (section, deduction date, amount) but collapse only when
+one side lacks a TAN: keep the TAN-bearing row and flag the TAN-less one as a probable
+duplicate. Two rows that both carry a TAN, and differ, are two deductors and stay two
+credits. A TAN-less row with no TAN-bearing match is kept and flagged, never dropped silently.
 
 AIS is a broader information record than 26AS; the two legitimately differ
 (AIS carries items that carry no TDS). 26AS is the TDS credit authority; AIS
@@ -256,15 +265,22 @@ overwrite broker capital-gains figures with AIS: see
 [indian-broker-statement-formats](../indian-broker-statement-formats/SKILL.md) section 17.
 
 ```python
-def dedupe_credits(rows):
-    kept = {}
-    for r in rows:                       # r: section, date, amount, tan
-        key = (r["section"], r["date"], r["amount"])
-        if key not in kept or (r["tan"] and not kept[key]["tan"]):
-            kept[key] = r                # prefer the TAN-bearing row
-    return list(kept.values())
+def dedupe_credits(rows):                # r: section, date, amount, tan
+    key = lambda r: (r["section"], r["date"], r["amount"])
+    kept = [r for r in rows if r["tan"]]
+    taken, flags = set(), []
+    for stub in (r for r in rows if not r["tan"]):
+        i = next((i for i, r in enumerate(kept) if i not in taken and key(r) == key(stub)), None)
+        if i is None:
+            kept.append(stub)
+            flags.append(("no_tan_unmatched", stub))
+        else:
+            taken.add(i)
+            flags.append(("probable_duplicate", stub))
+    return kept, flags
 
 # two salary rows of 1,20,000, same section and date, one with a TAN: claim 1,20,000, not 2,40,000
+# the same pair with two different TANs stays two credits and raises no flag
 ```
 
 The measured double-count (a real 26AS plus the stub from an AIS upload) and the
@@ -275,7 +291,8 @@ duplicated capital-gain rows from broker summary plus per-lot sheets are in
 recovers it.
 
 **Detector.** Group the credit list by (amount, date) and look for groups where
-one row has a TAN and one does not. Compare the sum of credits to the 26AS total
+one row has a TAN and one does not, and for any code that keys on (section, date,
+amount) alone and so merges rows with different TANs. Compare the sum of credits to the 26AS total
 for the same TAN set.
 
 ## 8. Advance tax and the instalment schedule
@@ -355,7 +372,7 @@ Circular 07/2026 reportedly moved the AY 2026-27 audit-case date to 21 Nov 2026
 (unverified).
 
 A belated return (§263(4); §139(4)) cannot select the old regime and carries no
-loss forward; a revised return has a 12-month window and a fee after 9 months. The
+capital or business loss forward; a revised return has a 12-month window and a fee after 9 months. The
 regime rules, fee amounts and the fail-closed filing-section rule are in
 [references/filing-window.md](references/filing-window.md); read it when emitting a
 late or revised return.
@@ -374,7 +391,7 @@ Run each Detector above as a test. The minimum fixture set:
 - Form choice: fixtures (a)–(d) from section 1 reject ITR-1 and name the blocker; (e) does not.
 - Set-off: STCG = 100, LTCL = 50, LTCG = 0 leaves STCG at 100 and carries 50.
 - Rounding: ₹1,234.60 gives ₹1,230; add negative and last-digit-5 cases.
-- TDS: a TAN-less stub plus its TAN-bearing row yield one credit.
+- TDS: a TAN-less stub plus its TAN-bearing row yield one credit and a flag; two different TANs with the same section, date and amount yield two.
 - FTC: foreign tax above Indian tax caps the credit; the Indian-tax column is never 0.
 - Advance tax: all gains in the last quarter show no earlier shortfall.
 - Filing window: due-date clock keyed on business head; belated return cannot select the old regime; unmapped filing section raises.

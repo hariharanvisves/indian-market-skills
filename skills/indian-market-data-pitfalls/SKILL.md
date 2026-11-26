@@ -14,8 +14,8 @@ metadata:
 
 Each item below is a defect class that passes tests, produces plausible numbers,
 and is found only by looking for it. Ordered by how much damage it does silently.
-This skill owns the first four rules in the table below (date shift, price-sanity
-filters, precision, sanity gates) and indexes the rest.
+This skill owns rows 1, 3, 4 and 8 of the table below (date shift, longest clean
+run in price filters, paise precision, sanity gates) and indexes the rest.
 
 ## Core rules
 
@@ -106,7 +106,7 @@ def longest_clean_run(closes, max_move=0.40):
     # a bad move into i makes bar i untrustworthy: it ends one run and starts neither
     runs, start = [], 0
     for i in range(1, len(closes)):
-        if abs(closes[i] / closes[i - 1] - 1) > max_move:
+        if closes[i - 1] <= 0 or abs(closes[i] / closes[i - 1] - 1) > max_move:
             runs.append((start, i)); start = i + 1
     runs.append((start, len(closes)))
     return max(runs, key=lambda r: r[1] - r[0])   # half-open [start, end)

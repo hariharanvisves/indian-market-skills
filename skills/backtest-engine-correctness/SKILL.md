@@ -29,7 +29,7 @@ A model that reads only this block should avoid the worst mistakes. Rule numbers
 6. No metric may be NaN or Infinity; skip the pair, never substitute 0; Sharpe is null on a short window. [§13](#13-no-metric-may-be-non-finite-skip-the-pair-never-substitute-0), [§14](#14-sharpe-is-null-under-a-minimum-window)
 7. Quote a regime-filter result only with its rebalance frequency. [§16](#16-a-regime-filter-only-acts-on-rebalance-dates)
 8. Keep `simulate()` pure, version the engine on economic change, key caches on the whole price manifest. [§18](#18-simulate-is-pure-io-sits-outside), [§19](#19-version-the-engine-bump-only-when-the-economic-result-changes)
-9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules. [§20–§23](#f-nse-fill-realism)
+9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026 and again on 7 Dec 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules. [§20–§23](#f-nse-fill-realism)
 10. A survivorship-biased or half-adjusted price history fails before any rule here matters. [§24](#24-survivorship-and-corporate-actions)
 
 ## A. Valuation and time
@@ -40,17 +40,23 @@ A model that reads only this block should avoid the worst mistakes. Rule numbers
 later). Never at bar *i*'s close.
 **Why.** The close is unknowable until the bar ends; filling there is the single
 largest source of fake edge.
-**Detector.** Perturb bar *i+1* onward (set every later close to a huge value)
-and re-run: selections and fills dated at or before *i* must not change. Any
-change is look-ahead.
+**Detector.** Tamper bar *i*'s close and every later bar (set to a huge value),
+re-run, and compare only the **fills** dated at or before *i*; they must not
+change. Do not compare selections: a selection at *i* may legitimately use close
+*i*, but a fill at *i* may use only bar *i*'s open or earlier. Perturbing from
+*i+1* would miss a fill at bar *i*'s own close.
 
 ```python
 def test_no_lookahead(run, bars, i):
     base = run(bars)
-    tampered = {s: b[: i + 1] + [{**x, "close": 1e9} for x in b[i + 1 :]]
+    huge = {"open": 1e9, "high": 1e9, "low": 1e9, "close": 1e9}
+    tampered = {s: b[:i] + [{**b[i], "close": 1e9}] + [huge] * (len(b) - i - 1)
                 for s, b in bars.items()}
-    assert fills_through(run(tampered), i) == fills_through(base, i)
+    assert fills_through(run(tampered), i) == fills_through(base, i)  # fills with bar <= i
 ```
+
+An engine that fills at bar *i*'s close fails this test; one that fills at bar
+*i+1*'s open passes.
 
 ### 2. Mark to market backward, never forward
 
@@ -180,7 +186,7 @@ liquidated). Slippage and commission are separate knobs: slippage changes the
 affordable quantity, commission only reduces cash.
 **Why.** Fee-after-sizing overdraws the allocation into negative cash. Flat
 per-scrip charges come off the budget before dividing; see
-[indian-equity-charges](../indian-equity-charges/SKILL.md) item 5.
+[indian-equity-charges](../indian-equity-charges/SKILL.md) §2 item 5.
 **Detector.** Assert spend ≤ budget at absurd costs (1000 bps stays finite and
 non-negative). **Invariant:** a zero-friction run must reproduce the frictionless
 numbers byte-for-byte, and trade count must be unchanged by costs (costs move
@@ -311,15 +317,17 @@ is filling at an auction price; confirm the data source records that print.
 
 **Rule.** BE and BZ series settle trade-for-trade (gross, every trade
 deliverable); do not model intraday netting there. Stage II–IV GSM names are
-trade-for-trade too, and Stage III–IV trade only once a week.
+trade-for-trade too, and Stage III–IV trade only once a week (first trading day
+of the week).
 **Detector.** On a BE/BZ or GSM Stage II–IV name, a same-day buy and sell must
 book two deliverable trades. Sources are in the reference.
 
 ### 23. F&O ban and surveillance lists
 
 **Rule.** A stock enters the F&O ban when futures-equivalent open interest
-exceeds 95% of MWPL (MWPL rule from 1 Oct 2025; the 80% exit threshold is
-unconfirmed, verify it against the current NSE circular). ASM and GSM stages
+exceeds 95% of MWPL (MWPL rule from 1 Oct 2025; before that date MWPL was 20% of
+free float on plain open interest; trading resumes at 80% of MWPL or below per SEBI Master
+Circular annexure 1.3.2.1.4.6). ASM and GSM stages
 change margin, band and contract availability.
 **Why.** Ban, margin and band rules decide whether a position could be opened
 and at what cost; ignoring them fills trades that never existed.

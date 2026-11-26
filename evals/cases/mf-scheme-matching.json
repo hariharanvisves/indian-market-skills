@@ -64,7 +64,7 @@
         "Says the two records must come from different sources"
       ],
       "must_match": [
-        "(?i)price[- ]free|without (the )?(price|nav)|(drop|remove|exclude|take out) (the )?(price|nav)|no (price|nav)\\b|(nav|price) (is|must not be|should not be) in the key|(nav|price) out of the key",
+        "(?i)price[- ]free|without (the )?(price|nav)|(drop|remove|exclude|take out) (the )?(price|nav)|no (price|nav)\\b|(nav|price) (is|must not be|should not be) in the key|(nav|price) out of the key|leave (the )?(price|nav) out",
         "(?i)toleran"
       ],
       "must_not_match": []

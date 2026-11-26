@@ -12,8 +12,9 @@ Purpose: edge-case rules for SGBs and debt mutual funds, moved out of SKILL.md s
 - **Redemption at RBI maturity is exempt only if an individual held the bond
   from the date of original issue till maturity** (§70(1)(x) of the 2025 Act as
   substituted by the Finance Act 2026, from 1 April 2026; §47(viic) in 1961
-  numbering). A secondary-market buyer's redemption, or an early redemption, is a
-  taxable capital gain. Omit exempt redemptions from the capital-gains rows
+  numbering); earlier redemptions by any individual were exempt. A
+  secondary-market buyer's redemption, or an early redemption, is a taxable
+  capital gain. Omit exempt redemptions from the capital-gains rows
   upstream; do not emit a zero row. Fail loudly if one reaches the schedule writer.
 - A **market sale** before maturity is an ordinary §112 long-term gain (§197
   under the 2025 Act): no §112A exemption. Check for an SGB **before** any

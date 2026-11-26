@@ -60,17 +60,15 @@ When you resolve one, remove its row here and close the issue.
 |---|---|---|---|
 | `indian-equity-charges` | Whether the IPFT charge (₹0.01/crore, included in NSE's 0.00307% per NSE/FA/73061) enters the GST base | Unknown | NSE circular; zerodha.com/charges footnotes |
 | `indian-equity-charges` | Dates of the F&O STT revisions (2024 and Budget 2026) | The 1 Apr 2026 Finance Act 2026 rates are sourced (NSE/FATAX/73524). The 2024 revision date is not independently sourced. | Finance (No. 2) Act 2024 |
-| `indian-equity-valuation` | MAT at 14% from tax year 2026-27, and MAT as a final tax under the old regime | Secondary sources only. The Finance Bill 2026 memo returned HTTP 403. | Finance Act 2026 text |
-| `indian-equity-valuation` | Income-tax Act 2025 section numbers §200, §201, §206 | Consistent with commentary. The enacted text was not checked. | Income-tax Act 2025 (indiacode.nic.in) |
-| `indian-equity-valuation` | Base for the 25% cap on MAT credit (tax liability vs tax on total income) | Sources differ | Statute text |
-| `indian-equity-valuation` | FBIL publishes benchmarks at about 19:00 IST | Newsletter PDF unreadable | fbil.org.in |
-| `indian-equity-valuation` | Reference year for the ₹400 crore turnover test for non-opting companies | Unknown | Finance Act text |
+| `indian-equity-valuation` | MAT at 14% from tax year 2026-27, and MAT as a final tax under the old regime | Matches the Finance Bill 2026 as introduced (memo to clause 50). The Act as passed says 15% (§206(1)(b)(ii)). The enacted Finance Act was not read. | Finance Act 2026 in the Gazette |
+| `indian-equity-valuation` | Base for the 25% cap on MAT credit (tax payable on total income under the other provisions) | The Finance Bill 2026 clause says "25% of the tax payable on the total income computed as per the other provisions"; the memo says "25% of the tax liability". The enacted text was not read. | Finance Act 2026 in the Gazette |
+| `indian-equity-valuation` | Reference year for the ₹400 crore turnover test for non-opting companies (2024-25 for tax year 2026-27) | Finance Bill 2026 Part I-B, Paragraph E, as introduced. The enacted text was not read. | Finance Act 2026 in the Gazette |
 
 ## Broker APIs
 
 | Skill | Claim | Status | Primary source to check |
 |---|---|---|---|
-| `kite-connect-safety` | Hosted Kite MCP OAuth behaviour and free-tier capabilities | Marked "verify" in the skill | kite.trade docs |
+| `kite-connect-safety` | Hosted Kite MCP free-tier capabilities | Read-only and no order tools are confirmed (mcp.kite.trade page, kite-mcp-server README). Free-tier data capabilities are not. | kite.trade docs |
 | `indian-broker-api-safety` | Maximum length of ICICI Breeze `user_remark`, and what the `Ordered` and `Freezed` statuses mean | Not documented. The adapter maps both statuses to UNKNOWN. | api.icicidirect.com docs |
 | `indian-broker-api-safety` | Fyers refresh-token lifetime | Not documented | fyers.in/api-docs |
 | `indian-broker-api-safety` | Sandboxes for Kite, Angel One, Breeze and Fyers | None found in their docs | Each broker's developer docs |
@@ -79,19 +77,14 @@ When you resolve one, remove its row here and close the issue.
 
 | Skill | Claim | Status | Primary source to check |
 |---|---|---|---|
-| `backtest-engine-correctness` | F&O ban exit threshold of 80% of MWPL | Not in the 29 May 2025 SEBI circular. Flagged in the skill. | NSE F&O ban FAQ / circular |
-| `backtest-engine-correctness` | T+0 settlement dates and durations of market-wide halts | Cited from 2026-10-04, not re-fetched | SEBI / NSE circulars |
 | `backtest-engine-correctness` | CAS applicability and ±3% band after the Oct 2026 amendment | The amended text omits these paragraphs. The skill treats them as unchanged. | SEBI circular 15 Oct 2026, full text |
-| `nse-options-mechanics` | BSE weekly expiry weekday (Tuesday / Thursday) by date | NSE Tuesday from 1 Sep 2025 is sourced (NSE/FAOP/68747). The BSE part is not confirmed from a primary source. | BSE notices |
 | `nse-options-mechanics` | Derivative settlement rule before 3 Aug 2026 | Not re-verified | NSE Clearing circulars |
 
 ## Data and statements
 
 | Skill | Claim | Status | Primary source to check |
 |---|---|---|---|
-| `indian-capital-gains-tax` | Bonus shares start a new holding period at the bonus allotment date (1961 Act §2(42A) Expl. 1) and how the 2025 Act carries this | Secondary sources only. The claim was removed from `indian-market-data-pitfalls`. | Income-tax Act 2025 text |
 | `nse-bhavcopy-corporate-actions` | `www.nseindia.com` page and `/api/...` paths 301-redirect to `www.nseindia.in`; `.com` homepage 403 to scripted clients | Observed 2026-11-26 only. No NSE announcement found. `nsearchives.nseindia.com` not redirected. | NSE notice or circular on the host change |
 | `nse-bhavcopy-corporate-actions` | Yahoo chart API `meta.chartPreviousClose` is not the previous session close for ranges longer than 1d | Observed 2026-11-26 on RELIANCE.NS only. The API is unofficial and undocumented. | None exists; re-observe before relying on it |
-| `nse-bhavcopy-corporate-actions` | `BL` / `IL` series meaning "same security under trading restriction" (BL is the block-deal series) | Unconfirmed | NSE series code list |
-| `nse-bhavcopy-corporate-actions` | NSE circular 62424 as the UDiFF switch notice | Confirmed only by a search snippet. The behaviour is confirmed: 5 Jul 2024 legacy file served, 8 Jul 2024 returns 404. | nseindia.com all-reports notice |
+| `nse-bhavcopy-corporate-actions` | `IL` series meaning "inter-institutional deals" | Search snippet only; NSE legend page not fetched. BL is confirmed as the block-deals series. | NSE legend of series (nseindia.in/static/market-data/legend-of-series) |
 | `indian-broker-statement-formats` | Zerodha `-E` suffix, Console sheet names, Groww has no SIP column, CAMS JSON `dtTrxnResult`, CAMS and INDmoney `.xls` being OLE2, ITD `aced0005` wrapper, AIS categories | Observed on real files. These are not publicly documented. | A current statement file from each source |

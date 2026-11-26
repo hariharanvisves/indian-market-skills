@@ -51,8 +51,8 @@ Akamai edge as `nseindia.com`. NSE's own web pages also redirect from `.com` to
 cash market data: prices, market breadth, top movers, SME stocks, bonds and corporate
 actions." Neither server has a futures, options, option-chain, open-interest,
 currency or commodity tool. `cm-market`'s `derivatives` index group is a group of
-**indices**, not contracts. For F&O data use the F&O bhavcopy downloads. For F&O
-mechanics see [nse-options-mechanics](../nse-options-mechanics/SKILL.md).
+**indices**, not contracts. For F&O data use the F&O bhavcopy downloads (terms: §2).
+For F&O mechanics see [nse-options-mechanics](../nse-options-mechanics/SKILL.md).
 
 **Detector.** Code or a prompt that asks the NSE MCP for an option chain, OI, PCR or
 futures basis.
@@ -74,8 +74,8 @@ Quoted from the landing page (2026-11-26):
   which are linked from that page.
 
 Both servers' `instructions` say the data is "for educational and research purposes
-only" and is not investment advice. No rate limit or quota is published on any of
-the four pages.
+only" and is not investment advice. No rate limit or quota is published on the
+landing page, the Terms of Use, the Disclaimer or the Privacy Policy.
 
 NSE's general Terms of Use (https://www.nseindia.in/static/nse-terms-of-use, read
 2026-11-26) contain no MCP or AI-training clause; that clause is on the MCP page only.
@@ -83,19 +83,29 @@ They add three limits that bind anything built around the MCP:
 
 - "User is prohibited to conduct any systematic or automated data collection
   activities (including scraping, data mining, data extraction and data harvesting)"
-  on the website. A scraper fallback for when the MCP fails is ruled out.
+  on the website. The prohibition is about the website, so a scraper fallback for
+  when the MCP fails is ruled out. NSE also publishes bhavcopy archives for download
+  (the F&O bhavcopy that §1 points to), and the Terms' copy clause has an exception:
+  "Unless the information or Content is available for download, not to aggregate,
+  copy or duplicate in any manner". The storage and redistribution limit below still
+  applies to downloaded data.
 - Content may not be "copied, … stored (either in hardcopy or in an electronic
   retrieval system), … disseminated, distributed, displayed, … without prior written
   permission of NSE."
 - Data may not be used "for any gaming, virtual trading or simulation activities
-  under any circumstances whatsoever." That covers paper-trading apps and
-  backtest simulators that serve users.
+  under any circumstances whatsoever." On its face that clause covers any
+  simulation, including a personal backtest, and is not limited to products that
+  serve users. Whether research use inside an agent session is permitted is unclear.
+  The landing page invites researchers to "test ideas on 5 years of end of day
+  data", which does not settle it. Get written NSE permission before backtesting on
+  this data.
 
-**Rule.** Use it as agent research data inside a session. Do not ship it as a
-product's data feed, store it as an app's price history, put its output in test
-fixtures or seeds, feed a paper-trading or simulation product, or use it to train
-or fine-tune a model, unless NSE grants a licence. Read the full Terms of Use before building anything. This is engineering
-guidance, not legal advice.
+**Rule.** Use it for agent research lookups, which is the MCP's stated purpose.
+Simulation or backtesting on its data needs NSE's written permission first. Do not
+ship it as a product's data feed, store it as an app's price history, put its output
+in test fixtures or seeds, feed a paper-trading or simulation product, or use it to
+train or fine-tune a model, unless NSE grants a licence. Read the full Terms of Use
+before building anything. This is engineering guidance, not legal advice.
 
 **Detector.** An app's provider layer, cron job or dataset builder that calls
 `mcp.nseindia.in`.
@@ -123,7 +133,9 @@ return for corporate actions, so do not adjust that figure again.
 `get_corporate_actions(symbol, fromDate, toDate)` returns `exDate`, the raw `purpose`
 text, `actionType` (`SPLIT`, `BONUS`, `DIVIDEND`, `OTHER`) and an `adjustmentFactor`.
 Dividends carry factor 1.0, so prices are not dividend-adjusted either. Apply the
-factor to prices before the ex-date, using the rules in
+factor to prices before the ex-date only for `SPLIT` and `BONUS` rows. Rights issues,
+mergers and demergers are not those rows: their adjustment policy, and the
+adjustment rules generally, are in
 [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
 
 **Why.** A 1:1 bonus reads as a 50% one-day crash in raw history. Momentum, drawdown
@@ -138,7 +150,8 @@ adj_return = 50 / adj_prev - 1               # factor 0.5 -> 0%
 ```
 
 The tool's own description gives the convention: a 1:1 bonus has factor 0.5 and a
-10→2 split has factor 0.2. Multiply pre-ex-date prices by the factor.
+10→2 split has factor 0.2. Multiply pre-ex-date prices by the factor and divide
+pre-ex-date volume by it (a 1:1 bonus doubles old volume).
 
 **Detector.** A return, drawdown or moving average over `get_stock_history` output
 with no corporate-action step; a stock that "fell 50%" on an ex-date.
@@ -152,11 +165,28 @@ NSE's bot protection can also return 401/403 or empty bodies under load.
 **Rule.** Treat a missing, empty or error result as a failed call. Never read it as
 "this stock had no corporate actions" or "no data for this date".
 
+The tool returns a list of events, each with `exDate`, `purpose`, `actionType` and
+`adjustmentFactor` (§4). The skill has not seen the key that holds the list in a
+reply that also carries `error` or `warning`: check it with one live call.
+
 ```python
-def checked(result):
-    if not result or result.get("error"):
+import logging
+
+ROW_FIELDS = ("exDate", "purpose", "actionType", "adjustmentFactor")
+
+def checked(result, actions_key="actions"):     # confirm actions_key on a live reply
+    if not result or (isinstance(result, dict) and result.get("error")):
         raise RuntimeError(f"NSE MCP lookup failed: {result!r}")
-    return result            # a "warning" means the list may be incomplete: surface it
+    rows = result.get(actions_key) if isinstance(result, dict) else result
+    warning = result.get("warning") if isinstance(result, dict) else None
+    if not rows:
+        raise RuntimeError(f"NSE MCP returned no actions list: {result!r}")
+    for row in rows:
+        if any(f not in row for f in ROW_FIELDS):
+            raise RuntimeError(f"NSE MCP action row is missing fields: {row!r}")
+    if warning:
+        logging.warning("NSE MCP corporate actions may be incomplete: %s", warning)
+    return rows, warning
 ```
 
 ## 6. Dates, holidays and history chunks

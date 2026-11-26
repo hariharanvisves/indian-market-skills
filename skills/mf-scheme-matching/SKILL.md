@@ -27,7 +27,8 @@ Format facts for the source files are in
 4. Fix a failing name by adding vocabulary, never by loosening equality (§4).
 5. Renames come from a sourced allow-list; AMC renames are flagged, not matched. Dividend
    to IDCW is a deliberate map (§5).
-6. A dropped-AMC-prefix match needs an ordered suffix, equal plan and option, and a unique hit (§6).
+6. A dropped-AMC-prefix match needs an ordered suffix, equal plan and option, a unique hit,
+   the stored name as the longer one, and no mismatching declared AMC (§6).
 7. Key on ISIN where the source has one. Pick the AMFI `NAVAll.txt` row by ISIN against both
    ISIN columns, with columns read from the header (§7).
 8. The cross-source dedupe key is price-free, with an absolute unit tolerance, and requires
@@ -42,7 +43,8 @@ Worked sketches are in sections 1, 7, 8 and 9.
 **Rule.** Walk the name's tokens left to right and require that **every** token
 lands in exactly one slot: `identity`, `plan` (direct | regular | not stated), or
 `option` (growth | idcw payout | idcw reinvestment | bonus | not stated). A token
-fitting no slot fails the whole parse, and a failed parse is unresolved. Two
+fitting no slot fails the whole parse, and a failed parse is unresolved: it raises,
+so two failures can never compare equal. An empty identity is a failed parse too. Two
 names match only if all three slots are equal, identity as an ordered exact
 string.
 
@@ -58,34 +60,40 @@ silent merges, each introduced by the fix for the previous one.
 VOCAB = {"direct": ("plan", "direct"), "dir": ("plan", "direct"),
          "regular": ("plan", "regular"), "reg": ("plan", "regular"),
          "growth": ("option", "growth"), "gr": ("option", "growth"),
-         "plan": ("filler", None), "option": ("filler", None),
-         "fund": ("filler", None), "scheme": ("filler", None)}
+         "plan": ("filler", None), "option": ("filler", None)}
+BOUNDARY = {"fund", "scheme"}   # identity ends here; plan and option come only after it
 
 def parse(name):
     name = re.sub(r"\((formerly|erstwhile)[^)]*\)", "", name, flags=re.I)   # before tokenizing
-    identity, slots, tail = [], {"plan": None, "option": None}, False
-    for tok in re.findall(r"[a-z0-9&]+", name.lower()):
-        kind, val = VOCAB.get(tok, ("identity", tok))
+    toks = re.findall(r"[a-z0-9&]+", name.lower())
+    cut = max((i for i, t in enumerate(toks) if t in BOUNDARY), default=None)
+    if cut is None:                          # no boundary: identity ends at the first vocabulary word
+        cut = next((i for i, t in enumerate(toks) if t in VOCAB), len(toks))
+        identity, tail = toks[:cut], toks[cut:]
+    else:
+        identity, tail = toks[:cut], toks[cut + 1:]
+    slots = {"plan": None, "option": None}
+    for tok in tail:
+        if tok not in VOCAB:
+            raise Unresolved(name)           # identity word after plan/option
+        kind, val = VOCAB[tok]
         if kind == "filler":
             continue
-        if kind == "identity":
-            if tail:
-                return None                  # identity word after plan/option: fail the parse
-            identity.append(val)
-        else:
-            tail = True
-            if slots[kind] not in (None, val):
-                return None                  # two plans or two options
-            slots[kind] = val
+        if slots[kind] not in (None, val):
+            raise Unresolved(name)           # two plans or two options
+        slots[kind] = val
+    if not identity:
+        raise Unresolved(name)               # vocabulary only: nothing to match on
     return tuple(identity), slots["plan"], slots["option"]
 ```
 
 `parse("Example Flexi Cap Fund - Direct Growth")` equals
 `parse("Example Flexi Cap Direct Plan Growth Option")`. The Regular name differs in its plan
-slot, so the pair never merges. "Growth Opportunities Fund" fails closed to unresolved here;
-the `fund`/`scheme` boundary rule in
-[references/name-vocabulary.md](references/name-vocabulary.md) resolves it. Only the
-vocabulary, never `==`, grows.
+slot, so the pair never merges. "Growth Opportunities Fund - Direct Growth" keeps `growth`
+in its identity because the option is read only after the `fund` boundary
+([references/name-vocabulary.md](references/name-vocabulary.md)); without a boundary,
+"Growth Opportunities Direct Growth" fails closed to unresolved. Only the vocabulary,
+never `==`, grows.
 
 ## 2. No fuzzy, Jaccard, edit-distance or token-subset matching
 
@@ -190,26 +198,32 @@ Direct holding.
 
 ```python
 def amfi_row(lines, isin):
-    cols = None
+    if not isin or isin.strip() == "-":
+        return None                           # no ISIN: never match a row whose ISIN is missing
+    header = isin_cols = None
     for line in lines:
         parts = [p.strip() for p in line.split(";")]
-        if parts[0] == "Scheme Code":
-            cols = parts                      # layout comes from the header, every download
+        if re.sub(r"\s+", "", parts[0]).lower() == "schemecode":
+            header = parts                    # layout comes from the header, every download
+            isin_cols = [i for i, c in enumerate(parts) if re.sub(r"\s+", "", c).lower().startswith("isin")]
+            if len(isin_cols) != 2:
+                raise LayoutChanged(line)     # both ISIN columns, or stop
             continue
-        if cols is None or len(parts) != len(cols):
+        if header is None or len(parts) != len(header):
             continue                          # category lines, AMC lines, blanks
-        row = dict(zip(cols, parts))
-        if isin in (row["ISIN Div Payout/ ISIN Growth"], row["ISIN Div Reinvestment"]):
-            return row                        # both ISIN columns, never the name
+        if isin.strip() in (parts[i] for i in isin_cols):
+            return dict(zip(header, parts))   # matched by ISIN, never by name
     return None                               # unresolved, not a name-search fallback
 
-def norm_folio(raw: str) -> str:
-    return re.sub(r"\s+", "", raw)            # "1234 / 56" == "1234/56"
+def norm_folio(raw):
+    if raw is None or not raw.strip():
+        return None                           # no folio stated
+    return re.sub(r"\s*/\s*", "/", raw.strip())   # "1234 / 56" == "1234/56"; "1234 56" stays distinct
 
 lot_key = (resolved_identity, norm_folio(folio))   # section 9: FIFO queue per fund and folio
 ```
 
-## 8. Cross-source dedupe: price-free, precision-tolerant, month-bucketed
+## 8. Cross-source dedupe: price-free, precision-tolerant, one-to-one
 
 **Rule.** The same purchase arrives from the RTA and from the broker app. Key
 the duplicate check on `asset class | resolved symbol | side | date | units`,
@@ -225,8 +239,11 @@ the duplicate check on `asset class | resolved symbol | side | date | units`,
   `round2(a) === round2(b)` (sources that round `x.xx5` down disagree with
   half-up rounding) and never a percentage (a percentage scales with trade size).
 - **Date-tolerant:** the same transaction can differ by a few days between order
-  and allotment; bucket by month and accept a small day tolerance, but keep it
-  small: two genuine SIP instalments sit a month apart.
+  and allotment; accept a small day tolerance, but keep it small: two genuine SIP
+  instalments sit a month apart. Compare the day difference, not a month bucket: a
+  bucket splits a pair either side of a month end.
+- **One-to-one:** each row of one source pairs with at most one row of the other.
+  Two genuine same-source repeats must not both match one other-source row.
 - **Different sources only:** require the two `source` values to differ;
   identical-source rows are real repeats.
 - Resolve names to the stored canonical symbol **before** the dedupe, or the key
@@ -243,12 +260,26 @@ def is_cross_source_dup(a, b, unit_tol, day_tol):
     return (a.source != b.source                          # same-source rows are real repeats
             and (a.asset_class, a.symbol, a.side) == (b.asset_class, b.symbol, b.side)
             and abs((a.date - b.date).days) <= day_tol    # small: SIP instalments sit a month apart
-            and abs(a.units - b.units) <= unit_tol)       # absolute bound; no price anywhere
+            and round(abs(a.units - b.units), 9) <= unit_tol)   # absolute bound; no price anywhere
+
+def cross_source_dups(a_rows, b_rows, unit_tol, day_tol):
+    used, dups = set(), []                                # each A row absorbs at most one B row
+    for b in b_rows:
+        hits = [i for i, a in enumerate(a_rows)
+                if i not in used and is_cross_source_dup(a, b, unit_tol, day_tol)]
+        if hits:
+            i = min(hits, key=lambda i: abs((a_rows[i].date - b.date).days))
+            used.add(i)
+            dups.append(b)                                # drop b; its partner a stays
+    return dups
 ```
 
 Check with plain arithmetic: 12.34 (2dp) and 12.345 (3dp) differ by 0.005, so `unit_tol`
-must cover 0.005 plus the float guard. A test pair differing by exactly `unit_tol` and one by
-slightly more must give opposite answers (section 11).
+must cover 0.005. In binary float the raw difference is slightly above 0.005, which is why
+the sketch rounds it before the `<=` (the float-boundary rule in
+[indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md) §8). A test pair
+differing by exactly `unit_tol` and one by slightly more must give opposite answers
+(section 11).
 
 **Unit dust.** Float residue (about 1e-14 units) trips a strict FIFO oversell
 check, so give it a tolerance (see the float-boundary rule in

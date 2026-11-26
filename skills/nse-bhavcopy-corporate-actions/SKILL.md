@@ -38,13 +38,18 @@ notice; re-probe before depending on one.
 
 ## 1. Formats, hosts and the delivery-data floor
 
+NSE's Terms of Use bar copying and storing site content "Unless the information or
+Content is available for download"; bhavcopy archives are published for download.
+Redistribution and display limits still apply to what you store. The full terms are
+quoted in [nse-official-mcp](../nse-official-mcp/SKILL.md) §2.
+
 | Format | Range | Notes |
 |---|---|---|
 | `content/historical/EQUITIES/<YYYY>/<MON>/cm<DDMONYYYY>bhav.csv.zip` | served back to 1995; last file 5 Jul 2024 (legacy) | OHLC, volume, turnover, prev close; `TOTALTRADES` and `ISIN` columns from about late 2011 (absent in Jan 2011 files) |
 | `products/content/sec_bhavdata_full_<DDMMYYYY>.csv` | 30 Sep 2019+, still published | adds average price and delivery quantity/percent; no ISIN column |
 | `content/cm/BhavCopy_NSE_CM_0_0_0_<YYYYMMDD>_F_0000.csv.zip` (CM-UDiFF common bhavcopy) | from 8 Jul 2024 | replaces the legacy file (NSE circular 62424, 12 Jun 2024); has ISIN, no average price, no delivery data |
 
-Source for the UDiFF date: NSE all-reports page. Legacy bhavcopy was discontinued
+Source for the UDiFF date: NSE all-reports page, which states "CM - Bhavcopy(csv) Discontinued w.e.f July 08,2024. Refer NSE Circular No. 62424 dated June 12, 2024". Legacy bhavcopy was discontinued
 on 8 Jul 2024. A pipeline hard-wired to the legacy name stops getting files on that
 date without an error unless it checks.
 
@@ -75,7 +80,7 @@ GS and others on the same day, and mixing series double-counts a day.
 Rule: for "is this listing still alive" (termination dates, rename windows), use a
 **wider** set. Measured over the ISIN-bearing years by checking whether the same
 symbol's other-series row carries the same ISIN as its EQ listing: BE, BZ, BL, IL,
-SM and ST are the same security under a trading restriction. Of 151+ series codes,
+SM and ST carry the same ISIN as EQ. BL is NSE's block-deals series (gross settlement, no netting; NSE legend of series); IL is read as the inter-institutional series (unverified). Of 151+ series codes,
 the N-series, Y/Z/W series, GS, GB, MF and the like carried different ISINs, so
 they are different instruments.
 
@@ -144,8 +149,8 @@ to move.
 
 ## 5. Corporate-actions API
 
-`nseindia.com/api/corporates-corporateActions?index=equities&from_date=DD-MM-YYYY&to_date=DD-MM-YYYY`
-needs `index=equities`; access notes are in
+`www.nseindia.in/api/corporates-corporateActions?index=equities&from_date=DD-MM-YYYY&to_date=DD-MM-YYYY`
+(the older `nseindia.com/api/...` path 301-redirects here, see §1) needs `index=equities`; access notes are in
 [references/nse-hosts-and-api-access.md](references/nse-hosts-and-api-access.md).
 The `subject` field is free text; every trap was found by reading unparsed rows,
 which took price-affecting unparsed rows from 27 to 1. The three that change a
@@ -154,15 +159,17 @@ ambiguous forms, two-tranche rights, ETFs) are in
 [references/corporate-action-subject-traps.md](references/corporate-action-subject-traps.md):
 read it when writing or fixing a subject parser.
 
-1. **`Re` versus `Rs`.** NSE writes the singular for one rupee (`To Re.1/-`).
-   Requiring `Rs` left every split-to-Re.1 unparsed, including large well-known
-   ones.
-2. **Compound actions.** `Bonus 1:1 And Face Value Split From Rs.2/- To Re.1/-` is
-   **two** price events on one ex-date. Typing it as SPLIT alone understates the
-   adjustment by 2x. Emit a compound type carrying both ratios.
-7. **Split ratio orientation.** In one corpus every split ratio was `a>b` (`10:2`),
-   so a bare `a/b` gives 5.0 where the price factor is 0.2. A fixture using `1:2`,
-   the orientation that never occurs, cannot catch it.
+**Trap 1. `Re` versus `Rs`.** NSE writes the singular for one rupee (`To Re.1/-`).
+Requiring `Rs` left every split-to-Re.1 unparsed, including large well-known
+ones.
+
+**Trap 2. Compound actions.** `Bonus 1:1 And Face Value Split From Rs.2/- To Re.1/-` is
+**two** price events on one ex-date. Typing it as SPLIT alone understates the
+adjustment by 2x. Emit a compound type carrying both ratios.
+
+**Trap 7. Split ratio orientation.** In one corpus every split ratio was `a>b` (`10:2`),
+so a bare `a/b` gives 5.0 where the price factor is 0.2. A fixture using `1:2`,
+the orientation that never occurs, cannot catch it.
 
 Detector: print a coverage ratio each run (dividend rows with a parsed amount,
 price-affecting rows with a parsed ratio) and warn below a floor, so a wording

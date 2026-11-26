@@ -68,6 +68,23 @@ Each item is a defect, a concrete detector, and the evidence to cite.
     holding an ETF.
 17. **MCP stdout pollution / exposed order tools.** `console.log` in a stdio
     server; order tools exposed without gating. Detector: grep the server entry.
+18. **Status map defaults to REJECTED.** An adapter whose unlisted, pending or
+    in-transit status falls through to `REJECTED` (which invites a retry), or matches
+    by substring. Detector: read the status lookup's default branch; it must be
+    `UNKNOWN`. Owner: `indian-broker-api-safety` §9.
+19. **Algo market order.** A live-path `MARKET` order type sent without a limit price
+    or the broker's protection field. Detector: `grep -rn "MARKET"` on the live path.
+    Owner: `indian-broker-api-safety` §7.
+20. **Limiter not shared.** Separate limiters for place, modify and cancel, or one
+    per exchange instead of one per API key. Detector: find every limiter
+    construction and the calls that acquire it. Owner: `indian-broker-api-safety` §3.
+21. **Tag length or drift.** One broker's tag length reused for another, or
+    reconcile re-deriving the tag instead of reading the tag stored with the order.
+    Detector: read the tag builder and the reconcile lookup. Owners:
+    `indian-broker-api-safety` §8–§9 (lengths), `kite-connect-safety` 8b (stored tag).
+22. **No static-IP check.** The order path arms without comparing the egress IP to
+    the broker-registered static IP. Detector: read startup and the order client.
+    Owners: `indian-broker-api-safety` §4, `kite-connect-safety` 8h.
 
 ## Output
 

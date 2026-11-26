@@ -21,5 +21,6 @@ standard probe).
 ## Identity boundary
 
 Treat `fund` / `scheme` as identity boundaries and read the option only from the tail after
-them. A loosened rule applies to every name; a vocabulary entry applies only to the token it
+them. The last `fund` or `scheme` token is the boundary; a name without one ends its identity
+at the first plan or option word. Neither boundary word joins the identity. A loosened rule applies to every name; a vocabulary entry applies only to the token it
 defines, which is why the vocabulary grows and the rule does not.

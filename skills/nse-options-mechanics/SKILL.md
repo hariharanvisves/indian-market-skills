@@ -113,8 +113,9 @@ expiry date *and* the expiry instant as **config**.
    it matters most. Expiry days moved by holidays:
    [nse-trading-calendar](../nse-trading-calendar/SKILL.md).
 
-Worked example: an expiring index contract at 14:00 IST on expiry day, where the
-calendar lookup returned a 15:30 instant.
+Worked example: an expiring index contract at 14:00 IST on expiry day, on a date
+from 7 Dec 2026 (or before 3 Aug 2026), where the calendar lookup returned a 15:30
+instant. Between 3 Aug and 6 Dec 2026 the lookup returns 15:40 instead.
 
 ```python
 from datetime import datetime
@@ -123,9 +124,12 @@ from zoneinfo import ZoneInfo
 IST = ZoneInfo("Asia/Kolkata")
 
 def time_to_expiry(now: datetime, expiry_instant: datetime, year_seconds: float):
+    if now.tzinfo is None or expiry_instant.tzinfo is None:
+        raise ValueError("pass timezone-aware datetimes (IST)")
     secs = (expiry_instant - now).total_seconds()
     return secs / year_seconds if secs > 0 else None
 
+# now = datetime(2026, 12, 8, 14, 0, tzinfo=IST); expiry = same date at 15:30, tzinfo=IST
 # 15:30 - 14:00 = 5400 s; with a 365-day basis (31,536,000 s): T = 1.712e-4 years
 # naive (expiry_date - today).days / 365 = 0 -> Black-Scholes divides by sqrt(0)
 ```
@@ -133,7 +137,7 @@ def time_to_expiry(now: datetime, expiry_instant: datetime, year_seconds: float)
 Keep the year basis consistent with the one your IV solver and Greeks use.
 
 **Detector.** Test the last hour before expiry, where a naive day-count diverges
-most. Grep for `.days / 365` and literal `15:30` / `15:40` in pricing code.
+most. Grep for `.days / 365` and literal `15:30` / `15:40` / `15:45` in pricing code.
 
 ## 5. Settlement price is not a price at an instant
 
@@ -230,7 +234,7 @@ exchange may offer weeklies on only one benchmark index (SEBI circular 1 Oct 202
 para 5.5; verified 2026-11-11), so a chain built for an earlier date had weeklies
 on more indices.
 
-**Detector.** Grep for literal lot sizes and clock times (`15:30`, `15:40`); each
+**Detector.** Grep for literal lot sizes and clock times (`15:30`, `15:40`, `15:45`); each
 belongs in dated config.
 
 ## Verifying an options implementation

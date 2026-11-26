@@ -120,7 +120,7 @@
       ],
       "must_not_match": [
         "(?i)(you have|you book|results in|giving|gives) a (capital )?loss of ₹?\\s?50\\b",
-        "(?i)\\bgain\\W{0,4}(of\\s)?₹\\s?50\\b",
+        "(?i)(?<!false )(?<!wrong )\\bgain\\W{0,4}(of\\s)?₹\\s?50\\b",
         "(?i)cost of acquisition\\W{0,4}(is\\s)?₹\\s?100\\b"
       ]
     }

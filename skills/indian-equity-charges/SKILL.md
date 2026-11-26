@@ -94,7 +94,7 @@ GST reads a subtotal, so order matters:
 
 ```
 turnover   = qty * fill_price
-stt        = round(turnover * STT_RATE)          # to nearest rupee; intraday: sell side only
+stt        = round_half_up(turnover * STT_RATE)  # nearest rupee, .50 rounds up; intraday: sell side only
 txn        = turnover * EXCHANGE_RATE            # NSE != BSE
 sebi       = turnover * 0.000001                 # Rs 10 per crore
 stamp      = is_buy  ? turnover * STAMP_RATE : 0  # STAMP_RATE differs for intraday
@@ -136,8 +136,17 @@ A charge model is a money path, so a plausible-range assertion is not a test.
   wrongly applied to both legs.
 - **Pin the GST base.** Change the STT rate and assert GST does not move. If it
   does, the base is wrong.
-- **Pin STT rounding.** Pick a turnover whose STT ends in ₹0.50 or more and
-  assert the STT line is a whole rupee, rounded at its own step.
+- **Pin STT rounding.** Pick a turnover whose STT ends in exactly ₹0.50 and
+  assert it rounds up to the next rupee (half-up, not Python's half-even
+  `round`), as a whole-rupee line rounded at its own step.
+
+```python
+from decimal import Decimal, ROUND_HALF_UP
+
+def round_half_up(x):
+    return int(Decimal(str(x)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+```
+
 - **Size at absurd costs.** Assert `qty * fill_price + charges <= budget` with
   the DP charge larger than one share's price; quantity-first sizing fails it.
 - **Test a tiny trade.** If the DP charge is modelled as a rate, a ₹500 sell will

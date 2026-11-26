@@ -26,7 +26,9 @@ measured defects in real ingestion tooling.
    flagged "unresolved" outcome. Also check natural keys that legitimately collide:
    a dividend key of (ISIN, date, amount) merges two real, identical payouts.
 2. **Cross-source duplicate.** Same event from two sources or two hosts of one
-   document. Key must not include a source-specific id. (notes) Summary/aggregate
+   document. Key must be price-free (NAV differs between sources) and must not include
+   a source-specific id; owners: `mf-scheme-matching` §8, `indian-broker-statement-formats`
+   §19. (notes) Summary/aggregate
    sheets exported beside per-lot sheets triple-counted trades, and a key including
    sale date and amounts never matched an undated aggregate row, so the duplicate
    check reported zero. Evidence: read both fixtures and the key code, and count the
@@ -79,6 +81,14 @@ measured defects in real ingestion tooling.
     fixture, show which key fields are null or repeated.
 18. **Unresolved is not zero.** Unmatched rows go to an unresolved list; they never
     vanish or default to zero units.
+19. **ETF resolved as a mutual fund.** The ISIN-prefix `INF` test runs before the
+    ETF symbol check, so every ETF becomes a mutual fund. Evidence: the resolution
+    order in the asset-type function. Owner: `indian-broker-statement-formats` §5.
+20. **Folio missing from the FIFO key.** Lots grouped by fund alone pool two folios'
+    lot ages and costs. Evidence: the lot-grouping key. Owner: `mf-scheme-matching` §9.
+21. **AIS overwrites broker figures.** AIS values replace broker gains or dividends
+    instead of being reconciled and flagged. Evidence: the merge or autofill step.
+    Owner: `indian-broker-statement-formats` §17.
 
 ## Output format
 

@@ -9,7 +9,8 @@ Purpose: defects found while wiring capital-gains classification, residency and 
   schedule writer read it.
 - Holding-period cutoffs differ by asset class (listed equity vs gold/foreign vs
   debt funds by purchase date), and all are counted in **calendar months**,
-  not days (thresholds in the capital-gains skill). The same cutoff is often decided in a realized path
+  not days. The capital-gains skill states the listed-equity boundary and the
+  debt-fund purchase-date rule; verify the threshold per other class. The same cutoff is often decided in a realized path
   and an unrealized path; change both or neither. A fix to one left gold/foreign
   under-stated in the realized path for 366-729 day holds.
 - §112 and §112A rates may be equal yet are separate levers; never substitute.

@@ -25,7 +25,7 @@ confirmed in a primary source.
 
 1. The full framework applies to every broker since 2026-04-01; do not gate code on "if my
    broker has gone live" (§1).
-2. The broker is the principal. One deployment holding several outsiders' broker tokens is
+2. The broker is the principal. A deployment holding even one outsider's broker token is
    an algo provider and needs empanelment (§2).
 3. Every API order is an algo order and is tagged. At or below 10 orders per second only
    registration is waived; the broker sends generic ID `99999` (§3).
@@ -33,7 +33,8 @@ confirmed in a primary source.
    fail. Reads are usually exempt (§4).
 5. Hidden-logic "signals plus auto-execute" for other people is a black-box algo and needs
    Research Analyst registration (§5).
-6. A self-built algo serves family only: self, spouse, dependent children, dependent parents (§6).
+6. A self-built algo registered above the threshold serves family only: self, spouse,
+   dependent children, dependent parents (§6).
 7. Algo orders are never market orders: send a limit price or the broker's protection field (§7).
 8. Never reuse one broker's expiry, tag or rate constants for another (§8).
 9. A pending, in-transit or unlisted status is never `REJECTED`; unlisted maps to `UNKNOWN`
@@ -44,7 +45,8 @@ Primary sources, read 2026-11-11:
   (https://www.sebi.gov.in/legal/circulars/feb-2025/safer-participation-of-retail-investors-in-algorithmic-trading_91614.html)
 - SEBI circular SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/132, 30 Sep 2025 (the glide path)
 - NSE/INVG/67858, 5 May 2025, the implementation standards
-  (https://nsearchives.nseindia.com/content/circulars/INVG67858.pdf)
+  (https://nsearchives.nseindia.com/content/circulars/INVG67858.pdf; alternate host
+  https://nsearchives.nseindia.in/content/circulars/INVG67858.pdf)
 - NSE/INVG/69255, 22 Jul 2025, the detailed operational modalities, and corrigendum NSE/INVG/69289
 - NSE retail algo FAQ, 3 Nov 2025
   (https://nsearchives.nseindia.com/web/sites/default/files/inline-files/FAQ_Retail%20Algo_03112025_NSE.pdf)
@@ -80,8 +82,8 @@ hosts the algo behind their own static IP (NSE FAQ Q4–Q5, citing NSE/INVG/6925
 places their orders from its own cloud. That is an algo provider. It needs empanelment and
 a commercial or technical arrangement with each broker. A personal script does not.
 
-**Detector.** Count the distinct broker accounts whose tokens one deployment holds. More
-than one person outside the family (§6) means you are an algo provider.
+**Detector.** Count the distinct broker accounts whose tokens one deployment holds. Even
+one account of a person outside the family (§6) means you are an algo provider.
 
 ## 3. Every API order is an algo order
 
@@ -90,7 +92,7 @@ than one person outside the family (§6) means you are an algo provider.
   ¶2.8; NSE FAQ Q8).
 - The Threshold Order Per Second (TOPS) is **10 orders per second per exchange/segment**. It
   is measured on the broker server's calendar second, and the exchange may change it after
-  notice (NSE/INVG/67858 §B.2, §F, 5 May 2025, <https://nsearchives.nseindia.in/content/circulars/INVG67858.pdf>). TOPS starts at 10 orders/s; orders above it need exchange registration. Kite limits: 10/s, 400/min, 5,000/day (<https://kite.trade/docs/connect/v3/exceptions/>).
+  notice (NSE/INVG/67858 §B.2, §F, 5 May 2025). TOPS starts at 10 orders/s; orders above it need exchange registration. Kite limits: 10/s, 400/min, 5,000/day (<https://kite.trade/docs/connect/v3/exceptions/>).
 - **At or below 10 OPS**, the client does not register. The exchange still issues a
   *generic* algo ID, and the broker sends `99999` in the algo ID field (NSE/INVG/69255 ¶8.2.4).
 - **Above 10 OPS**, the client registers the algo with each exchange through the broker,
@@ -106,24 +108,28 @@ wrong. Send an algo ID only where the broker documents one, such as Upstox's `X-
 header or the IDs configured in its Algo Apps settings
 (https://upstox.com/developer/api-documentation/announcements/algo-trading-circular).
 
-**Detector.** One client-side limiter covers place, modify and cancel together, per
-exchange, with a sliding one-second window set below the broker's limit (§8). Auto-slicing
+**Detector.** One client-side limiter per API key covers place, modify and cancel together
+on every exchange, with a sliding one-second window set below the broker's limit (§8). Broker
+limits count per API key across exchanges (Kite: [kite-connect-safety](../kite-connect-safety/SKILL.md)
+8g), so a per-exchange limiter lets two exchanges together exceed it. Auto-slicing
 creates separate orders with their own order IDs (Fyers single-order docs), so count every
 slice. A test fires 30 intents in one second and expects at most the limit to leave the process.
 
 ```python
-class SlidingLimiter:   # one per exchange/segment, shared by place, modify and cancel
+class SlidingLimiter:   # one per API key, shared by place, modify and cancel on every exchange
     def __init__(self, limit, window=1.0):          # limit set below the broker's own
-        self.limit, self.window, self.sent = limit, window, deque()
+        self.limit, self.window, self.sent, self.lock = limit, window, deque(), Lock()
 
     def acquire(self):
-        now = monotonic()
-        while self.sent and now - self.sent[0] >= self.window:
-            self.sent.popleft()
-        if len(self.sent) >= self.limit:
-            sleep(self.window - (now - self.sent[0]))
-            return self.acquire()
-        self.sent.append(monotonic())
+        with self.lock:                             # waiters queue here; sleeping holds the window
+            while True:
+                now = monotonic()
+                while self.sent and now - self.sent[0] >= self.window:
+                    self.sent.popleft()
+                if len(self.sent) < self.limit:
+                    self.sent.append(now)
+                    return
+                sleep(self.window - (now - self.sent[0]))
 ```
 
 ## 4. Static IP, keys and sessions
@@ -136,7 +142,8 @@ class SlidingLimiter:   # one per exchange/segment, shared by place, modify and 
 - The client's own static IP is needed only when the client runs their own algo. With a
   vendor platform hosted at the broker, the broker server's IP applies (NSE FAQ Q3, Q6, Q10).
 - Every API session must be logged out daily before the next trading day starts (§A.8).
-  This is why every broker token in §8 dies overnight.
+  This is why most broker tokens in §8 expire overnight. Dhan's lasts 24 hours from
+  generation, so a Dhan session needs its own daily logout.
 - Open APIs are not permitted. Access goes only through a unique vendor-client API key plus
   the whitelisted IP. Authentication is OAuth-based and API access needs 2FA (SEBI ¶5.I(d);
   NSE/INVG/67858 §I.c–e).
@@ -249,8 +256,10 @@ verification date. Write a test that checks expiry for every broker at 03:29, 03
   skill §8d path: no retry, no auto-cancel, suspend the account.
 - `TRANSIT`, Fyers `id_fyers` acknowledgements and every "pending" state are `PENDING`,
   never `REJECTED`.
-- Derive the tag from the kite skill §8b key. The portable short form is alphanumeric
-  and at most 19 characters, so it fits Angel's under-20 rule and every stricter alphabet.
+- Derive the tag from the kite skill §8b key, store the tag that was sent in the order
+  record, and reconcile by it (kite skill §8b owns that rule). This skill owns the
+  per-broker lengths: the portable short form is alphanumeric and at most 19 characters,
+  so it fits Angel's under-20 rule and every stricter alphabet.
 
 **Why.**
 - A default branch that returns `REJECTED` invites a retry, and the retry is a double order.

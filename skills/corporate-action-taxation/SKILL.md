@@ -86,7 +86,7 @@ takes the 100 originals first and then 50 bonus shares:
 | from 1 Apr 2026 (tax year 2026-27) | Capital gains: consideration minus cost (§69(1)). §2(40)(f) is omitted, so there is no dividend. | Finance Act 2026 §§35, 42; memo 2026 |
 
 **Worked example (memo 2024).** You buy 100 shares at ₹40, so the cost is ₹4,000.
-In 2024, 20 shares are bought back at ₹60. Under the 2024–26 regime:
+On 15 Jan 2025, 20 shares are bought back at ₹60. Under the 2024–26 regime:
 
 - Deemed dividend: ₹1,200, taxed at slab.
 - Capital loss: ₹800.
@@ -98,17 +98,29 @@ by holding period.
 ```python
 from datetime import date
 
-def buyback_heads(buyback_date, qty, price, cost_per_share):
+def buyback_heads(buyback_date, qty, price, cost_per_share, listed=True, promoter=False):
     proceeds, cost = qty * price, qty * cost_per_share
+    if listed and buyback_date < date(2019, 7, 5):
+        raise ValueError("listed buyback before 5 Jul 2019: not covered by the exempt regime")
     if buyback_date < date(2024, 10, 1):
         return {}                                      # exempt for the holder
     if buyback_date < date(2026, 4, 1):
         return {"dividend": proceeds, "capital_loss": cost}
-    return {"capital_gain": proceeds - cost}
+    heads = {"capital_gain": proceeds - cost}
+    if promoter:
+        heads["promoter_additional_tax"] = True        # rates in the promoter table below
+    return heads
 
 buyback_heads(date(2025, 1, 15), 20, 60, 40)   # dividend 1,200 and capital loss 800
 buyback_heads(date(2026, 5, 10), 20, 60, 40)   # capital gain 400
+buyback_heads(date(2026, 5, 10), 20, 60, 40, promoter=True)   # capital gain 400 plus the flag
+buyback_heads(date(2019, 1, 1), 20, 60, 40, listed=False)     # {}: exempt, unlisted
+buyback_heads(date(2019, 1, 1), 20, 60, 40)                   # ValueError: listed, before 5 Jul 2019
 ```
+
+The flag only marks a promoter holder. Apply the additional-tax table below to the
+gain by its holding period. A listed buyback before 5 Jul 2019 falls outside the
+exempt regime, so the function refuses it rather than return an empty result.
 
 **Promoter additional tax** (§69(2)–(3), as substituted by Finance Act 2026 §42).
 It applies only to a buyback under Companies Act §68 where the holder is a

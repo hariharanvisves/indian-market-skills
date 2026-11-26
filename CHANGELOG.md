@@ -1,5 +1,55 @@
 # Changelog
 
+## 1.2.1 — 2026-11-26
+
+### Fixed
+- Code sketches that failed their own rules:
+  - `kite-connect-safety`:
+    - The order-value ceiling now fails closed on NaN, negative and missing values.
+    - `place_once` claims the intent key atomically before sending, so concurrent
+      presses and crashes cannot re-send.
+    - Every exception after a send is treated as an unknown outcome.
+    - Reconcile matches the tag that was sent.
+  - `mf-scheme-matching`:
+    - Dedupe tolerance now survives float error, and matching is one to one.
+    - Unparseable names no longer merge with each other.
+    - An empty or "-" ISIN no longer matches the first row of the AMFI file.
+    - The folio normaliser no longer merges distinct folios.
+  - `indian-broker-statement-formats`: format detection now accepts CAMS JSON,
+    CSV and the ITD wrapper.
+  - `indian-broker-api-safety`: the rate limiter is thread-safe and shared per
+    API key.
+  - `itr-filing-schedules`:
+    - The loss reconciliation counts brought-forward losses.
+    - TDS dedupe keeps credits that carry different TANs.
+  - `foreign-equity-for-residents`: TCS uses the cumulative ₹10 lakh threshold.
+  - `backtest-engine-correctness`: the look-ahead test now catches a fill at the
+    bar's own close.
+  - `nse-trading-calendar`: the settlement function refuses dates before T+1.
+  - `nse-universe-survivorship`: the ISIN issuer check rejects placeholders.
+  - `indian-equity-charges`: STT rounding is half-up.
+- Meaning lost in the 1.2.0 restructure:
+  - `indian-capital-gains-tax`: the SGB date regime and the debt-fund definition
+    are back.
+  - `fno-tax-and-charges`: the Core rules on loss carry-forward and exercise STT
+    match the body again.
+  - `itr-filing-schedules`: the belated-return loss rule is narrow again.
+  - `nse-official-mcp`: the Terms of Use simulation clause is not narrowed.
+- Primary sources added, with rows removed or narrowed in
+  `docs/unverified-claims.md`:
+  - 2025 Act §200, §201, §206 and the bonus holding period (Gazette text).
+  - F&O ban exit at 80% (SEBI Master Circular).
+  - Market-wide halt durations.
+  - T+0 batch dates. This corrects "top 500 from 31 Jan 2025".
+  - FBIL publication time.
+  - NSE circular 62424.
+  - The BL series meaning.
+  - BSE weekly-expiry weekdays (BSE notices 20241128-70, 20250617-11, 20250623-59).
+  - The hosted Kite MCP is read-only.
+  - The MAT credit-cap base is corrected to "tax payable on total income".
+- Reviewer agents: new checklist items for status maps, market orders, shared
+  limiters, tag length, static IP, price-free dedupe keys and ETF-before-INF order.
+
 ## 1.2.0 — 2026-11-26
 
 ### Added

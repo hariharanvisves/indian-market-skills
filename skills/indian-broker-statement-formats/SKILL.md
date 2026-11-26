@@ -48,25 +48,40 @@ first match wins, else `generic`). List the more specific signature first.
 | `504b0304` | OOXML (`.xlsx`, also `.zip`) |
 | `d0cf11e0a1b11ae1` | OLE2/BIFF (legacy `.xls`) |
 | `%PDF` | PDF |
+| `aced0005` | Java-serialized ITD acknowledgement wrapping a PDF (section 18) |
+| none, no NUL bytes, first non-blank `{` or `[` | JSON (CAMS, section 7) |
+| none, no NUL bytes | text: CSV, then the header signature decides |
 
 **Why.** CAMS and INDmoney `.xls` files are OLE2, not OOXML. An xlsx reader rejects them,
 so do not ask the user to resave: route to a BIFF-capable reader. A reader that falls
-through to "csv" decodes garbage into zero rows.
+through to "csv" decodes garbage into zero rows, so only bytes that look like text reach the
+CSV reader, and unknown binary is refused.
 
 **Detector.** An "xlsx" upload that fails the ZIP signature, or yields 0 rows without error.
 
 ```python
-MAGIC = {bytes.fromhex("504b0304"): "ooxml", bytes.fromhex("d0cf11e0a1b11ae1"): "ole2", b"%PDF": "pdf"}
+MAGIC = {bytes.fromhex("504b0304"): "ooxml", bytes.fromhex("d0cf11e0a1b11ae1"): "ole2",
+         b"%PDF": "pdf", bytes.fromhex("aced0005"): "itd_wrapper"}
 # Placeholder columns; copy the real signature from a current export.
 SIGNATURES = [("cams", {"scheme name", "units", "price"}),      # superset of Groww's: first
               ("groww_mf", {"scheme name", "units"})]
 
-def detect(head: bytes, rows: list[list]) -> str:
+def sniff(head: bytes) -> str:
     kind = next((k for m, k in MAGIC.items() if head.startswith(m)), None)
-    if kind is None:
-        raise UnsupportedFile("unknown file type")             # refuse, do not guess csv
-    if kind == "pdf":
-        return "pdf"                                           # section 11 decides by outcome
+    if kind:
+        return kind                                            # pdf: section 11 decides by outcome
+    text = head.decode("utf-8", "ignore").lstrip("\ufeff \t\r\n")
+    if not text or "\x00" in text:
+        raise UnsupportedFile("empty or unknown binary file")  # refuse, do not guess csv
+    return "json" if text[0] in "{[" else "text"               # json: section 7 shape check
+
+def unwrap_itd(data: bytes) -> bytes:                          # section 18
+    start, end = data.find(b"%PDF"), data.rfind(b"%%EOF")
+    if start < 0 or end < start:
+        raise UnsupportedFile("no PDF inside the wrapper")
+    return data[start:end + len(b"%%EOF")]
+
+def layout(rows: list[list]) -> str:                           # ooxml, ole2 and text rows
     header = max(rows[:25], key=lambda r: sum(bool(c) for c in r), default=[])  # section 2
     cols = {str(c).strip().lower() for c in header if c}
     if len(cols) < 2:

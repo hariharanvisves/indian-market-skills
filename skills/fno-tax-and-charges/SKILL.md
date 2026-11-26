@@ -19,12 +19,12 @@ holds both structures. Cash-segment equity lives elsewhere (see Scope).
 
 ## Core rules
 
-1. **Option STT is on premium**, not notional: 0.15% of premium on a sale, never of strike or underlying ([section 2](#2-what-implementations-get-wrong-on-charges)).
-2. **Exercised options pay STT on intrinsic value** (settlement price minus strike), and the **purchaser** pays it.
-3. **STT is sell-only; stamp duty is buy-only.** Intraday cash-equity STT is also sell-only (rate owner: [indian-equity-charges](../indian-equity-charges/SKILL.md)).
+1. **Option STT is on premium**, not notional: 0.15% of premium on a sale from 1 Apr 2026, never of strike or underlying ([section 2](#2-what-implementations-get-wrong-on-charges)).
+2. **Exercised options pay STT on intrinsic value** (call: settlement price minus strike; put: strike minus settlement price), and the **purchaser** pays it.
+3. **Sale STT is on the seller; exercise STT is on the buyer; stamp duty is buy-only.** Intraday cash-equity STT is sell-only (rate owner: [indian-equity-charges](../indian-equity-charges/SKILL.md)).
 4. **Key every STT rate to the trade date:** three regimes, with futures 0.05% and options 0.15% from 2026-04-01 ([section 1](#1-charges-by-side-and-base-nse-equity-and-index-fo)).
 5. **F&O is non-speculative business income, ITR-3.** No §111A or §112A, no holding period, no STCG/LTCG, no ₹1.25 lakh exemption ([section 4](#4-classification-business-income-not-capital-gains)).
-6. **Intraday equity is speculative business income.** A speculative loss offsets only speculative profit, for **4** years; an F&O loss offsets any head except salary, for **8** years, if the return is filed by the due date ([section 5](#5-loss-set-off-and-carry-forward)).
+6. **Intraday equity is speculative business income.** A speculative loss offsets only speculative profit, for **4** years; a same-year F&O loss offsets any head except salary, while a carried-forward F&O loss (**8** years, if the return is filed by the due date) offsets business income only ([section 5](#5-loss-set-off-and-carry-forward)).
 7. **Tax-audit turnover is the sum of absolute differences**, not net P&L and not contract value ([section 6](#6-turnover-for-tax-audit-the-icai-method)).
 8. **Audit applies above ₹1 crore** of business turnover, or ₹10 crore when cash receipts and payments are each at most 5%.
 9. **Presumptive taxation (§44AD / §58) is an election**, with no loss allowed against it ([section 7](#7-presumptive-taxation-44ad--58)).
@@ -35,7 +35,7 @@ holds both structures. Cash-segment equity lives elsewhere (see Scope).
 | Charge | Futures | Options | Side | Base |
 |---|---|---|---|---|
 | STT on sale | **0.05%** | **0.15%** | **sell only** | futures: traded price × qty; options: **premium** × qty |
-| STT on exercise | — | **0.15%** | **purchaser** (the long holder) | **intrinsic value** = settlement price − strike, × qty |
+| STT on exercise | — | **0.15%** | **purchaser** (the long holder) | **intrinsic value** = call: settlement − strike; put: strike − settlement, × qty |
 | Exchange transaction charge (NSE) | 0.00183% | 0.03553% | both | futures: turnover; options: **premium** |
 | SEBI fee | ₹10 per crore | ₹10 per crore | both | turnover; options: premium turnover as brokers bill it (unverified against SEBI's regulation) |
 | Stamp duty | 0.002% | 0.003% | **buy only** | buy-side turnover; options: premium turnover as brokers bill it (unverified against the Stamp Act) |
@@ -46,8 +46,8 @@ which applies Finance Act 2026 §159 amending §98 of the Finance (No. 2) Act 20
 STT bases and payer from NSE's equity-derivatives STT page. Transaction charges
 from the Zerodha and Upstox schedules, effective 1 Mar 2026. Stamp duty from NSE's
 investor levies page, in force since 1 Jul 2020. For GST's base, see
-[indian-equity-charges](../indian-equity-charges/SKILL.md); some brokers also
-add an NSE IPFT line inside it. BSE differs: Zerodha lists ₹0 on futures and
+[indian-equity-charges](../indian-equity-charges/SKILL.md). The ₹0.01/crore IPFT is
+already inside NSE's rate; whether it enters the GST base is not confirmed. BSE differs: Zerodha lists ₹0 on futures and
 0.0325% of premium on options.
 
 **STT is keyed to the trade date.** Three regimes, from the NSE circulars
@@ -119,6 +119,9 @@ stt_sale("future", date(2026, 4, 20), 1_500_000)  # 750.0 (0.05%)
 stt_sale("option", date(2026, 5, 12), 300 * 50)   # 22.5  (premium, not 300 x 24,000)
 ```
 
+Contract notes round STT to the rupee, so 22.5 is the pre-rounding figure; see
+[indian-equity-charges](../indian-equity-charges/SKILL.md).
+
 ## 3. Section numbers and years
 
 The Income-tax Act 2025 is in force from 1 April 2026 (§1(3)). FY 2025-26
@@ -126,7 +129,7 @@ The Income-tax Act 2025 is in force from 1 April 2026 (§1(3)). FY 2025-26
 the 2025 Act, the same date the STT rise took effect. ITR JSON field names may keep
 1961 numbers. This skill cites the 2025 number first, with the 1961 number where
 useful (business income §26 [§28], speculation §66(31) [§43(5)], STT deduction
-§32(k) [§36(1)(xv)], tax audit §63 [§44AB], presumptive §58 [§44AD]). The full
+§32(k) [§36(1)(xv); 1961 number not re-read], tax audit §63 [§44AB], presumptive §58 [§44AD]). The full
 table, with the not-yet-re-read 1961 numbers flagged, is in
 [references/act-2025-sections.md](references/act-2025-sections.md).
 

@@ -1,6 +1,6 @@
 ---
 name: momentum-factor-research
-description: Method for researching and quoting cross-sectional momentum on Indian equities without fooling yourself — the 21/63/126/189/252-bar lookback ladder, volatility-estimator choice (why Yang-Zhang and Parkinson lost), parameter sensitivity, factor IC versus portfolio robustness, out-of-sample reversal of blend uplift, and safe evaluation of user-written factor formulas such as `6M Perf / 6M Vol`. Use when ranking NSE stocks by momentum or risk-adjusted momentum, defining 6M or 12M windows, designing or reviewing a factor formula or its parser, comparing or swapping a volatility estimator, or before quoting any momentum CAGR or Sharpe, even if the user only asks for a number to publish.
+description: Method for researching and quoting cross-sectional momentum on Indian equities without fooling yourself — the 21/63/126/189/252-bar lookback ladder, volatility-estimator choice (why replacing it was rejected and Yang-Zhang lost), parameter sensitivity, factor IC versus portfolio robustness, out-of-sample reversal of blend uplift, and safe evaluation of user-written factor formulas such as `6M Perf / 6M Vol`. Use when ranking NSE stocks by momentum or risk-adjusted momentum, defining 6M or 12M windows, designing or reviewing a factor formula or its parser, comparing or swapping a volatility estimator, or before quoting any momentum CAGR or Sharpe, even if the user only asks for a number to publish.
 license: MIT
 compatibility: Daily NSE close data. Figures marked "measured on NSE data" are dated findings from one codebase; re-measure on yours.
 metadata:
@@ -25,7 +25,7 @@ momentum works. Engine defects live in
 4. Never quote a CAGR without parameters, universe rule and exact start and end dates. [§4](#4-defaults-are-load-bearing)
 5. Show the rank IC and its t-statistic before any equity curve. [§5](#5-factor-existence-is-not-portfolio-robustness)
 6. Promote a blend only after it beats its best component on a frozen, later validation window. [§6](#6-out-of-sample-reversal-of-a-blend-uplift)
-7. Never `eval` a user formula; parse it, dry-run it, fail on unresolved names and ÷0. [§7](#7-user-written-formula-engines)
+7. Never `eval` a user formula; parse it, dry-run it, fail on unresolved names, and give ÷0 a defined skip or null result, never an error or `Infinity`. [§7](#7-user-written-formula-engines)
 8. Rank only series whose last bar is the latest session, and count the exclusions. [§8](#8-live-scoring-ranks-only-current-series)
 
 ## 1. Lookback ladder

@@ -82,7 +82,7 @@ def members_asof(anchor, events, date):
     return cur
 ```
 
-A missed circular surfaces as the `ValueError`, not as a wrong list.
+A missed circular that unbalances an add/remove pair surfaces as the `ValueError`; a deleted 1-for-1 swap does not ([§3](#3-zero-warnings-proves-no-unbalanced-gap-nothing-more)).
 
 Source: NSE's press-release CMS endpoint,
 `GET https://www.nseindia.com/api/press-release-cms20?fromDate=DD-MM-YYYY&toDate=DD-MM-YYYY`
@@ -220,21 +220,37 @@ many-to-one folds, ambiguous successors, uniqueness, series set, regeneration) a
 in [references/ticker-rename-rules.md](references/ticker-rename-rules.md): read it
 when generating or reviewing a rename map.
 
-2. **ISIN wins conflicts.** Where price continuity and ISIN disagree, the ISIN is on
-   the correct final ticker and continuity stopped at an intermediate hop.
-6. **Compare issuers, not full ISINs.** An ISIN's first seven characters name the
-   issuer; the last four the security. A re-denomination (face value change) keeps
-   the issuer and changes the suffix: `INE450D01013 -> INE450D01021` is one
-   continuous listing. A full-string compare rejected 17 of 149 same-issuer pairs.
-   Refuse only when both are known, differ at issuer level and are disjoint.
-   Reject malformed identifiers (`IN0000000000`) rather than truncating them, or
-   every placeholder matches every other. Do not forget the INF (fund) prefix.
+**Rule 2. ISIN wins conflicts.** Where price continuity and ISIN disagree, the ISIN
+is on the correct final ticker and continuity stopped at an intermediate hop.
+
+**Rule 6. Compare issuers, not full ISINs.** An ISIN's first seven characters name
+the issuer; characters 8-11 identify the security and the 12th is a check digit. A
+re-denomination (face value change) keeps the issuer and changes the suffix:
+`INE450D01013 -> INE450D01021` is one continuous listing. A full-string compare
+rejected 17 of 149 same-issuer pairs. Refuse only when both are known, differ at
+issuer level and are disjoint. Reject malformed identifiers (`IN0000000000`) rather
+than truncating them, or every placeholder matches every other. Do not forget the
+INF (fund) prefix.
 
 ```python
+import re
+
+ISIN_SHAPE = re.compile(r"IN[EF][0-9A-Z]{8}[0-9]")
+
+def _issuer(isin):
+    if not isinstance(isin, str) or not ISIN_SHAPE.fullmatch(isin):
+        return None   # malformed or placeholder (IN0000000000): unknown
+    if set(isin[3:11]) == {"0"}:
+        return None
+    return isin[:7]
+
 def same_issuer(old_isin, new_isin):
-    return old_isin[:7] == new_isin[:7]   # first 7 name the issuer, last 4 the security
+    # True/False when both are valid; None when either is unknown (never a match)
+    a, b = _issuer(old_isin), _issuer(new_isin)
+    return None if a is None or b is None else a == b
 
 same_issuer("INE450D01013", "INE450D01021")   # True: re-denomination, one listing
+same_issuer("IN0000000000", "IN0000000000")   # None: placeholders never match
 ```
 
 Detector: assert the confirmed set **by name**. A counts-only contract (`564

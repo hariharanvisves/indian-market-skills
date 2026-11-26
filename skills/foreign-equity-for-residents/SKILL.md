@@ -25,7 +25,7 @@ Schedule and Form 67 / Rule 128 mechanics by [itr-filing-schedules](../itr-filin
 2. **A US share is not listed in India:** long term only after **more than 24 months** (calendar months), LTCG 12.5% without indexation, STCG at slab, and no ₹1.25 lakh exemption or 31-Jan-2018 grandfathering ([section 3](#3-foreign-shares-are-not-listed-equity-in-india)).
 3. **Convert at the SBI TT buying rate** on the last day of the month before the month of transfer. Never the trade-date spot or an RBI reference rate ([section 4](#4-currency-conversion-sbi-tt-buying-rate-month-before)).
 4. **RSU and ESPP cost is the FMV taxed as perquisite**; the holding period runs from allotment, not grant. Take the INR value from Form 16 ([section 5](#5-rsu-espp-and-esop)).
-5. **LRS TCS is tax paid on your behalf**: 20% of the excess over ₹10 lakh for investment. It is a return credit, never part of cost ([section 2](#2-lrs-limit-and-tcs-on-the-remittance)).
+5. **LRS TCS is tax paid on your behalf**: in tax year 2026-27, 20% of the excess over ₹10 lakh for investment, with the ₹10 lakh counted cumulatively per PAN per financial year. It is a return credit, never part of cost ([section 2](#2-lrs-limit-and-tcs-on-the-remittance)).
 6. **US dividend credit** is the lower of foreign tax and Indian tax, with foreign tax capped at the 25% treaty rate. File **Form 67** (**Form 44** from tax year 2026-27) ([section 6](#6-us-dividends-treaty-rate-and-foreign-tax-credit)).
 7. **Schedule FA covers the calendar year** ending 31 December, with peak and closing values. The ₹20 lakh Black Money Act relief removes the penalty, not the duty to report ([section 7](#7-schedule-fa-calendar-year-peak-and-closing-value)).
 8. **Switch law by year:** FY 2025-26 uses the 1961 Act, Rule 115/128 and Form 67; tax year 2026-27 uses the 2025 Act, Rule 206/76 and Form No. 44.
@@ -78,7 +78,8 @@ foreign-income branches and the FA branch must each test for ROR, not for "resid
   ([RBI FAQ](https://www.rbi.org.in/commonman/english/Scripts/FAQs.aspx?Id=1834);
   [Master Direction](https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10192)).
   This is a FEMA cap in USD, not a tax threshold.
-- The authorised dealer collects TCS on LRS remittances above **₹10 lakh**. For
+- The authorised dealer collects TCS on LRS remittances above **₹10 lakh**, counted
+  **cumulatively per PAN per financial year**, not per remittance. For
   purposes other than education or medical treatment, investment included, the
   rate is **20% of the excess** (§394(1) Table Sl. 7(b)). Finance Act 2026 §85(e)
   cut only the education and medical rate, from 5% to 2%, from 1 Apr 2026.
@@ -94,13 +95,21 @@ to cost or book it as an expense, and the credit is lost.
 
 **Example.** ₹25,00,000 remitted for US shares in tax year 2026-27, with no other
 LRS use. TCS = 20% × (25,00,000 − 10,00,000) = **₹3,00,000**, all of it creditable.
-The share cost is what was bought in USD.
+The share cost is what was bought in USD. Two remittances of ₹8,00,000 each: the
+first collects nothing, the second collects 20% × 6,00,000 = ₹1,20,000.
 
 ```python
-def tcs_lrs_investment(remitted_inr):               # tax year 2026-27, other than education or medical
-    return 0.20 * max(remitted_inr - 10_00_000, 0)
+from decimal import Decimal
 
-tcs_lrs_investment(25_00_000)   # 3,00,000: a credit row, never added to cost
+THRESHOLD = 10_00_000                               # whole rupees, cumulative per PAN per FY
+
+def tcs_lrs_investment(cumulative_before, remitted):   # tax year 2026-27, other than education or medical
+    over = max(cumulative_before + remitted - THRESHOLD, 0) - max(cumulative_before - THRESHOLD, 0)
+    return Decimal("0.20") * over
+
+tcs_lrs_investment(0, 25_00_000)          # 3,00,000: a credit row, never added to cost
+tcs_lrs_investment(0, 8_00_000)           # 0
+tcs_lrs_investment(8_00_000, 8_00_000)    # 1,20,000: 20% x 6,00,000
 ```
 
 **Detector.** Grep the cost-basis builder for `tcs`: any arithmetic on it there is
@@ -159,10 +168,20 @@ So a sale on 10 Apr 2026 uses the TTBR for **31 Mar 2026**. Never use the
 ```python
 from datetime import date, timedelta
 
+class MissingRate(Exception):
+    pass
+
 def ttbr_date(event_date):
     return event_date.replace(day=1) - timedelta(days=1)   # last day of the previous month
 
+def ttbr(table, event_date):
+    d = ttbr_date(event_date)
+    if d not in table:
+        raise MissingRate(d)    # the caller applies the documented fallback rule
+    return table[d]
+
 ttbr_date(date(2026, 4, 10))   # 2026-03-31
+ttbr_date(date(2026, 2, 10))   # 2026-01-31, a Saturday: SBI may publish no rate that day
 ```
 
 **The cost side is unsettled.** The capital-gains row names only the month of
@@ -179,7 +198,11 @@ cover only **non-residents** selling shares of an **Indian** company.
 
 **Detector.** Grep `usdInr|USD_INR|fx_rate|exchangeRate`. All conversion must go
 through one function of (income type, event date) that returns the prior
-month-end TTBR from a dated, sourced table and raises if the rate is missing.
+month-end TTBR from a dated, sourced table. A missing rate (a month-end on a weekend
+or holiday, when SBI may publish none) must be resolved by the documented fallback
+rule for that case, not by silently swallowing the error and not by interpolating or
+borrowing a neighbouring day's rate in code; without a documented rule, raise a named
+missing-rate error.
 
 ## 5. RSU, ESPP and ESOP
 
@@ -228,8 +251,8 @@ own short-term row.
   **lower of** the foreign tax and the Indian tax on that income. Foreign tax above
   the treaty rate **is ignored** (Rule 76(7)(a)), so recover any excess from the
   IRS instead.
-- File the FTC statement (Form 67, or Form No. 44 from tax year 2026-27) before
-  claiming the credit. For the deadline and the FSI/TR mechanics, see
+- The FTC statement is Form 67, or Form No. 44 from tax year 2026-27. Its deadline,
+  whether it must precede the return, and the FSI/TR mechanics are owned by
   [itr-filing-schedules](../itr-filing-schedules/SKILL.md) section 5.
 - The same IRS page says a non-resident alien's capital gains are "not usually
   taxable". A US sale usually leaves no foreign tax to credit.
@@ -296,8 +319,8 @@ Flag the exposure when US holdings pass $60,000. Ways to reduce it are out of sc
 - **Holding period:** foreign shares held 13, 24 and 25 months classify as short,
   short and long. No foreign row touches the §112A exemption pool.
 - **Exchange rate:** a sale on the 1st uses the previous month-end TTBR; a missing
-  rate raises an error.
-- **TCS:** ₹25 lakh for investment gives ₹3 lakh of credit and no cost change.
+  rate (a Saturday month-end) raises `MissingRate`, with no interpolation.
+- **TCS:** ₹25 lakh for investment gives ₹3 lakh of credit and no cost change; two ₹8 lakh remittances give ₹0 then ₹1,20,000.
 - **RSU and ESPP:** a sale at vest FMV gains about zero; ESPP cost is the FMV.
 - **Credit:** 30% withholding without a W-8BEN is capped at 25% and at Indian tax.
 - **FA:** calendar-year window, peak ≥ closing, and no rows for RNOR or NR.

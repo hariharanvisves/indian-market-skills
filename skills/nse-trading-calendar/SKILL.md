@@ -20,8 +20,8 @@ Diwali. Each entry below is **rule**, **why**, **detector**.
 
 1. The calendar is dated data per segment with a source per row; never `bdate_range` or a US calendar. [§1](#1-the-calendar-is-dated-config-with-a-source), [§3](#3-segments-have-different-holidays)
 2. Take the list from the exchange and re-fetch it; closures are declared late. [§2](#2-where-the-list-comes-from-and-how-it-changes)
-3. T+1 settlement walks the **clearing** calendar, not the trading calendar. [§4](#4-trading-holiday-is-not-settlement-holiday-t1-uses-the-clearing-list)
-4. Muhurat and weekend budget sessions are live trading days that settle; mock sessions are not days. [§5](#5-muhurat-trading-a-dated-short-real-session), [§6](#6-other-special-sessions-and-mock-sessions-that-are-not-sessions)
+3. T+1 settlement (all equities from 27 Jan 2023) walks the **clearing** calendar, not the trading calendar. [§4](#4-trading-holiday-is-not-settlement-holiday-t1-uses-the-clearing-list)
+4. Muhurat is a live trading day whose trades settle. Weekend budget sessions are live trading days but clearing holidays themselves, so their trades settle on the next clearing day. Mock sessions are not days. [§5](#5-muhurat-trading-a-dated-short-real-session), [§6](#6-other-special-sessions-and-mock-sessions-that-are-not-sessions)
 5. An expiry on a holiday shifts to the **previous** trading day, and stored expiries are recomputed when the list changes. [§7](#7-expiry-day-scheduled-weekday-shifted-to-the-previous-trading-day)
 6. The expiry weekday is a dated lookup: NIFTY weeklies were Thursday and are Tuesday for contracts expiring from 1 Sep 2025. [§8](#8-the-expiry-weekday-has-changed-it-is-a-dated-table)
 7. Key by IST date; session times are per-date config. [§9](#9-session-times-and-ist)
@@ -98,12 +98,18 @@ is the bug.
 
 ## 4. Trading holiday is not settlement holiday; T+1 uses the clearing list
 
-**Rule.** Compute a T+1 settlement date as the next day on the **clearing**
-calendar of NSE Clearing (holiday master `type=clearing`), not the next trading
+**Rule.** From 27 Jan 2023, compute a T+1 settlement date as the next day on the
+**clearing** calendar of NSE Clearing (holiday master `type=clearing`), not the next trading
 day. A trading day can be a settlement holiday. In 2026, 19 Feb, 19 Mar, 1 Apr
 and 26 Aug are equity trading days and clearing holidays. The weekend budget
 sessions (§6) were too: NSE skipped the T0 session on both "due to settlement
 holiday". Every 2026 weekday trading holiday is also on the clearing list.
+
+T+1 applies to all equities only from 27 Jan 2023. It was phased in stock by stock
+during 2022, so the function below raises for earlier trade dates. For the cycle
+history, read
+[nse-fill-realism.md](../backtest-engine-correctness/references/nse-fill-realism.md)
+(Halts, settlement cycle and pre-open).
 
 Examples, derived from the 2026 clearing list:
 - A trade on Wed 18 Feb 2026 settles on Fri 20 Feb, not Thu 19 Feb.
@@ -112,7 +118,11 @@ Examples, derived from the 2026 clearing list:
   one settlement date carries two trade dates.
 
 ```python
+T1_FROM = date(2023, 1, 27)             # all equities; phased by stock before this
+
 def settlement_date(trade_date, clearing_days):
+    if trade_date < T1_FROM:
+        raise ValueError("T+1 is not in force for every stock before 2023-01-27")
     d = trade_date + timedelta(days=1)
     while d not in clearing_days:       # weekends, trading and clearing holidays absent
         d += timedelta(days=1)
@@ -240,7 +250,10 @@ the March 2025 proposal. A Monday expiry is valid only as a holiday shift (§7).
 
 ## 9. Session times and IST
 
-**Rule.** Session boundaries are dated config, owned by §21 of
+**Rule.** Session boundaries are dated config. The pre-open windows and session
+timings by date are in
+[nse-fill-realism.md](../backtest-engine-correctness/references/nse-fill-realism.md);
+the closing-price regime is §21 of
 [backtest-engine-correctness](../backtest-engine-correctness/SKILL.md). The
 familiar 09:00–09:08 pre-open and 09:15–15:30 market predate the 2026
 closing-auction and pre-open changes. Store times per date and per special
@@ -276,7 +289,8 @@ days for the range. Report both differences.
   2024-01-20 (Saturday session), 2024-01-22 (late holiday), 2026-01-15 (holiday
   added 3 days ahead), 2026-02-19 (clearing holiday only), 2025-10-21 and
   2026-11-08 (Muhurat).
-- **Settlement.** Test 2026-02-18 → 2026-02-20 and 2026-03-30 → 2026-04-02.
+- **Settlement.** Test 2026-02-18 → 2026-02-20 and 2026-03-30 → 2026-04-02,
+  and that a trade date before 2023-01-27 raises.
 - **Expiry.** Diff generated expiries against `XpryDt` in the F&O bhavcopy
   across the September 2025 switch and each holiday shift.
 - **Mutation test.** Swap in `pd.bdate_range`, a weekday filter, and
@@ -285,7 +299,9 @@ days for the range. Report both differences.
 
 ## Scope
 
-Owners elsewhere: session timings, closing price and T+1 phase-in are in §21 of
+Owners elsewhere: session timings, pre-open windows and the T+1 phase-in are in
+[nse-fill-realism.md](../backtest-engine-correctness/references/nse-fill-realism.md);
+the closing-price regime is §21 of
 [backtest-engine-correctness](../backtest-engine-correctness/SKILL.md). The
 expiry instant and settlement price are in
 [nse-options-mechanics](../nse-options-mechanics/SKILL.md). Bhavcopy file

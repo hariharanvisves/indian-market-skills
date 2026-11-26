@@ -23,7 +23,7 @@ traps that route an asset into the wrong regime.
    short term: `sale > add_months(buy, 12)`, never a day count ([section 5](#5-the-12-month-boundary)).
 2. **Listed equity, STT paid:** STCG **20%** (§111A), LTCG **12.5%** (§112A), annual
    exemption **₹1,25,000** on aggregate LTCG only. Key the rate to the **sale date** ([section 1](#1-rates-listed-equity-and-equity-oriented-mutual-funds-stt-paid)).
-3. **No wash-sale rule.** A same-day sell and re-buy keeps the loss. Port §94(7) as a dividend-linked cap, never a re-entry window ([section 3](#3-the-four-rules-that-differ-from-us-law)).
+3. **No wash-sale rule.** A same-day sell and re-buy keeps the loss. Port §94(7) as a cap at the exempt dividend received, applied only when that dividend is exempt, never a re-entry window ([section 3](#3-the-four-rules-that-differ-from-us-law)).
 4. **No capital loss reaches salary or any ordinary income.**
 5. **Set-off is asymmetric:** STCL offsets STCG and LTCG; LTCL offsets LTCG only.
 6. **Carry-forward is 8 years**, per bucket, and only if the return was filed by the due date.
@@ -83,8 +83,9 @@ trigger it. That is a cap on the disallowance, not a blanket denial. Implement i
 *instead of* a wash-sale check, as a dividend-linked cap, never as a re-entry
 window. Its sibling **§94(8) bonus stripping** (§175(9); bought within 3 months before the
 record date, bonus allotted, original sold within 9 months while the bonus is
-kept) ignores the loss entirely. Dividend taxation and bonus cost basis:
-[corporate-action-taxation](../corporate-action-taxation/SKILL.md).
+kept) ignores the loss on the original, and that ignored loss becomes the cost of the
+retained bonus shares. The mechanics, plus dividend taxation and bonus cost basis,
+are owned by [corporate-action-taxation](../corporate-action-taxation/SKILL.md).
 
 Separately, a same-day sell/re-buy may be re-characterised as **intraday**
 (speculative business income) rather than a capital transaction. That is a
@@ -147,12 +148,14 @@ def cg_tax(stcg, ltcg, stcl=0, ltcl=0, exemption=125_000):  # rates for sales on
     ltcl_left = max(ltcl - ltcg, 0)              # LTCL never touches STCG
     stcg_after = max(stcg - stcl, 0)
     stcl_left = max(stcl - stcg, 0)
+    stcl_carry = max(stcl_left - ltcg_after, 0)  # STCL left after STCG and LTCG
     ltcg_after = max(ltcg_after - stcl_left, 0)  # surplus STCL reaches LTCG
     taxable_ltcg = max(ltcg_after - exemption, 0)  # exemption after set-off
-    return 0.20 * stcg_after + 0.125 * taxable_ltcg, ltcl_left
+    return 0.20 * stcg_after + 0.125 * taxable_ltcg, ltcl_left, stcl_carry
 
-cg_tax(0, 200_000)                   # (9375.0, 0): (2,00,000 - 1,25,000) = 75,000 x 12.5%
-cg_tax(300_000, 0, ltcl=200_000)     # (60000.0, 200000): STCG fully taxable, LTCL carried forward
+cg_tax(0, 200_000)                   # (9375.0, 0, 0): (2,00,000 - 1,25,000) = 75,000 x 12.5%
+cg_tax(300_000, 0, ltcl=200_000)     # (60000.0, 200000, 0): STCG fully taxable, LTCL carried forward
+cg_tax(0, 30_000, stcl=50_000)       # (0.0, 0, 20000): STCL absorbed by LTCG, rest carried forward
 ```
 
 A per-trade exemption would give ₹0 on the first call. Pooling the LTCL into
@@ -235,9 +238,9 @@ asset a 12.5% rate and the exemption; slab is the taxpayer-unfavourable, and
 therefore safe, direction, and an unclassified row stays visible.
 **Detector.** Read the classifier's default branch; it must return slab.
 
-**Sovereign gold bonds.** Redemption at RBI maturity is exempt only for an individual who held from original issue (§70(1)(x) of the 2025 Act; §47(viic)); a market sale is a §112 gain with no §112A exemption. Check for an SGB before any gold-matching regex. Read [references/sgb-and-debt-funds.md](references/sgb-and-debt-funds.md) when classifying an SGB, its coupon base or tranche symbol.
+**Sovereign gold bonds.** Redemption at RBI maturity is exempt only for an individual who held from original issue till maturity (§70(1)(x) of the 2025 Act as substituted by the Finance Act 2026, from 1 April 2026; §47(viic) in 1961 numbering); earlier redemptions by any individual were exempt. A secondary-market buyer's redemption, or an early redemption, is taxable. Omit exempt redemptions upstream (no zero row) and fail loudly if one reaches the schedule writer. A market sale is a §112 gain with no §112A exemption, and an SGB fund is a mutual fund with no exemption. Check for an SGB before any gold-matching regex. Read [references/sgb-and-debt-funds.md](references/sgb-and-debt-funds.md) when classifying an SGB, its coupon base or tranche symbol.
 
-**Debt mutual funds** (*specified mutual fund*, §50AA): units bought **on or after 1 April 2023** are taxed at slab whatever the holding period; route on the **purchase** date. Read the same reference for the 1 April 2026 definition change and fund-of-funds ordering. An unknown MF sub-category must reject (fail closed), never default to equity.
+**Debt mutual funds** (*specified mutual fund*, §76(5)(b) of the 2025 Act: more than 65% debt/money-market; §50AA in 1961 numbering, whose definition differed before 1 Apr 2026): units bought **on or after 1 April 2023** are taxed at slab whatever the holding period, while units bought before 1 Apr 2023 keep a long-term path; route on the **purchase** date. Read the same reference for the 1 April 2026 definition change and fund-of-funds ordering. An unknown MF sub-category must reject (fail closed), never default to equity.
 
 **Non-equity ETFs** (gold, silver, international) are under §112 (§197), not
 §112A. So **no ₹1.25L exemption** and no §112A grandfathering. Keep them out of

@@ -19,6 +19,6 @@ Dated, observed notes on which NSE host serves which path. NSE changes these wit
   needs `index=equities` (otherwise `Missing index`). It was earlier cookie-gated (GET
   the homepage first) and queried one year at a time; on 2026-11-11 it answered a bare
   curl and a 2000-2024 range in one call (39,046 rows), and serves back to at least
-  2000. Keep cookie priming and year chunks as the safe default. NSE's official MCP
+  2000. Keep year chunks as the safe default; cookie priming is optional, and if used it must target the `.in` host, because priming on the `.com` homepage never yields `.in` cookies. NSE's official MCP
   exposes the same data as `get_corporate_actions`:
   [nse-official-mcp](../../nse-official-mcp/SKILL.md).
