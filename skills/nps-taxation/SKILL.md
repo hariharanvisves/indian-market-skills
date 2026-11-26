@@ -2,10 +2,10 @@
 name: nps-taxation
 description: Income tax on the National Pension System (NPS) for a resident individual, salaried or self-employed. Which deductions survive in the new default regime (only the employer contribution, §124(1)-(2); not the own contribution or the extra ₹50,000), the 14% vs 10% employer limit on basic plus DA by regime and employer type, the ₹1.5 lakh and ₹50,000 own-contribution limits, the ₹7.5 lakh aggregate employer cap and its perquisite, exit lump sum excluded only if it does not exceed 60% of the corpus (PFRDA's new 80% option is not matched, so read it as taxable), partial withdrawal to 25% of an employee's own contributions, annuity at slab, plus Tier II, UPS and NPS Vatsalya. Income-tax Act 2025 sections with 1961 equivalents. Use when building or reviewing an NPS deduction, salary-tax or retirement-planning calculator, a Form 16 or ITR NPS line, or when asked about 80CCD(1), 80CCD(1B), 80CCD(2), 10(12A), 10(12B), NPS withdrawal tax, the 80% lump sum or the employer NPS cap.
 license: MIT
-compatibility: Checked 2026-11-26 against the Gazette text of the Income-tax Act 2025 (Act No. 30 of 2025; §§7, 16, 17, 29, 122, 123, 124, 202, Schedules II, III, XV), the Finance Bill 2026 as introduced, and the PFRDA Exits and Withdrawals Regulations as amended 16 Dec 2025. Checked against the enacted Finance Act 2026 (Act No. 4 of 2026), which does not amend §124, §17, Schedule II or Schedule XV; its §7, §29 and §202 amendments and its Schedule III insertions (Sl. 38A-38D) do not touch the NPS limits; re-verify before use.
+compatibility: Checked 2026-11-26 against the Gazette text of the Income-tax Act 2025 (Act No. 30 of 2025; §§7, 16, 17, 29, 122, 123, 124, 202, Schedules II, III, XV), the Finance Bill 2026 as introduced, and the PFRDA Exits and Withdrawals Regulations as amended 16 Dec 2025. Checked against the enacted Finance Act 2026 (Act No. 4 of 2026), which does not amend §124, §17, Schedule II or Schedule XV; its §7, §29 and §202 amendments and its Schedule III insertions (Sl. 38A-38D) do not touch the NPS limits. The Taxation and Other Laws (Amendment) Act 2026 (Act No. 21 of 2026) amends only Schedules I, IV and V and Finance Act 2026 s.3. Re-verify before use.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-26"
   jurisdiction: India
 ---
@@ -16,7 +16,7 @@ Most NPS tax code and advice describes the old regime: own contributions
 deductible, employer cap 10%, and a 60% tax-free exit. The traps now are:
 the default regime keeps only the employer deduction (own contributions were
 already barred there), the employer limit depends on the regime (14% in the new
-regime has applied since FY 2024-25), and, new from 16 December 2025, PFRDA lets
+regime has applied since FY 2024-25, Finance (No. 2) Act 2024 s.25), and, new from 16 December 2025, PFRDA lets
 non-government subscribers take 80% as lump sum while the tax text still tests
 the payment against 60%.
 
@@ -47,13 +47,16 @@ are the ones ITR forms and Form 16 still show.
 | Employer's own deduction, up to 14% | §29(1)(b) | §36(1)(iva) |
 | ₹7.5 lakh aggregate perquisite | §17(1)(h), (i) | §17(2)(vii), (viia) |
 | Exit lump sum exempt | Schedule II Sl. 6 | §10(12A) |
-| Partial withdrawal exempt | Schedule III Sl. 4 | §10(12B) |
+| UPS exit lump sum and "lump sum amount" exempt | Schedule II Sl. 15, 16 | §10(12AA), (12AB) |
+| Partial withdrawal exempt | Schedule III Sl. 4(i) | §10(12B) |
+| Minor's account partial withdrawal exempt | Schedule III Sl. 4(ii) | §10(12BA) |
 | Closure and annuity taxed | §124(6), (9) | §80CCD(3) onward |
 | New regime gate | §202(2)(a)(xii) | §115BAC |
 | Tier II tax saver (Central Government employees) | Schedule XV 1(w) | §80C(2) |
 
-The 2025 column was read in the Gazette text; the 1961 column is the matching
-1961 provision and was not re-read. Check the 1961 text for FY 2025-26 or earlier.
+The 2025 column was read in the Gazette text; the 1961 column was checked against the
+Finance Acts that enacted it (Finance Act 2017, Finance (No. 2) Act 2024, Taxation Laws
+(Amendment) Act 2025), except §17(1)(viii), which was not confirmed. Check the 1961 text for FY 2025-26 or earlier.
 The enacted Finance Act 2026 (Act No. 4 of 2026) does not amend §124, Schedule II,
 Schedule XV or §17, and its §7, §29 and §202 amendments do not touch the NPS limits.
 
@@ -98,7 +101,8 @@ share of salary (basic plus DA):
 The contribution is part of salary income (§16(k), §7(1)(c)) and the deduction
 removes it, up to the limit. The employee need not contribute. An amount above the
 limit stays taxable. Only the Central Government or a State Government is named in
-§124(1)(a); read a public-sector company, bank or statutory body as "other" and say so.
+§124(1)(a). A public-sector company, bank or statutory body is not named there, so it
+falls under §124(1)(b), "an employer other than an employer referred to in clause (a)".
 The employer's own business deduction (§29(1)(b), up to 14%) is a different limit
 and never caps the employee's.
 
@@ -180,8 +184,10 @@ Full tables: [references/pfrda-exit-rules.md](references/pfrda-exit-rules.md).
 **Fail-closed rule.** If the lump sum is more than 60% of the corpus, treat the
 **whole lump sum as taxable at slab in the tax year received**, and show the
 excess-only figure as the alternative reading. Say which one you printed. No
-amendment to Sl. 6 appears in the Gazette text or the enacted Finance Act 2026
-(Act No. 4 of 2026), and no CBDT notification matching the PFRDA change was found. Other points stay open:
+amendment to Sl. 6 appears in the Gazette text, the enacted Finance Act 2026 (Act No. 4
+of 2026) or the Taxation and Other Laws (Amendment) Act 2026 (Act No. 21 of 2026), and no
+CBDT notification or circular on the PFRDA change was found as of 2026-11-26. PFRDA's
+response to stakeholder comments says tax on exit is "as per extant Income Tax Act". Other points stay open:
 
 - whether §124(6) reaches only amounts "in respect of which a deduction has been
   allowed" plus accruals, since the Act does not say how a mixed corpus is split;
@@ -214,7 +220,8 @@ and frequency.
 **Eligibility is fail-closed.** The Act text names employees and a minor's parent or
 guardian. A self-employed or All-Citizen subscriber who is not an employee is not
 named, so treat the withdrawal as not excluded unless the reader confirms the
-reading, and say so.
+reading, and say so. The 1961 predecessor, §10(12B), also said "to an employee"
+(Finance Act 2017 s.6(b)).
 
 **Worked example (employee).** Own contributions ₹8,00,000, employer contributions
 ₹4,00,000, corpus ₹20,00,000. The base is ₹8,00,000, so ₹2,00,000 is the limit, not
@@ -249,8 +256,9 @@ excluded.
   deposit into a minor's NPS account inside the same ₹50,000 as §124(3), old regime
   only. Partial withdrawal by the parent or guardian from a minor's account is excluded up to 25% of
   contributions (Schedule III Sl. 4). The Act says "the said pension scheme notified by
-  the Central Government" and does not use the name "NPS Vatsalya"; the notification
-  naming it was not read, so cite the Act sections and mark the mapping unverified.
+  the Central Government" and does not use the name "NPS Vatsalya"; the Finance Bill 2025
+  memorandum places NPS Vatsalya inside these provisions, but no notification naming it
+  was found, so cite the Act sections and say the mapping rests on the memorandum.
 
 ## 10. Code sketch
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
   author: hariharanvisves
-  version: "1.3"
+  version: "1.4"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -31,6 +31,8 @@ A model that reads only this block should avoid the worst mistakes. Rule numbers
 8. Keep `simulate()` pure, version the engine on economic change, key caches on the whole price manifest. [§18](#18-simulate-is-pure-io-sits-outside), [§19](#19-version-the-engine-bump-only-when-the-economic-result-changes)
 9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026 and again on 7 Dec 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules, and a gap through a stop fills at the gap price, never the stop. [§20–§23](#f-nse-fill-realism)
 10. A survivorship-biased or half-adjusted price history fails before any rule here matters. [§24](#24-survivorship-and-corporate-actions)
+11. Intraday: use only completed bars, anchor resampling on the IST session open, keep gaps as gaps, and record the vendor's bar-label convention. [§25](#25-intraday-bar-integrity)
+12. A Monte Carlo or bootstrap takes an explicit seed and a local RNG, and every quoted figure carries its seed and window. [§26](#26-seeded-reproducible-simulation)
 
 ## A. Valuation and time
 
@@ -291,6 +293,11 @@ have none in the cash market. Band detail and sources are in the reference.
 
 **Gap through a stop.** A stop fills at the first tradable price after it triggers, which on a
 gap is the open, not the stop price. A stop-limit whose limit the gap skipped may not fill.
+An algo SL-M is not a true market order: NSE treats a stop without a limit price as a market
+order ([NSE penalty FAQ](https://nsearchives.nseindia.com/web/sites/default/files/inline-files/FAQ%20for%20Consolidated%20Penalty%20Structure.pdf)),
+and Kite, Upstox, Fyers and Angel One convert SL-M to a market-protected limit. A gap beyond
+the protection band can leave it unfilled or rejected. NSE accepts no stop orders in pre-open
+or in the closing auction for F&O stocks.
 Detail, sketch and detector: [references/nse-fill-realism.md](references/nse-fill-realism.md).
 
 ### 21. Market halts, settlement and closing-price regime
@@ -348,6 +355,66 @@ unadjusted prices, fails before any engine rule matters. See
 [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) and
 [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md).
 
+### 25. Intraday bar integrity
+
+**Rule.**
+- **Closed bars only.** A bar whose end is after "now" is still forming; a signal
+  never reads it. Bar end = label + width for an open-labelled bar, the label
+  itself for a close-labelled one.
+- **Fixed session anchor.** Resample from the IST session open, not from the first
+  tick or the first bar present. Session times and special sessions come from
+  [nse-trading-calendar](../nse-trading-calendar/SKILL.md); do not hardcode them here.
+- **Gaps stay gaps.** Detect missing bars and short sessions (half-days, special
+  live sessions) against that day's expected grid, not an assumed full one.
+- **No stale fill.** Never forward-fill the last price into a bar that did not
+  trade. Mark it missing, or carry the previous close only in a field named for it.
+- **Label convention.** Record whether the vendor stamps a bar by open time or
+  close time. Reading a close-labelled bar as open-labelled (or the reverse)
+  shifts every bar by one, which is look-ahead. Kite's historical API does not state
+  its convention; its minute example (09:15:00 to 09:20:00 returns bars stamped 09:15
+  to 09:20) implies open-labelled. Confirm on your own data that the session's first
+  bar is stamped 09:15.
+**Why.** Each one yields a smooth, plausible series. A forming bar has a partial
+high, low and volume; a forward-filled bar invents a price nothing traded at.
+**Detector.** Replay at a "now" that falls inside a bar. The signal must equal the
+one computed with that bar removed.
+
+```python
+def completed(bars, now, width, label="open"):
+    return [b for b in bars if (b["t"] + width if label == "open" else b["t"]) <= now]
+```
+
+At 09:32 IST with 5-minute bars, the open-labelled 09:30 bar is excluded; the same
+rows read as close-labelled would include it. Sketch tested for both labels.
+
+### 26. Seeded, reproducible simulation
+
+**Rule.**
+- Any Monte Carlo or bootstrap takes an explicit `seed` and draws from a local
+  generator (`random.Random(seed)`, `numpy.random.default_rng(seed)`), never from
+  global random state.
+- Write the seed and the sample window next to every figure you quote.
+- Resample intraday returns **within the same time-of-day bucket**, so the
+  simulated day keeps the profile of the real one. Pooling all bars flattens it.
+- Report in-sample counts and simulated counts separately; never add them.
+- "Indistinguishable from chance" is a valid verdict. Do not tune until it goes away.
+- Do not assert an Indian intraday volatility shape (open or close spike, midday
+  lull) unless you cite a source or measured it on your own window.
+**Why.** An unseeded result cannot be reproduced from its report, and global state
+lets an unrelated library call change the numbers.
+**Detector.** Two runs with the same seed give identical output; different seeds
+differ; global `random` state is untouched by the run.
+
+```python
+def bootstrap(returns_by_bucket, n_paths, seed):
+    rng = random.Random(seed)
+    return [sum(rng.choice(returns_by_bucket[k]) for k in sorted(returns_by_bucket))
+            for _ in range(n_paths)]
+```
+
+Quote it as "N=1000 paths, seed 7, window 2025-11-03 to 2026-10-30; in-sample 212
+trades, simulated 212,000". Sketch tested for the three detector checks.
+
 ## Verifying an implementation
 
 - **Look-ahead first:** the perturbation test (§1) and a gap / null-close
@@ -359,6 +426,8 @@ unadjusted prices, fails before any engine rule matters. See
 - **Costs:** a zero-friction run reproduces frictionless numbers byte-for-byte;
   trade count is unchanged by costs (§11).
 - **Metrics:** every output is finite on a curve with a zero value (§13).
+- **Intraday and simulation:** replay with a forming bar (§25); same seed twice
+  is identical, a different seed differs (§26).
 - **Prove each guard:** remove it, watch the specific test fail, restore it; a
   mutant killed by the wrong assertion is untested. Build fixtures that can
   express the defect (a low-volatility series cannot show variance drag). Assert

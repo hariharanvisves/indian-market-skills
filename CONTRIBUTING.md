@@ -38,6 +38,7 @@ Put the citation in the pull request description.
   - NSE's official MCP servers (mcp.nseindia.in), their tools and terms: `nse-official-mcp`
   - general broker-API safety principles: `kite-connect-safety`
   - SEBI retail-algo rules and non-Kite broker deltas: `indian-broker-api-safety`
+  - order sizing from a stop, lot, freeze and tick rounding: `intraday-risk-sizing`
   - ITR forms, schedules, rounding, advance tax: `itr-filing-schedules`
 
 ## Skill structure

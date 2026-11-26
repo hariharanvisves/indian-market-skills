@@ -1,0 +1,148 @@
+{
+  "skill_name": "intraday-risk-sizing",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "Write a function that takes my risk per trade and the stop distance and returns the quantity for an NSE intraday equity order."
+      },
+      {
+        "prompt": "How do I round a stop-loss and a target price to the tick size before sending an order to Zerodha?"
+      },
+      {
+        "prompt": "My F&O position sizer returns 130 units but the lot size is 25. What should the code do?"
+      },
+      {
+        "prompt": "NSE rejects orders above the freeze quantity. How should my bot size and split a large Nifty options order?"
+      },
+      {
+        "prompt": "How should I work out the quantity for MIS orders when my broker offers 5x intraday leverage?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "What are the STT and exchange transaction charges on a ₹5 lakh intraday equity sell?",
+        "owner": "indian-equity-charges"
+      },
+      {
+        "prompt": "My Kite place_order call timed out. How do I stop it sending a duplicate order on retry?",
+        "owner": "kite-connect-safety"
+      },
+      {
+        "prompt": "Is NSE open on Diwali Muhurat day this year, and when does that session end?",
+        "owner": "nse-trading-calendar"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I am sizing a buy. Planned entry ₹1,200, stop ₹1,196, risk budget ₹2,000, position-value cap ₹3,00,000. The live quote just before I send is ₹1,203. How many shares, and which limit set the size?",
+      "expectations": [
+        "Measures stop distance from the higher of planned entry and the fresh quote (1,203), so the distance is 7, not 4",
+        "Risk cap is 285 shares, position-value cap is 249 shares, so the quantity is 249 and the position-value cap is the binding one",
+        "Names the cap that decided the quantity"
+      ],
+      "must_match": [
+        "(?<![\\d,])249(?!\\d|,\\d)",
+        "(?i)higher|worse|less favou?rable|adverse|unfavou?rable",
+        "(?i:position[- ]value|position[- ]size)[^.\\n]{0,60}(?i:binding|binds|decid|determin|smallest|lowest|minimum|tightest|limiting|wins|governs|set the size|sets the size|set the quantity|sets the quantity)|(?i:binding|binds|decid|determin|smallest|lowest|minimum|tightest|limiting|wins|governs)[^.\\n]{0,60}(?i:position[- ]value|position[- ]size)"
+      ],
+      "must_not_match": [
+        "(?i)(?<!not )(?<!n't )(?<!never )\\b(buy|send|place|order|size)\\s+(of\\s+)?(285|500|250)(?!\\d|,\\d)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My sizing for a stock future comes out at 4,010 units. The lot size is 25 and the exchange freeze quantity is 1,800. What do I send?",
+      "expectations": [
+        "Rounds down to a whole number of lots: 4,000 (160 lots), never up to 4,025",
+        "4,000 is above the freeze quantity, so it is split into slices that are each at most 1,800 (a lot multiple, so 1,800, 1,800 and 400), or refused",
+        "Notes lot size and freeze quantity come from the exchange file, not constants"
+      ],
+      "must_match": [
+        "(?<![\\d,])4,?000(?!\\d|,\\d)",
+        "(?<![\\d,])400(?!\\d|,\\d)",
+        "(?i)split|slice|refus|(two|three|3|multiple|several|separate) (separate )?orders",
+        "(?<![\\d,])1,?800(?!\\d|,\\d)[^\\n]{0,30}(?<![\\d,])1,?800(?!\\d|,\\d)|(?i:\\b(two|twice|slices?|chunks?)\\b[^.\\n]{0,40})(?<![\\d,])1,?800(?!\\d|,\\d)"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes[,.]?\\s+(you can|send|it'?s fine|go ahead)",
+        "(?i)(?<!not )(?<!n't )(?<!never )\\b(send|place|order)\\s+(it\\s+)?(as\\s+)?(a\\s+)?(single|one)\\s+order",
+        "(?i)(?<!not )(?<!n't )(?<!never )\\bsend\\s+4,?(010|025)(?!\\d|,\\d)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "For a buy on a stock with a ₹0.10 tick, my code rounds the stop 1196.46 and the target 1210.97 to the nearest 2 decimals. What should the stop and target be on the tick grid, and which direction does each round?",
+      "expectations": [
+        "Stop 1196.40: rounded down, away from entry, so risk is not understated",
+        "Target 1210.90: rounded down, toward entry, so the target is reachable",
+        "Round on the instrument's own tick size, not 2 decimals"
+      ],
+      "must_match": [
+        "(?<![\\d.,])1,?196\\.4(0)?(?!\\d)",
+        "(?<![\\d.,])1,?210\\.9(0)?(?!\\d)",
+        "(?i)away from|further (from|below|beyond|out)|farther|wider|conservative|(never|not|doesn'?t|without) (understat|shrink|cut|reduc|narrow)|(shrink|cut|narrow)\\w* the (stop )?distance",
+        "(?i)toward|closer|nearer|reachable|short of|inside|\\bdown\\b"
+      ],
+      "must_not_match": [
+        "(?i)(?<!not )(?<!n't )(?<!never )\\bround(ed|ing)?\\s+(the\\s+)?stop\\s+up\\b",
+        "(?i)(?<!not )(?<!n't )(?<!never )\\bround(ed|ing)?\\s+(the\\s+)?target\\s+(up|away)\\b"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I cap my intraday margin as order value divided by 5, because my broker gives 5x leverage on MIS. Is that a safe way to compute the margin limit in my sizing code?",
+      "expectations": [
+        "No: a fixed multiplier is not safe; margin changes by instrument, exchange rules, broker policy and existing positions",
+        "Take margin from the broker's margin API or calculator at order time, for the actual order (Kite: /margins/orders)",
+        "Re-check the required margin for the final quantity and refuse if it exceeds available margin; refuse if the call fails"
+      ],
+      "must_match": [
+        "(?i)margins?[- ](api|endpoint|calc\\w*)|margins/orders|order margins?",
+        "(?i)\\bre[- ]?(check|query|validate)\\w*|\\bre[- ](call|run|fetch)\\b|\\bcall(s|ed)? (it |the \\w+ )?again|final (quantity|qty|size)|actual (quantity|qty|order)|fail(s|ed)?[- ]closed|refus\\w*[^.\\n]{0,60}(exceed|above|more than|insufficient|fail)"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes\\b",
+        "(?i)\\b5x\\b[^.\\n]{0,40}\\b(is|are)\\s+(a\\s+)?(safe|fine|correct|reliable)",
+        "(?i)\\b(it|that|this|which)(\\s+is|'s|’s)\\s+(a\\s+)?(safe|fine|reliable|okay|sound)\\b"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My sizing function receives a quote stamped 40 seconds ago and no tick size for the stock. To keep the bot trading I default the tick to 0.05 and size from the stale quote. Is that okay?",
+      "expectations": [
+        "No: fail closed. Raise or refuse and place nothing on a stale quote or missing tick size",
+        "Tick size comes from the exchange's per-security master, and it varies by security and changes over time",
+        "A person may re-quote under the stale-quote policy; a machine is blocked"
+      ],
+      "must_match": [
+        "(?i)fail(s|ed)?[- ]closed|refus|raise|reject|place nothing|do(es)? not (place|send|size)",
+        "(?i)(exchange|security|contract|nse)(['’]s)? (master|file)|master (file|data)|instrument (dump|master)",
+        "(?i)re-?quot|(person|human|trader|user|operator)[^.\\n]{0,60}(warn|acknowledg|override|re-?quot|confirm)|(machine|automated|bot|algo)[^.\\n]{0,40}(block|refus|reject)"
+      ],
+      "must_not_match": [
+        "(?i)^\\s*yes\\b",
+        "(?i)(?<!not )(?<!n't )(?<!never )(?<!neither )(?<!no )\\b(defaulting|default|fall ?back)\\b[^\\n]{0,50}\\b(is|are|as|would be|works?)\\s+(fine|ok|okay|acceptable|safe|reasonable|good|alright)\\b"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I am sizing a sell (short) on a stock with a ₹0.10 tick and entry ₹1,196.60. My code sends the stop 1203.54 and the target 1190.03 exactly as computed. What should the stop and target be on the tick grid, and which way does each round?",
+      "expectations": [
+        "Stop 1203.60: rounded up, away from entry, so the risk is not understated",
+        "Target 1190.10: rounded up, toward entry, so the target is reachable",
+        "Round on the instrument's own tick size"
+      ],
+      "must_match": [
+        "(?<![\\d.,])1,?203\\.6(0)?(?!\\d)",
+        "(?<![\\d.,])1,?190\\.1(0)?(?!\\d)",
+        "(?i)\\bup\\b|upward|ceil"
+      ],
+      "must_not_match": [
+        "(?i)(?<!not )(?<!n't )(?<!never )\\bround(ed|ing)?\\s+(the\\s+)?stop\\s+down\\b",
+        "(?i)(?<!not )(?<!n't )(?<!never )\\bround(ed|ing)?\\s+(the\\s+)?target\\s+(down|away)\\b"
+      ]
+    }
+  ]
+}

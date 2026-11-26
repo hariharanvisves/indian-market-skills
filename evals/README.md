@@ -35,6 +35,19 @@ it gives the **right answer**.
   against the answer. Keep them loose enough to accept any correct wording.
 - Every fact an eval asserts must already be in the skill, with its source.
 
+## Offline fixtures
+
+When a case needs market data, ship a small fixture instead of a live fetch.
+
+- Cut it from real recorded responses: a halt day, a circuit-lock day, a split day and
+  a special session each exercise a different branch. Keep a few rows, not a dump.
+- Inject the clock. Code that reads "now" cannot be replayed.
+- Assert invariants as well as point values: quantity never negative, risk never
+  understated. A point value passes while the invariant is broken on the next input.
+- Run every check regex against three strings: a correct paraphrase, a wrong answer and
+  the prompt itself. The regex must accept the first and reject the other two.
+- Do not put `\b` beside `%` or `₹`; neither is a word character, so `\b` there fails to match.
+
 ## Running
 
 ```bash

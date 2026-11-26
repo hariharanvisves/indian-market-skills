@@ -5,7 +5,7 @@ license: MIT
 compatibility: Written against Kite Connect v3 (https://kite.trade/docs/connect/v3/); the principles apply to any Indian broker REST API.
 metadata:
   author: hariharanvisves
-  version: "1.3"
+  version: "1.4"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -37,6 +37,9 @@ rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
 10. Holdings = settled + `t1_quantity`; a holdings read failure places nothing (§9).
 11. A risk-check PASS covers only the exact order it was computed for; any edit voids it, and a
     BLOCK is final (§8i).
+
+12. An alert stores a fired-at record and fires once across poller restarts; the poll
+    cadence is explicit, and a sleeping host is a failure mode (§8j).
 
 Worked sketches for rules 6 to 8 and 11 are in section 8.
 
@@ -285,6 +288,36 @@ def send_checked(verdicts, session, broker, o):
     return broker.place(o)
 ```
 
+**8j. Alerts and triggers.**
+- Store each alert with a `fired_at` column and claim it with a conditional update
+  (`UPDATE ... SET fired_at=? WHERE id=? AND fired_at IS NULL`); fire only when one row
+  changed. A poller restart then cannot fire it twice.
+- State the poll interval in config. A laptop that sleeps, a suspended container or a
+  stopped process misses every crossing in the gap: document it, and on wake compare
+  against the quote's own timestamp rather than assuming continuity.
+- Compare against a timestamped quote or the last completed bar, never an untimed
+  value. An untimed number may be from before the last session. On Kite only `/quote`
+  carries a time: `timestamp` ("The exchange timestamp of the quote packet") and the
+  nullable `last_trade_time`; `/quote/ohlc` and `/quote/ltp` carry none
+  (https://kite.trade/docs/connect/v3/market-quotes/). Age a quote by `timestamp`.
+- Where a trigger must survive a client crash, prefer a broker-side GTT. The GTT page
+  (https://kite.trade/docs/connect/v3/gtt/, read 2026-11-26) documents `single` and
+  `two-leg` (OCO) types, LIMIT orders, a `result` with `triggered_at` and `order_result`,
+  and notes the triggered order can still be rejected (its sample is a circuit-limit
+  reject). The API page states no validity or count limit. Zerodha's support pages
+  say a GTT stays active up to 365 days and an account may hold at most 500 active
+  GTTs (https://support.zerodha.com/category/trading-and-markets/charts-and-orders/gtt/articles/what-is-the-good-till-triggered-gtt-feature).
+  Both are broker policy: read them from config, never hardcode them.
+Detector: restart the poller after a fire; it must not fire again. Sketch tested:
+
+```python
+def fire_once(db, alert_id, now):
+    cur = db.execute("UPDATE alerts SET fired_at=? WHERE id=? AND fired_at IS NULL",
+                     (now, alert_id))
+    db.commit()
+    return cur.rowcount == 1
+```
+
 ## 9. Position-aware rebalance planner
 
 **Rule.** Diff targets against actual holdings and emit BUY / SELL / HOLD /
@@ -330,10 +363,11 @@ without a decision fails.
 - A stdio MCP server's **stdout is the JSON-RPC channel**; diagnostics go to
   stderr. Detector: spawn it, send `initialize`, assert every stdout line
   parses as JSON.
-- The hosted Kite MCP (`mcp.kite.trade`) is read-only: login via Kite, no credential
-  sharing with the AI tool, and no order tools ("excludes potentially destructive
-  trading operations", zerodha/kite-mcp-server README). Config is read at client
-  startup. It is distinct from your own SDK-based order code.
+- The hosted Kite MCP (`mcp.kite.trade`) is read-only except GTT. Zerodha support says:
+  "All operations are read-only. Order placement is not available except for GTT orders"
+  (https://support.zerodha.com/category/trading-and-markets/general-kite/others-kite/articles/connect-zerodha-ai-assistant).
+  Login is via Kite, with no credential sharing with the AI tool. Treat GTT creation
+  through the MCP as a live order path. Config is read at client startup. It is distinct from your own SDK-based order code.
 - A **self-hosted** Kite MCP exposes order-placement tools to whatever model is
   attached. Treat that as a live path: do not enable it unattended, and prefer
   read-only tool subsets.
@@ -359,6 +393,7 @@ the rules themselves: [indian-broker-api-safety](../indian-broker-api-safety/SKI
 - Execute with credentials cleared returns 409; dry run is the default (§7).
 - Over-ceiling order, duplicate intent and post-send timeout each make the
   documented number of broker calls: zero, one, one (§8).
+- Poller restarted after a fire does not fire again (§8j).
 - Planner fixture: unmanaged ETF is IGNORE, second run is all HOLD, a holdings
   failure places nothing (§9).
 - Every orders-table FK asserts `ON DELETE SET NULL` (§10).

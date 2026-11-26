@@ -2,10 +2,10 @@
 name: non-equity-capital-gains
 description: Indian capital gains tax for a resident individual or HUF on assets other than listed equity and equity mutual funds — land and buildings, gold and jewellery, unlisted shares, depreciable block assets. Covers the more-than-24-months holding test, 12.5% LTCG without indexation, the pre-23-Jul-2024 land and building option (20% with indexation, pay the lower), Cost Inflation Index and 1 April 2001 cost, stamp-duty-value substitution with its 110% band, and the exemptions §82 (old 54), §86 (old 54F), §85 (old 54EC) and the Capital Gains Account deposit. Use when computing or reviewing a property-sale, gold or unlisted-share gain, writing an indexation or stamp-duty-value function, building a house-purchase exemption or 54EC bond planner, or porting US cost-basis rules that have no indexation or reinvestment exemption. Gives Income-tax Act 2025 sections with 1961 equivalents.
 license: MIT
-compatibility: Verified 2026-11-26 against the gazetted Income-tax Act 2025 (§2(101), §72 to §91, §196, §197, §263; Act No. 30 of 2025) and checked against the enacted Finance Act 2026 (Act No. 4 of 2026), which does not amend §2(101), §72 to §91 or §196 to §198 (it substitutes the §263(1)(c) table and §263(5)). Tax year 2026-27 onward. Cost Inflation Index figures are not carried; load them from the CBDT notification. Re-verify before use, as rates change with each Finance Act.
+compatibility: Verified 2026-11-26 against the gazetted Income-tax Act 2025 (§2(101), §72 to §91, §196, §197, §263; Act No. 30 of 2025) and checked against the enacted Finance Act 2026 (Act No. 4 of 2026), which does not amend §2(101), §72 to §91 or §196 to §198 (it substitutes the §263(1)(c) table and §263(5)). Tax year 2026-27 onward. Cost Inflation Index figures are not carried; load them from the CBDT notification. The Taxation and Other Laws (Amendment) Act 2026 (Act No. 21 of 2026) does not amend these sections. Re-verify before use, as rates change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-26"
   jurisdiction: India
 ---
@@ -61,7 +61,9 @@ a classifier whose default branch returns a long-term equity result.
 
 Rates apply to a transfer from 2026-04-01 (tax year 2026-27 onward, §197). Transfers
 before that date sat under the 1961 Act (§112 as amended by the Finance (No. 2)
-Act 2024); this skill does not restate them and the sketch below refuses them. For a
+Act 2024); the sketch below refuses them. For a transfer on or after 23 Jul 2024, 1961 §112(1)(a)
+gave a resident individual or HUF 12.5%, or for land or building acquired before that
+date the lower of that and the 20%-with-indexation tax (Finance (No. 2) Act 2024 s.30). For a
 resident individual or HUF, LTCG is reduced by the amount by which other income
 falls short of the basic exemption limit (§197(2)); surcharge and cess are out of scope.
 
@@ -142,7 +144,10 @@ per-year-bought without comparing both taxes.
 ## 3. Indexation and cost
 
 - **Cost Inflation Index** is notified by CBDT for each tax year (§72(8)(a)). Load it from a
-  dated table that cites the notification; this skill carries no figures.
+  dated table that cites the notification; this skill carries no figures. The 2026-27
+  index is specified under §72(8)(a) by S.O. 3889(E) of 15 Jul 2026. Earlier years stay
+  under the 1961 notifications (S.O. 1790(E) of 5 Jun 2017 and its amendments), which
+  §536(2)(j) of the 2025 Act keeps in force.
   The year is the **financial year** (1 April to 31 March), so a January
   purchase belongs to the year that began the previous April.
 - **Indexed cost of acquisition** = cost x CII(transfer year) / CII(first year held by
@@ -308,7 +313,10 @@ house-property-income input defaulting to false.
 - **Original asset:** long-term **land or building** only. Not gold, not shares.
 - **Invest within six months after the transfer** in a long-term specified asset: a bond
   redeemable after five years, issued on or after 2018-04-01, by NHAI or REC, or
-  another bond the Central Government notifies (§85(6)).
+  another bond the Central Government notifies (§85(6)). Notifications made under 1961
+  §54EC continue under §536(2)(j); two found are HUDCO bonds issued on or after
+  2025-04-01 (S.O. 1644(E)) and IREDA bonds issued on or after 2025-07-09 (S.O. 3060(E)).
+  The full list was not read, so check the current notifications.
 - **Limit ₹50 lakh**, from the gains of one or more original assets, in any tax year,
   or across the transfer year and the next one together (§85(2)).
 - **Lock-in five years.** Transfer, conversion to money, or a loan or advance on the bond's
@@ -345,7 +353,10 @@ If it is still unspent when the period ends, the unspent amount is charged in th
 year in which that period expires, and can be withdrawn under the scheme. The period is
 **three years** from the transfer for §82(4), §84(4) and §86(4), and **two years** for
 §83(4). §86(4) charges only the part of the exemption that the unspent amount
-supported. The scheme's forms and rules are not restated here.
+supported. The scheme is the Capital Gains Accounts Scheme, 1988 (G.S.R. 724(E)) as amended
+by the Second Amendment Scheme 2025 (S.O. 5293(E), 19 Nov 2025: electronic deposits and
+statements, electronic closure from 2027-04-01), carried over by §536(2)(j). Its forms and
+rules are not restated here.
 
 **Detector.** Deposit date compared with the transfer date instead of the filing date;
 the deposit accepted after the return is filed; a deposit counted for §85; one

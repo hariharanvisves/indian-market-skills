@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE cash-market bhavcopy files and the NSE corporate-actions API. Format dates apply to NSE only.
 metadata:
   author: hariharanvisves
-  version: "1.3"
+  version: "1.4"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -80,7 +80,7 @@ GS and others on the same day, and mixing series double-counts a day.
 Rule: for "is this listing still alive" (termination dates, rename windows), use a
 **wider** set. Measured over the ISIN-bearing years by checking whether the same
 symbol's other-series row carries the same ISIN as its EQ listing: BE, BZ, BL, IL,
-SM and ST carry the same ISIN as EQ. BL is NSE's block-deals series (gross settlement, no netting; NSE legend of series); IL was NSE's institutional (inter-institutional deals) series, discontinued from 1 Jul 2018 (NSE/CMTR/37880), so it appears only in older files. Of 151+ series codes,
+SM and ST carry the same ISIN as EQ. BL is NSE's block-deals series (gross settlement, no netting; NSE legend of series); IL was NSE's institutional (inter-institutional deals) series, discontinued from 1 Jul 2018 (NSE/CMTR/37880; NSE's legend of series, updated 19/09/2024, has no IL row), so it appears only in older files. Of 151+ series codes,
 the N-series, Y/Z/W series, GS, GB, MF and the like carried different ISINs, so
 they are different instruments.
 

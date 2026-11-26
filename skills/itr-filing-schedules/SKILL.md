@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to resident-individual returns on the Indian e-filing portal. Form, schedule and rule facts verified 2026-11-11 for AY 2026-27 and tax year 2026-27. Not tax advice; rates and thresholds are deliberately left to the capital-gains skill and the statute.
 metadata:
   author: hariharanvisves
-  version: "1.3"
+  version: "1.4"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -308,7 +308,7 @@ split of capital gains and dividends must be tracked and is also entered in the
 portal's quarterly accrual table. The §112A exemption is annual, applied to the
 year's total, not per instalment. Late-filing interest (§234A; §423) is charged
 on tax net of advance tax, TDS/TCS, §89/§90/§91 relief and MAT/AMT credit.
-The statutory list does not name self-assessment tax, but CBDT Circular 2/2015 (following CIT v. Prannoy Roy, 309 ITR 231 (SC)) says no §234A interest is charged on self-assessment tax paid before the due date: net self-assessment tax paid on or before the due date, not tax paid after it.
+The statutory list does not name self-assessment tax, but CBDT Circular 2/2015, which §536(2)(j) of the 2025 Act continues (following CIT v. Prannoy Roy, 309 ITR 231 (SC)) says no §234A interest is charged on self-assessment tax paid before the due date: net self-assessment tax paid on or before the due date, not tax paid after it.
 
 **Why.** Each of these changes the interest figure; one wrong and the return
 shows interest not owed, or omits interest that is.

@@ -5,7 +5,7 @@ license: MIT
 compatibility: NSE (India) cash, F&O, currency and commodity segments; BSE equity-derivatives expiry days. Holiday lists, sessions and expiry rules change by circular; dates verified against NSE, NSE Clearing and BSE sources as of 2026-11-11.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -277,9 +277,14 @@ def entries_allowed(schedule, d, now_fn, entry_gap, flatten_gap):
     return now_fn() < cutoffs(schedule, d, entry_gap, flatten_gap)[0]
 ```
 
-Quote the regular-session timings (pre-open, normal market, closing session) only from an
-NSE primary page or circular; the pre-open and closing-auction dates already sourced here are
-in the reference above. Broker intraday (MIS) square-off times are the broker's own, set on the
+NSE pages read on 2026-11-26 give: pre-open order entry 09:00 to 09:10, matching to 09:12,
+buffer to 09:15 ([pre-open page](https://www.nseindia.in/static/products-services/equity-market-pre-open),
+updated 04/09/2026); normal market 09:15 to 15:30; closing auction for F&O stocks 15:15 to
+15:35; post-close 15:50 to 16:00 ([CAS page](https://www.nseindia.in/static/products-services/closing-auction-session)).
+NSE's market-timings page still shows a 09:08 pre-open close and a 15:40 to 16:00 closing
+session, so NSE's own pages disagree. SEBI's 15 Oct 2026 circular moves the auction from
+7 Dec 2026 (`backtest-engine-correctness` §21), which the NSE pages do not yet show. Never
+hardcode timings: store them as dated config. Broker intraday (MIS) square-off times are the broker's own, set on the
 broker's page: this skill states none, so read the page for the broker in use.
 
 **Detector.** Replay 2026-11-08 (Muhurat, §5) with the clock at 15:30 IST: entries must be

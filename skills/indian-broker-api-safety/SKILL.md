@@ -5,7 +5,7 @@ license: MIT
 compatibility: SEBI and NSE circulars and broker API docs as read on 2026-11-11. Broker limits change without notice; re-check each broker's docs before hard-coding.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -146,7 +146,8 @@ class SlidingLimiter:   # one per API key, shared by place, modify and cancel on
 - Every API session must be logged out daily before the next trading day starts (§A.8).
   This is why most broker tokens in §8 expire overnight. Dhan's token is valid 24 hours
   from generation (docs.dhanhq.co authentication). Dhan documents no logout or
-  revocation call, so renew or regenerate it daily and drop the token at day end.
+  revocation call, so renew or regenerate it daily and drop the token at day end. Renew
+  (`GET /RenewToken`) works only on an active token; the API key and secret last 12 months.
 - Open APIs are not permitted. Access goes only through a unique vendor-client API key plus
   the whitelisted IP. Authentication is OAuth-based and API access needs 2FA (SEBI ¶5.I(d);
   NSE/INVG/67858 §I.c–e).
@@ -205,6 +206,9 @@ used for other investors (SEBI ¶5.I(c)).
   unexecuted and **unconfirmed** order before releasing more. It must also stop itself
   in a loop or runaway (NSE/INVG/69255 ¶11.1, item 7).
 - Algo orders must not be market orders (NSE FAQ Q11, citing NSE/MSD/67753 ¶8.1.1.12).
+  NSE's pre-open page (updated 04/09/2026) states one exception: "Algo market orders shall
+  be allowed during initial 5 mins of order entry period"
+  (https://www.nseindia.in/static/products-services/equity-market-pre-open).
   Brokers enforce this:
   - Breeze: market orders are not permitted.
   - Upstox: error `UDAPI1158`, "Market orders are not allowed".
@@ -222,8 +226,9 @@ that keeps sending while confirmations lag. That loop is the runaway the rule fo
   regulatory basis.
 
 **Entry-side limits never trap a position.** This is an engineering rule about your own
-client's limits, not a statement of what the exchange or broker kill switch blocks (no primary
-circular was read for that).
+client's limits, not a statement of what the exchange or broker kill switch blocks. SEBI's
+4 Feb 2025 circular ¶5.IV(a)(iii) and NSE/INVG/67858 §J.3 say the kill switch halts trading
+from an algo ID; neither says whether exits pass.
 - Daily-loss, trades-per-day and entry-time-window limits gate **opening** orders only: those that
   open or increase a position.
 - A closing or reducing order always passes them, so a tripped limit cannot leave a position

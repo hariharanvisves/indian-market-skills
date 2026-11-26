@@ -56,7 +56,7 @@
       ],
       "must_not_match": [
         "(?i)(?<!/)(?<!/ )`?\\byears\\b`?\\W{0,3}(is|are|comes out|becomes|ends up)\\b[^.\\n]{0,25}too (large|big|high)",
-        "(?i)CAGR[^.\\n]{0,30}(?<!than )(?<!not )(collaps|deflat|understat)"
+        "(?i)CAGR[^.\\n]{0,30}(?<!than )(?<!not )(?<!instead of )(?<!rather than )(collaps|deflat|understat)"
       ]
     },
     {

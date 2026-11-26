@@ -83,7 +83,7 @@
       ],
       "must_match": [
         "(?i)110\\s?%|1\\.1\\s?(x|times)",
-        "(?i)(whole|entire|full|complete)[^.]{0,80}(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,80}(whole|entire|full|complete)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,120}not (just|only|merely)[^.]{0,25}(excess|difference)|(1,12,00,000|1[.,]12\\s*(crore|cr)\\b)[^\\n]{0,200}\\b(whole|entire|cliff)\\b",
+        "(?i)(whole|entire|full|complete)[^.]{0,80}(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,80}(whole|entire|full|complete)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,120}not (just|only|merely)[^.]{0,25}(excess|difference)|(1,12,00,000|1[.,]12\\s*(crore|cr)\\b)[^\\n]{0,200}\\b(whole|entire|cliff)\\b|(whole|entire|full) (stamp[- ]duty value|sdv)\\b[^.]{0,80}not (just|only|merely)|(whole|entire|full) (stamp[- ]duty value|sdv)\\b[^.]{0,20}(replaces|substitutes|is used)",
         "(?i)(within|up to|under|below|inside|less than|lower than|does not exceed|doesn't exceed|not more than|not exceed)[^.]{0,60}110\\s?%"
       ],
       "must_not_match": [

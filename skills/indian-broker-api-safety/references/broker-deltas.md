@@ -47,7 +47,7 @@ Map every one of these to `PENDING` (or `UNKNOWN` where marked), never `REJECTED
 
 | Broker | Sandbox |
 |---|---|
-| Zerodha Kite | None documented |
+| Zerodha Kite | Yes: `sandbox.kite.trade` with the shared demo key `sandboxdemo`; LIMIT orders only, no GTT or margin endpoints, production rate limits (https://kite.trade/docs/connect/v3/sandbox/) |
 | Upstox | Yes, sandbox apps and tokens |
 | Dhan | Yes: separate environment `sandbox.dhan.co/v2` with its own token from cloud.dhanhq.co; only endpoints marked sandbox-enabled (docs.dhanhq.co/api/v2/sandbox) |
 | Angel One | None documented |

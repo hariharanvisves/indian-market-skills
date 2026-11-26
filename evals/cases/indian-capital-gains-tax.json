@@ -56,7 +56,7 @@
       ],
       "must_match": [
         "(?i)only\\b[^.]{0,40}\\bagainst (long[- ]term|LTCG)|can(not|'t|’t)\\b[^.]{0,40}\\b(set off|offset|reduce|be used)|not (be )?(set off|offset)",
-        "(?i)carr(y|ied|ies|ying)[- ]forward"
+        "(?i)carr(y|ied|ies|ying)\\b[^.\\n]{0,25}\\bforward"
       ],
       "must_not_match": [
         "(?i)taxable (STCG|short[- ]term (capital )?gain) (of|is|=|becomes) ₹?\\s?1,?00,?000\\b"

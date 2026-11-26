@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE/BSE market data and Indian broker/RTA statement formats.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -30,6 +30,7 @@ run in price filters, paise precision, sanity gates) and indexes the rest.
 | 7 | A non-empty parse is not success; track coverage and an arithmetic identity. | [§7](#7-parser-health-produced-something-is-not-success) |
 | 8 | Gate writes on a plausibility floor; a successful fetch is not current data. | [§9](#9-sanity-gates-on-ingested-data) |
 | 9 | Adjust splits and bonuses by factor strictly before the ex-date; check each bhavcopy format and column layout. | [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) |
+| 10 | Intraday bars: use completed bars only, anchor on the IST session open, never forward-fill, record whether the vendor labels by open or close time. | [backtest-engine-correctness §25](../backtest-engine-correctness/SKILL.md#25-intraday-bar-integrity) |
 
 ## 1. IST → UTC date shift
 

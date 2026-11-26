@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rules verified 2026-11-11 against the Income-tax Act 2025, Finance Act 2026, Income-tax Rules 2026 and the AY 2026-27 ITR-2. Covers FY 2025-26 (1961 Act) and tax year 2026-27 onward (2025 Act). Not tax advice; re-verify each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -79,9 +79,10 @@ foreign-income branches and the FA branch must each test for ROR, not for "resid
   [Master Direction](https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10192)).
   This is a FEMA cap in USD, not a tax threshold.
 - The authorised dealer collects TCS on LRS remittances above **₹10 lakh**, counted
-  **cumulatively per remitter per financial year**, not per remittance. The statute
-  aggregates the buyer's remittances in the financial year; it does not name PAN or
-  say how one bank sees another's remittances. For
+  **cumulatively per remitter per financial year**, not per remittance. The 1961
+  §206C(1G) aggregates the buyer's remittances in the financial year; the 2025 Act's
+  §394(1) Table Sl. 7 says only "an amount or aggregate of the amounts exceeding ten
+  lakh rupees". Neither names PAN or says how one bank sees another's remittances. For
   purposes other than education or medical treatment, investment included, the
   rate is **20% of the excess** (§394(1) Table Sl. 7(b)). Finance Act 2026 §85(e)
   cut only the education and medical rate, from 5% to 2%, from 1 Apr 2026.

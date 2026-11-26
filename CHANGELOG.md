@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.4.0 — 2026-11-26
+
+### Added
+- `intraday-risk-sizing`: order quantity from a stop as the minimum of independent caps
+  (loss at the stop, position value, broker margin, per-order ceiling, freeze quantity),
+  with the deciding cap reported and zero refused. Also covers whole F&O lots, freeze
+  slices keyed by slice index, tick-rounded stops and targets, and exits capped at the
+  open quantity.
+- `backtest-engine-correctness`: intraday bar integrity (§25) and seeded, reproducible
+  simulation (§26).
+- `kite-connect-safety`: alerts and triggers fire once (§8j).
+- `evals/README.md`: offline fixtures.
+
+### Fixed
+- `kite-connect-safety`:
+  - The hosted Kite MCP can place GTT orders, so it is not fully read-only.
+  - Quote age comes from the `/quote` `timestamp`.
+  - The GTT 365-day and 500-order limits are broker policy, read from config.
+- `indian-broker-api-safety`:
+  - Kite has a documented sandbox.
+  - NSE's pre-open page allows algo market orders in the first 5 minutes of order
+    entry.
+  - The kill-switch texts are cited, and they are silent on exits.
+- `nse-trading-calendar`: session timings come from NSE's pre-open and closing-auction
+  pages. NSE's market-timings page disagrees with them.
+- `backtest-engine-correctness`: brokers send an algo SL-M as a market-protected limit,
+  so a gap can leave it unfilled. Kite candles appear to be stamped by open time.
+- `nps-taxation`: §124(1)(b) covers public-sector employers, and the 1961 equivalents
+  now include the UPS and minor's-account clauses.
+- `non-equity-capital-gains`: the CII notification (S.O. 3889(E)), the 1961 §112 rate
+  from 23 Jul 2024, the HUDCO and IREDA bond notifications and the 2025 deposit-scheme
+  amendment are cited.
+- `docs/unverified-claims.md`: 5 rows resolved, 13 reworded and 5 added.
+
 ## 1.3.0 — 2026-11-26
 
 ### Added
