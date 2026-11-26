@@ -38,6 +38,23 @@ Put the citation in the pull request description.
   - SEBI retail-algo rules and non-Kite broker deltas: `indian-broker-api-safety`
   - ITR forms, schedules, rounding, advance tax: `itr-filing-schedules`
 
+## Skill structure
+
+- **Description.** It decides whether the skill loads at all. Say what the skill
+  covers, then "Use when…" with real task wording, file and library names, and
+  symptoms.
+- **Opening.** Up to 3 lines on the failure the skill prevents. Then a numbered
+  **Core rules** block of one-line rules, each linking to its section.
+- **Rule sections.** Each section gives a **Rule**, a **Why** that explains the
+  reason, and a **Detector** that says how to spot the bug in code or a test. Give
+  a short worked example or code sketch for the rules people most often get wrong.
+  Build examples only from figures already in the skill.
+- **Length.** Keep SKILL.md under 500 lines. Move long catalogues and dated history
+  to `references/<topic>.md`, and say in SKILL.md when to read each file. Three
+  things stay in SKILL.md: Core-rule facts, facts that `evals/cases/<skill>.json`
+  asserts, and `display` strings from `data/rates.json`.
+- **Closing sections.** End with "Verifying an implementation", then "Scope".
+
 ## Editing an agent
 
 Agents in `reviewers/` are read-only reviewers and set `readonly: true` for Cursor. List each one in `.claude-plugin/plugin.json` under `agents`; the folder is not named `agents/` because Gemini CLI loads that folder and rejects Claude tool names. Their `tools:` must not include

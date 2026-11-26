@@ -1,22 +1,33 @@
 ---
 name: indian-equity-valuation
-description: India-specific adjustments for DCF and comparable-company valuation of listed Indian equities — corporate tax regime inputs, risk-free rate source, beta and ERP currency consistency, Ind AS 116 EBITDA comparability, consolidated vs standalone, reporting lag and point-in-time data, promoter pledge, dividend taxation, and which sectors need a different model. Use when building or reviewing a DCF, WACC or cost-of-equity input, a peer-multiple (EV/EBITDA, P/E) table, a dividend discount model or a valuation screen for NSE/BSE companies.
+description: India-specific adjustments to DCF, WACC, peer-multiple and dividend-discount valuation of listed Indian equities — corporate tax regime for NOPAT, FBIL risk-free rate, beta and equity risk premium currency consistency, Ind AS 116 EBITDA comparability, consolidated vs standalone, reporting lag and point-in-time fundamentals, promoter pledge, dividend taxation, and the sectors (banks, NBFCs, insurers) that need a different model. Use when building or reviewing a DCF, WACC or cost-of-equity input, a terminal-year tax rate, an EV/EBITDA or P/E peer table, a valuation screen or fundamentals backtest for NSE/BSE companies, or when someone asks which risk-free rate or tax rate to use for an Indian company, even if they do not say "India-specific". Capital gains tax is indian-capital-gains-tax.
 license: MIT
 compatibility: Applies to NSE/BSE-listed non-financial companies. Method-agnostic; covers only the India deltas to standard DCF and comps practice.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
 
 # Indian Equity Valuation — India Deltas
 
-This is not a full DCF or comps method. It lists what changes when the subject
-is a listed Indian company. Facts were checked on 2026-10-04 against the cited
-primary source; where a figure was not confirmed it says "verify".
+Not a full DCF or comps method: only what changes when the subject is a listed
+Indian company. Facts were checked on 2026-10-04 against the cited primary source;
+where a figure was not confirmed it says "verify". Each item: rule, why, detector.
 
-Each item: rule, why, detector.
+## Core rules
+
+1. Tax is a regime choice with an explicit `taxRegime` input, e.g. §200 at **25.168%**; never a bare 25% or 30%. [§1](#1-tax-rate-input-is-a-regime-choice-not-one-number)
+2. Risk-free rate is the FBIL 10-year G-Sec yield, recorded with its as-of date and benchmark security, never typed from memory. [§2](#2-risk-free-rate-a-dated-fbil-figure-never-memory)
+3. Every rate and cash flow carries a currency. Never mix an INR rf with a USD ERP, or discount INR flows at a USD cost of capital. [§3](#3-beta-and-equity-risk-premium)
+4. Terminal growth is a stated nominal-growth judgement, below the discount rate, with reinvestment consistent (`g = reinvestment x ROIC`). [§4](#4-terminal-growth)
+5. EV/EBITDA uses one lease treatment for every company and period; Ind AS 116 (from 1 Apr 2019) raises EBITDA. [§5](#5-ind-as-and-the-116-lease-effect)
+6. Value on consolidated statements; numerator and denominator on the same basis. [§6](#6-consolidated-vs-standalone)
+7. A fundamentals figure is usable only from its disclosure date (45 days after quarter end allowed), not its period end. [§7](#7-fiscal-year-reporting-lag-point-in-time)
+8. No FCFF DCF or EV/EBITDA on banks, NBFCs or insurers. [§10](#10-sectors-that-need-a-different-model)
+9. Dividends are taxed in the holder's hands; discount post-tax dividends for a taxable holder. [§9](#9-dividends-and-the-dividend-discount-model)
+10. The output is an internal estimate, not a recommendation. [§13](#13-output-is-research-not-a-recommendation)
 
 ## 1. Tax-rate input is a regime choice, not one number
 
@@ -39,6 +50,15 @@ regime changes whether past MAT credit is usable at all.
 the statutory rate for that regime, not the historical effective rate (which is
 distorted by deferred tax and one-offs). Grep for a bare `0.25` / `0.30` tax
 constant.
+
+**Example.** A company in the §200 regime. Wrong: `nopat = ebit * (1 - 0.25)`.
+Right: the effective rate compounds surcharge and cess on the 22% base.
+
+```python
+# 22% base, 10% surcharge, 4% cess  ->  25.168%
+tax = 0.22 * 1.10 * 1.04
+nopat = ebit * (1 - tax)
+```
 
 ## 2. Risk-free rate: a dated FBIL figure, never memory
 
@@ -71,6 +91,28 @@ error; the output looks reasonable and is wrong by the inflation differential.
 
 **Detector.** Every rate input is tagged with a currency; a validator rejects
 cash flows and discount rate in different currencies.
+
+**Example.** A WACC input that cannot mix currencies:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Rate:
+    value: float
+    as_of: str      # ISO date
+    source: str     # e.g. "FBIL 10y G-Sec", with the benchmark security
+    currency: str   # "INR" or "USD"
+
+def cost_of_equity(rf: Rate, beta: float, erp: Rate) -> float:
+    if rf.currency != erp.currency:
+        raise ValueError(f"rf {rf.currency} vs ERP {erp.currency}: convert with an "
+                         "inflation differential or use one currency")
+    return rf.value + beta * erp.value
+```
+
+The discount rate's currency must also equal the cash flows'; INR flows are never
+discounted at a USD cost of capital.
 
 ## 4. Terminal growth
 
@@ -132,6 +174,15 @@ period end; and restated numbers must not overwrite what was knowable then.
 backtest join uses `disclosedAt <= decisionDate`. Test: a quarter ending 31 Dec
 must not be visible on 15 Jan.
 
+**Example.** The quarter ending 31 Dec may be disclosed as late as 14 Feb (45 days).
+
+```python
+row = {"periodEnd": "2025-12-31", "disclosedAt": "2026-02-14"}
+visible = lambda row, decision: row["disclosedAt"] <= decision
+assert not visible(row, "2026-01-15")   # a join on periodEnd wrongly shows it
+assert visible(row, "2026-02-14")
+```
+
 ## 8. Promoter pledge as a risk input
 
 **Rule.** Pledge creation, invocation and release are disclosed under SEBI SAST
@@ -147,7 +198,8 @@ date it; do not use a pledge figure from a stale snapshot.
 **Rule.** Dividend Distribution Tax was abolished for dividends after
 31-03-2020; dividends are taxed in the **shareholder's** hands. TDS applies at
 10% above a **₹10,000** per-year threshold from 1 Apr 2025 (was ₹5,000), under
-§393 of the 2025 Act (FB 2025 memo). A DDM for a taxable holder should discount
+§393 of the 2025 Act (FB 2025 memo; tax mechanics are owned by
+[corporate-action-taxation](../corporate-action-taxation/SKILL.md)). A DDM for a taxable holder should discount
 **post-tax** dividends at the holder's slab rate; for an institution, the
 treatment differs — state which.
 

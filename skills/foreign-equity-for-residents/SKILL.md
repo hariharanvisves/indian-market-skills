@@ -1,6 +1,6 @@
 ---
 name: foreign-equity-for-residents
-description: Indian tax and reporting rules for a resident individual holding foreign (mainly US) shares, bought through LRS platforms (INDmoney, Vested and similar) or received as employer RSUs, ESPP or ESOPs. Covers ROR vs RNOR gating, the USD 250,000 LRS limit and TCS on remittances with its credit, the 24-month holding period and rate for shares not listed in India, SBI TT buying-rate conversion (Rule 115 / Rule 206), RSU and ESPP perquisite and cost basis, US dividend withholding at the India-US treaty rate with foreign tax credit, Schedule FA on a calendar year with peak and closing values, Black Money Act penalties, and US estate-tax exposure. Use when computing or reviewing gains, cost basis, exchange rates, TCS or Schedule FA for US stocks, RSUs, ESPP, W-8BEN, Form 1042-S or Form 67, or when code treats US stocks like NSE-listed equity.
+description: Indian tax and reporting rules for a resident individual holding foreign (mainly US) shares, bought through LRS platforms (INDmoney, Vested and similar) or received as employer RSUs, ESPP or ESOPs. Covers ROR vs RNOR gating, the USD 250,000 LRS limit and TCS on remittances with its credit, the 24-month holding period and rate for shares not listed in India, SBI TT buying-rate conversion (Rule 115 / Rule 206), RSU and ESPP perquisite and cost basis, US dividend withholding at the India-US treaty rate with foreign tax credit, Schedule FA on a calendar year with peak and closing values, Black Money Act penalties, and US estate-tax exposure. Use when computing or reviewing gains, cost basis, exchange rates, TCS or Schedule FA for US stocks, RSUs, ESPP, W-8BEN, Form 1042-S or Form 67, or when code treats US stocks like NSE-listed equity, even if the user only says "US stocks" or "INDmoney".
 license: MIT
 compatibility: Rules verified 2026-11-11 against the Income-tax Act 2025, Finance Act 2026, Income-tax Rules 2026 and the AY 2026-27 ITR-2. Covers FY 2025-26 (1961 Act) and tax year 2026-27 onward (2025 Act). Not tax advice; re-verify each Finance Act.
 metadata:
@@ -15,11 +15,20 @@ metadata:
 To an Indian resident, a US share is a different asset from an NSE share. Its
 holding period, rate, exemption, exchange-rate rule and disclosure all differ.
 Code that reuses the listed-equity path gets each one wrong, and the output still
-looks plausible. Indian-asset rates and set-off are owned by
-[indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md). Schedule and
-Form 67 / Rule 128 mechanics are owned by
-[itr-filing-schedules](../itr-filing-schedules/SKILL.md). This skill states only
-the **foreign-asset delta**.
+looks plausible. This skill states only the **foreign-asset delta**: Indian-asset
+rates and set-off are owned by [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md),
+Schedule and Form 67 / Rule 128 mechanics by [itr-filing-schedules](../itr-filing-schedules/SKILL.md).
+
+## Core rules
+
+1. **Gate on residential status.** Only an ROR individual is taxed on worldwide income and fills Schedule FA; an RNOR is not ([section 1](#1-residential-status-gates-everything)).
+2. **A US share is not listed in India:** long term only after **more than 24 months** (calendar months), LTCG 12.5% without indexation, STCG at slab, and no ₹1.25 lakh exemption or 31-Jan-2018 grandfathering ([section 3](#3-foreign-shares-are-not-listed-equity-in-india)).
+3. **Convert at the SBI TT buying rate** on the last day of the month before the month of transfer. Never the trade-date spot or an RBI reference rate ([section 4](#4-currency-conversion-sbi-tt-buying-rate-month-before)).
+4. **RSU and ESPP cost is the FMV taxed as perquisite**; the holding period runs from allotment, not grant. Take the INR value from Form 16 ([section 5](#5-rsu-espp-and-esop)).
+5. **LRS TCS is tax paid on your behalf**: 20% of the excess over ₹10 lakh for investment. It is a return credit, never part of cost ([section 2](#2-lrs-limit-and-tcs-on-the-remittance)).
+6. **US dividend credit** is the lower of foreign tax and Indian tax, with foreign tax capped at the 25% treaty rate. File **Form 67** (**Form 44** from tax year 2026-27) ([section 6](#6-us-dividends-treaty-rate-and-foreign-tax-credit)).
+7. **Schedule FA covers the calendar year** ending 31 December, with peak and closing values. The ₹20 lakh Black Money Act relief removes the penalty, not the duty to report ([section 7](#7-schedule-fa-calendar-year-peak-and-closing-value)).
+8. **Switch law by year:** FY 2025-26 uses the 1961 Act, Rule 115/128 and Form 67; tax year 2026-27 uses the 2025 Act, Rule 206/76 and Form No. 44.
 
 ## Law version: pick the Act from the year
 
@@ -87,6 +96,13 @@ to cost or book it as an expense, and the credit is lost.
 LRS use. TCS = 20% × (25,00,000 − 10,00,000) = **₹3,00,000**, all of it creditable.
 The share cost is what was bought in USD.
 
+```python
+def tcs_lrs_investment(remitted_inr):               # tax year 2026-27, other than education or medical
+    return 0.20 * max(remitted_inr - 10_00_000, 0)
+
+tcs_lrs_investment(25_00_000)   # 3,00,000: a credit row, never added to cost
+```
+
 **Detector.** Grep the cost-basis builder for `tcs`: any arithmetic on it there is
 a defect. The TCS total should appear only in the tax-credit rows.
 
@@ -112,6 +128,13 @@ foreign share held 13 to 24 months, that turns slab-rate tax into zero.
 slab**. At 30% plus 4% cess the tax is ₹22,121. The listed-equity path calls it
 LTCG inside the exemption and gives ₹0.
 
+```python
+from dateutil.relativedelta import relativedelta
+
+def is_long_term_foreign(buy, sale):
+    return sale > buy + relativedelta(months=24)    # 730 days is the wrong test
+```
+
 **Detector.** The 12-or-24-month predicate must key on "listed on an Indian
 exchange", for example an `IN` ISIN plus an NSE or BSE symbol. It must never key on
 "equity", and it must fail closed to 24. Test at exactly 24 months and 24 months
@@ -132,6 +155,15 @@ specified date:
 
 So a sale on 10 Apr 2026 uses the TTBR for **31 Mar 2026**. Never use the
 10 April rate or an RBI reference rate.
+
+```python
+from datetime import date, timedelta
+
+def ttbr_date(event_date):
+    return event_date.replace(day=1) - timedelta(days=1)   # last day of the previous month
+
+ttbr_date(date(2026, 4, 10))   # 2026-03-31
+```
 
 **The cost side is unsettled.** The capital-gains row names only the month of
 transfer. One reading converts the USD gain at that single rate. The other
@@ -206,6 +238,11 @@ own short-term row.
 withheld ($250 = ₹21,250) and Indian tax of ₹26,520 (30% + cess), the credit is
 ₹21,250 and ₹5,270 is payable. Without a W-8BEN, $300 is withheld, but the credit
 stays ₹21,250.
+
+```python
+credit = min(withheld_inr, 0.25 * dividend_inr, indian_tax_inr)
+# 30% withheld on 85,000: min(25,500, 21,250, 26,520) = 21,250
+```
 
 **Detector.** Credit = min(withheld, treaty-rate tax, Indian tax). A fixture with
 30% withholding must still cap the credit at 25%.

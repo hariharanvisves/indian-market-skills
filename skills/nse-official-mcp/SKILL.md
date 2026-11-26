@@ -1,6 +1,6 @@
 ---
 name: nse-official-mcp
-description: Using NSE's official MCP servers (mcp.nseindia.in) correctly — the two cash-market servers nse-bhavcopy (end-of-day history, indices, breadth, corporate actions) and cm-market (1–3 minute delayed live quotes, movers, indices), their 36 read-only tools, no-auth streamable-HTTP setup, the non-commercial and no-AI-training terms, unadjusted split/bonus prices, 3-month history chunks, holiday date snapping, stale-outside-hours data, empty-result-as-failure, index-name and series conventions, and the absence of any F&O, options-chain or open-interest server. Use when connecting Claude Code or another agent to the NSE MCP, writing code or prompts that call its tools, deciding whether its data may feed an app, backtest or model, or when an NSE MCP figure disagrees with bhavcopy, a broker or Yahoo.
+description: Using NSE's official MCP servers (mcp.nseindia.in) correctly — the two cash-market servers nse-bhavcopy (end-of-day history, indices, breadth, corporate actions) and cm-market (1–3 minute delayed live quotes, movers, indices), their 36 read-only tools, no-auth streamable-HTTP setup, the non-commercial and no-AI-training terms, unadjusted split/bonus prices, 3-month history chunks, holiday date snapping, stale-outside-hours data, empty-result-as-failure, index-name and series conventions, and the absence of any F&O, option-chain or open-interest tool. Use when connecting Claude Code or another agent to the NSE MCP (claude mcp add), calling get_stock_history, get_corporate_actions or cm_get_live_market_data, deciding whether its data may feed an app, backtest or model, or when an NSE MCP figure disagrees with bhavcopy, a broker or Yahoo, even if the user only says "NSE MCP".
 license: MIT
 compatibility: NSE-hosted MCP servers at mcp.nseindia.in (serverInfo nse-bhavcopy-redis-mcp 1.0.0 and cm-market-mcp 1.0.0). Tool lists, server instructions and the landing page at https://www.nseindia.in/nse-mcp were read on 2026-11-26; NSE changes them without notice, so re-run tools/list before relying on a tool name.
 metadata:
@@ -16,13 +16,16 @@ NSE publishes two Model Context Protocol servers for its **cash market**. They a
 free, need no account or API key, and are read-only. Its landing page is
 https://www.nseindia.in/nse-mcp (https://mcp.nseindia.in/ redirects there).
 
-The model defaults this skill corrects:
+## Core rules
 
-- assuming the history prices are split- and bonus-adjusted (they are not);
-- assuming there is an F&O, option-chain or open-interest server (there is none);
-- treating "free" as "free to build a product or train a model on" (the terms say no);
-- treating an empty corporate-actions result as "no actions";
-- trusting a live figure outside market hours.
+The defaults this skill corrects, in order of damage:
+
+1. History prices are **not** split- or bonus-adjusted; adjust with `get_corporate_actions` before computing returns. [§4](#4-prices-are-not-adjusted-for-splits-or-bonuses)
+2. There is no F&O, option-chain, OI or futures server; use the F&O bhavcopy or a broker API. [§1](#1-the-two-servers)
+3. "Free" is not "free to build a product or train a model on"; the terms say no. [§2](#2-terms-research-and-learning-not-products-or-training)
+4. An empty, missing or `error` result is a failed call, never "no actions". [§5](#5-empty-is-a-failure-not-nothing)
+5. Live figures are stale outside market hours; check status and report the timestamp. [§7](#7-live-data-freshness-cm-market)
+6. A non-trading date snaps to the previous trading day, and history comes in chunks; loop on `next_end_date`. [§6](#6-dates-holidays-and-history-chunks)
 
 ## 1. The two servers
 
@@ -111,6 +114,17 @@ factor to prices before the ex-date, using the rules in
 **Why.** A 1:1 bonus reads as a 50% one-day crash in raw history. Momentum, drawdown
 and 52-week figures across it are wrong.
 
+Worked example: raw closes of 100 the day before the ex-date and 50 on it.
+
+```python
+raw_return = 50 / 100 - 1                    # -50%: a bonus, not a crash
+adj_prev = 100 * factor                      # factor from get_corporate_actions
+adj_return = 50 / adj_prev - 1               # factor 0.5 -> 0%
+```
+
+The tool's own description gives the convention: a 1:1 bonus has factor 0.5 and a
+10→2 split has factor 0.2. Multiply pre-ex-date prices by the factor.
+
 **Detector.** A return, drawdown or moving average over `get_stock_history` output
 with no corporate-action step; a stock that "fell 50%" on an ex-date.
 
@@ -122,6 +136,13 @@ NSE's bot protection can also return 401/403 or empty bodies under load.
 
 **Rule.** Treat a missing, empty or error result as a failed call. Never read it as
 "this stock had no corporate actions" or "no data for this date".
+
+```python
+def checked(result):
+    if not result or result.get("error"):
+        raise RuntimeError(f"NSE MCP lookup failed: {result!r}")
+    return result            # a "warning" means the list may be incomplete: surface it
+```
 
 ## 6. Dates, holidays and history chunks
 

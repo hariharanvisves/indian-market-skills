@@ -1,6 +1,6 @@
 ---
 name: itr-filing-schedules
-description: Choosing the Indian ITR form (ITR-1/2/3/4) and getting its schedules right — Schedule CG, 112A, OS, VI-A, FSI, TR, FA, CYLA/BFLA/CFL, AMT/AMTC, AL, TI/TTI — with cross-schedule reconciliation identities, foreign tax credit (Rule 128/Rule 76, Form 67/Form 44, Rule 115 FX rate), TDS de-duplication across 26AS and AIS, advance tax and §234C, §288A/§288B rounding, and ITR JSON emit pitfalls. Use when building or reviewing ITR preparation or JSON-export code, deciding between ITR-1, ITR-2 and ITR-3, reconciling AIS/26AS/portal figures, or when one loss or credit appears in several schedules and must agree.
+description: Choosing the Indian ITR form (ITR-1/2/3/4) and getting its schedules right — Schedule CG, 112A, OS, VI-A, FSI, TR, FA, CYLA/BFLA/CFL, AMT/AMTC, AL, TI/TTI — with cross-schedule reconciliation identities, foreign tax credit (Rule 128/Rule 76, Form 67/Form 44, Rule 115 FX rate), TDS de-duplication across 26AS and AIS, advance tax and §234C, §288A/§288B rounding, due dates, and ITR JSON emit pitfalls. Use when building or reviewing ITR preparation, form-suggestion or JSON-export code, deciding between ITR-1, ITR-2 and ITR-3, rounding tax payable, merging Form 26AS and AIS, reconciling AIS/26AS/portal figures, or when one loss or credit appears in several schedules and must agree, even if the user never says "schedule".
 license: MIT
 compatibility: Applies to resident-individual returns on the Indian e-filing portal. Form, schedule and rule facts verified 2026-11-11 for AY 2026-27 and tax year 2026-27. Not tax advice; rates and thresholds are deliberately left to the capital-gains skill and the statute.
 metadata:
@@ -19,39 +19,35 @@ holding periods and set-off rules live in [indian-capital-gains-tax](../indian-c
 **structure**: which form, which schedule, what must agree. Each section gives
 the rule, why it matters, and a **Detector** to run against code.
 
-## Law-version caveat — read first
+## Core rules
+
+1. **Derive the form from facts**, not last year's form: any STCG, foreign asset, carried loss or business income rules out ITR-1 ([section 1](#1-pick-the-form-from-the-facts-not-from-the-users-last-year)).
+2. **Every figure has one owning schedule**; CYLA, BFLA, CFL, TI and TTI read CG and OS outputs ([section 2](#2-schedule-map)).
+3. **Assert cross-schedule identities** on the final emitted document, not the builder ([section 3](#3-cross-schedule-reconciliation-identities)).
+4. **Set-off order is CYLA, then BFLA, then CFL**; a long-term loss never nets against short-term gain ([section 4](#4-capital-gains-ordering-inside-the-schedules)).
+5. **FX rate is the SBI TT buying rate** at the last day of the month before the event; foreign tax credit is the lower of foreign tax and Indian tax. **Form 67 becomes Form 44** from tax year 2026-27 ([section 5](#5-foreign-income-and-tax-credit)).
+6. **§288A/§288B rounding:** drop the paise first, then round to the nearest ₹10, only at total income and final tax ([section 6](#6-rounding-288a-and-288b-are-the-same-rule)).
+7. **One TDS credit per (section, date, amount)**; a TAN-less 26AS stub is not a second credit ([section 7](#7-tds-de-duplication-across-26as-ais-and-the-portal)).
+8. **§234C:** a shortfall from income arising after an instalment date is excused if the tax is paid in the remaining instalments ([section 8](#8-advance-tax-and-the-instalment-schedule)).
+9. **Convert units once, at the emitter**; a missing value is a validation error, never `0` ([section 9](#9-json-emit-boundary-units-and-schema-per-year)).
+10. **JSON keys keep 1961 literals** whatever the year; translate section numbers only in labels ([law version](#law-version-caveat-read-first)).
+
+## Law-version caveat: read first
 
 The Income-tax Act 2025 is in force from 1 April 2026 with renumbered sections;
-Chapter VI-A becomes Chapter VIII and "assessment year" becomes "tax year". The
-CBDT ITR JSON schema **keeps the 1961 literals in field names and enumerations**
-(regime code, relief-section codes, special-rate section codes) regardless of
-year: translate section numbers only in human-facing labels, never in JSON keys.
-Never translate by memory; verify against the CBDT concordance utility and the
-schema for the year.
+the CBDT ITR JSON schema **keeps the 1961 literals in field names and
+enumerations** (regime code, relief-section codes, special-rate section codes)
+regardless of year. Translate section numbers only in human-facing labels, never
+in JSON keys. Never translate by memory; verify against the CBDT concordance
+utility and the schema for the year. The full 1961-to-2025 table (§111A to §196,
+§288A/§288B to §516, Rule 128 to Rule 76, and the rest) is in
+[references/section-concordance.md](references/section-concordance.md); read it
+when labelling a section.
 
 Years: **AY 2026-27** is the return for FY 2025-26 (1961 Act); **tax year
 2026-27** is FY 2026-27 (2025 Act). A financial year (FY) runs 1 April–31 March.
-
-The table below was checked against the gazetted Act text and the Income-tax
-Rules 2026 on 2026-11-11; confirm sub-section-level mappings against the CBDT
-concordance utility:
-
-| 1961 | 2025 | | 1961 | 2025 |
-|---|---|---|---|---|
-| §111A | §196 | | §87A rebate | §156 |
-| §112 | §197 | | §89 relief | §157 |
-| §112A | §198 | | §80C/80CCC/80CCE | §123 |
-| §115BB, §115BBH | §194 | | §80CCD | §124 |
-| §115JC (AMT) | §206 | | §80D | §126 |
-| §234A / B / C | §423 / §424 / §425 | | §54 / §54EC / §54F | §82 / §85 / §86 |
-| §194S (VDA TDS) | §393 | | §49 (cost by acquisition mode) | §73(1) |
-| §44AD/ADA/AE | §58 | | Rule 128 (FTC) | Rule 76 (2026 Rules) |
-| §115BAC (new regime) | §202 | | Rule 115 (FX conversion) | Rule 206 (2026 Rules) |
-| Form 67 (FTC statement) | Form 44 | | §288A / §288B (rounding) | §516 |
-
 Rule 76 and Form 44 apply from tax year 2026-27; returns for AY 2026-27 and
-earlier still use Rule 128 and Form 67. Guard each label key with a parity test;
-a missing key renders `undefined`.
+earlier still use Rule 128 and Form 67.
 
 ## 1. Pick the form from the facts, not from the user's last year
 
@@ -128,24 +124,33 @@ Identities to assert (all on emitted values, in one unit):
 6. TTI tax payable == tax on TI + surcharge + cess − relief/credit − TDS − TCS
    − advance tax − self-assessment tax, with refund = −(that) when negative.
 7. TDS total in TTI == sum of the TDS credit rows after de-duplication (section 7).
-8. Portal CG quarterly-accrual table row totals equal the matching BFLA items
-   (per project notes from a real portal filing): the long-term special-rate row
-   equals the BFLA long-term item and **includes §112A gains covered by the
-   exemption**, not only taxable gain. Negative quarterly cells are rejected, so
-   fold a negative quarter into an adjacent one; only the sum is validated.
-9. Foreign dividend appears in OS (added on top of the portal prefill, which
-   knows nothing of foreign brokers) and the **same rupee amount** in FSI.
+8. Portal CG quarterly-accrual table row totals equal the matching BFLA items,
+   including §112A gains covered by the exemption.
+9. Foreign dividend appears in OS and the **same rupee amount** in FSI.
 
-Measured defect: brought-forward losses were reported twice (CFL and BFLA) once
-BFLA landed. Add the identity test in the same change as any new schedule.
+Items 8 and 9 and the measured double-count of brought-forward losses are in
+[references/portal-notes.md](references/portal-notes.md); read it when matching
+the portal's quarterly table. Add the identity test in the same change as any new
+schedule.
+
+```python
+def reconcile(doc):
+    bad = []
+    cg = doc["CG"]["loss_available"]
+    if doc["CYLA"]["setoff"] + doc["BFLA"]["setoff"] + doc["CFL"]["carry"] != cg:
+        bad.append("loss created or destroyed across CYLA/BFLA/CFL")
+    fsi = sum(r["allowed_credit"] for r in doc["FSI"]["countries"])
+    if doc["TR"]["claimed"] != fsi:
+        bad.append("TR credit != sum of FSI allowed credit")
+    return bad
+```
 
 **Why.** Each schedule can be individually correct and the document wrong. A
 loss counted in both CYLA and CFL, or a credit in both FSI and TR, only
 shows when you add across.
 
-**Detector.** Write one function `reconcile(doc)` that returns a list of
-violated identities, run it over every golden fixture and over the final emitted
-JSON. Prove it fires by perturbing one schedule by one unit.
+**Detector.** Run `reconcile(doc)` over every golden fixture and over the final
+emitted JSON. Prove it fires by perturbing one schedule by one unit.
 
 ## 4. Capital-gains ordering inside the schedules
 
@@ -156,31 +161,15 @@ against short-term gain.
 
 **Why.** The wrong order lowers tax in the draft and is reversed on assessment.
 
-Classification defects seen in practice (per project notes):
-
-- Fail-closed classification, the SGB branch (exemption conditions, checked
-  before any `gold|silver` name regex), zero §112A exemption for gold, foreign
-  shares and non-equity ETFs, and the grandfathering formula are owned by
-  the capital-gains skill. Keep **one** implementation of each, and have the
-  schedule writer read it.
-- Holding-period cutoffs differ by asset class (listed equity vs gold/foreign vs
-  debt funds by purchase date), and all are counted in **calendar months**,
-  not days (thresholds in the capital-gains skill). The same cutoff is often decided in a realized path
-  and an unrealized path; change both or neither. A fix to one left gold/foreign
-  under-stated in the realized path for 366-729 day holds.
-- §112 and §112A rates may be equal yet are separate levers; never substitute.
-- The rebate (§156; §87A in 1961) is for **resident** individuals only; the portal
-  rejects it for a non-resident. A missing residential status must be a validation
-  error, never a default to resident, which gives a non-resident zero tax. Use one
-  shared residency predicate for the tax engine and for Schedule CG and foreign-income
-  filtering.
-- Rebate and surcharge: marginal relief must use the same rounded base as the
-  tax; the 15% surcharge cap covers specified capital-gain and dividend income but
-  **not** winnings or VDA income (which take the full band).
+Defects seen in practice when the schedule writer needs the classifier, the
+rebate or the surcharge cap (one shared residency predicate, one implementation
+of each classification rule, both realised and unrealised holding-period paths
+changed together): [references/classification-defects.md](references/classification-defects.md).
+Read it before wiring those into Schedule CG.
 
 **Detector.** Grep set-off code for any path where an `ltcl`/long-term loss
 variable is subtracted from a short-term bucket. Fixture: STCG = 100, LTCL = 50,
-LTCG = 0 — expect STCG unchanged and 50 carried forward.
+LTCG = 0; expect STCG unchanged and 50 carried forward.
 
 ## 5. Foreign income and tax credit
 
@@ -228,6 +217,19 @@ total income and final tax **only**, never in intermediate schedules; marginal
 relief, surcharge and rebate must use the same rounded base as the tax they
 adjust (a sub-ten drift appears at the rebate cliff otherwise).
 
+```python
+from decimal import Decimal, ROUND_DOWN
+
+def round_288(amount):
+    rupees = int(Decimal(str(amount)).to_integral_value(ROUND_DOWN))  # paise dropped toward zero
+    tens, last = divmod(abs(rupees), 10)
+    tens += last >= 5
+    return (tens * 10) if rupees >= 0 else -(tens * 10)
+
+round_288("1234.60")   # 1230: 1234 -> last digit 4 rounds down
+round(1234.60)         # 1235 first, then to ten gives 1240: the wrong order
+```
+
 `Math.round` rounds halves toward +infinity, so signed pairs may not net to zero;
 derive totals (gain = consideration - cost) from rounded parts.
 
@@ -253,16 +255,21 @@ informs income reporting. The portal's pre-filled view may lag either. Never
 overwrite broker capital-gains figures with AIS: see
 [indian-broker-statement-formats](../indian-broker-statement-formats/SKILL.md) section 17.
 
-Measured defect: a real 26AS (TAN present) and the stub auto-created from an AIS
-upload (no TAN) held the same salary credit; concatenation doubled the TDS and
-turned a small genuine demand into a large false refund. Mirror defect: salary TDS present only in AIS and excluded from the AIS side
-of a TDS reconciliation shows a false mismatch.
+```python
+def dedupe_credits(rows):
+    kept = {}
+    for r in rows:                       # r: section, date, amount, tan
+        key = (r["section"], r["date"], r["amount"])
+        if key not in kept or (r["tan"] and not kept[key]["tan"]):
+            kept[key] = r                # prefer the TAN-bearing row
+    return list(kept.values())
 
-Similarly for capital-gain rows: broker P&L summary sheets and per-lot sheets
-exported together count the same trades up to three times. A natural key that
-includes sale date and amounts never matches an undated aggregate row against its
-dated per-lot rows, so the duplicate check reports zero. Skip aggregate rows whose
-quantity and consideration equal the per-lot sum.
+# two salary rows of 1,20,000, same section and date, one with a TAN: claim 1,20,000, not 2,40,000
+```
+
+The measured double-count (a real 26AS plus the stub from an AIS upload) and the
+duplicated capital-gain rows from broker summary plus per-lot sheets are in
+[references/portal-notes.md](references/portal-notes.md).
 
 **Why.** Double-counted TDS inflates the refund and the portal rejects or later
 recovers it.
@@ -305,13 +312,9 @@ test the **emitted document**, not the builder.
   validation error, since a zero reads as a statement.
 - Assert each new section against a committed, value-free shape fixture taken
   from a portal-accepted JSON (shapes only, never values).
-- Real defect: a missing divide at one emit point produced a 100x capital-gain
-  figure; builder-level tests pinned the builder's own scale and could not see it.
-- Portal quirks (per project notes): prefill reads the live AIS at filing time and
-  supersedes an earlier AIS PDF (including interest on a prior-year refund); if
-  prefill exceeds your estimate, trust it. Filing with tax payable unpaid yields an
-  intimation demand. Schedule 112A has a consolidated two-total mode for post-2018
-  acquisitions and scrip rows for pre-2018 holdings. CYLA/BFLA/CFL are portal views.
+- Portal quirks (prefill supersedes an earlier AIS PDF, unpaid tax payable yields
+  a demand, Schedule 112A has two modes) and the measured 100x defect:
+  [references/portal-notes.md](references/portal-notes.md).
 
 **Why.** Unit and default-zero errors survive every builder test and reach the
 filed return.
@@ -346,25 +349,16 @@ F&O, even at a loss), not on the form alone. Late fee, §234A interest and the
 Circular 07/2026 reportedly moved the AY 2026-27 audit-case date to 21 Nov 2026
 (unverified).
 
-- **Belated return** (§263(4); §139(4)). A filer without business income can opt out
-  of the new regime (§202(4)(b); §115BAC(6)) only in a return filed by the due
-  date, so a belated return cannot select the old regime; the portal rejects it.
-  Business-income filers opt out by Form 10-IEA by the due date. The portal also
-  requires current-year STCL and LTCL to be zero on a §139(4) return; a belated
-  return carries no capital or business loss forward (owner: capital-gains rule 4). A filing section
-  the code cannot map must fail closed, never emit §139(1).
-- **Revised return.** The window is 12 months from the end of the tax year (was 9).
-  One filed after 9 months pays ₹1,000 if total income is ₹5 lakh or less, else
-  ₹5,000 (§428(b); §263(5) as substituted by the Finance Act 2026). For AY 2026-27
-  under the 1961 Act this is the §234-I fee on a §139(5) return filed after
-  31 Dec 2026, with the window to 31 Mar 2027.
+A belated return (§263(4); §139(4)) cannot select the old regime and carries no
+loss forward; a revised return has a 12-month window and a fee after 9 months. The
+regime rules, fee amounts and the fail-closed filing-section rule are in
+[references/filing-window.md](references/filing-window.md); read it when emitting a
+late or revised return.
 
 **Why.** A wrong clock mis-states late fee and interest, and a belated return
 silently forfeits the old regime and the loss carry-forward.
 
-**Detector.** Fixtures: ITR-3 with F&O loss only and no audit is a 31 August case; a return filed
-one day after the due date with the old regime selected must be rejected; an
-unmapped filing section must raise.
+**Detector.** Fixture: ITR-3 with F&O loss only and no audit is a 31 August case.
 
 ## Verifying an implementation
 

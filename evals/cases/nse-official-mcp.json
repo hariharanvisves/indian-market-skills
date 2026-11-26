@@ -41,7 +41,7 @@
         "Says NSE's official MCP servers cover the cash market only and have no option-chain, OI or futures tool",
         "Points to another source such as the F&O bhavcopy or a broker API"
       ],
-      "must_match": ["(?i)(no|not|none|doesn't|does not)[^.]{0,80}(option[- ]chain|open interest|\\bOI\\b|F&O|derivatives)|cash[- ]market only"],
+      "must_match": ["(?i)(no|not|none|doesn't|does not|don't|do not)[^.]{0,80}(option[- ]chain|open interest|\\bOI\\b|F&O|derivatives)|cash[- ]market only"],
       "must_not_match": ["(?i)\\bcall (the )?`?\\w*option_?chain\\w*`? tool"]
     },
     {

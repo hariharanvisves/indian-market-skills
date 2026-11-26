@@ -1,6 +1,6 @@
 ---
 name: kite-connect-safety
-description: Safety rules for integrating Zerodha Kite Connect (kiteconnect, pykiteconnect, Kite MCP) — login and checksum flow, daily token expiry, server-side-only credentials, authorization (not just authentication), order-value ceilings, intent-derived idempotency keys, the UNKNOWN order outcome, stale-quote policy, live-path hard-disable, position-aware rebalancing, and MCP hygiene. Use when writing or reviewing Kite login, request_token / access_token handling, order placement, rebalance or automation code on Zerodha, or any route that touches a Kite token.
+description: Safety rules for integrating Zerodha Kite Connect (kiteconnect, pykiteconnect, Kite MCP) — login and SHA-256 checksum flow, 6 AM token expiry, server-side-only credentials, authorization (not just authentication), order-value ceilings, intent-derived idempotency keys, the UNKNOWN order outcome after a timeout, stale-quote policy, static IP, live-path hard-disable, position-aware rebalancing (holdings plus T1) and MCP hygiene. Use when writing or reviewing Kite login, request_token / access_token handling, a place_order wrapper with retries, rebalance or automation code on Zerodha, or any route that touches a Kite token, even if the user only asks for a quick order script. Owns the general broker-API safety principles; for SEBI algo rules or Upstox, Dhan, Angel One, Breeze or Fyers use indian-broker-api-safety.
 license: MIT
 compatibility: Written against Kite Connect v3 (https://kite.trade/docs/connect/v3/); the principles apply to any Indian broker REST API.
 metadata:
@@ -12,11 +12,30 @@ metadata:
 
 # Kite Connect Safety
 
-Defects here move real money or leak the highest-value secret in the system.
-Each item: the rule, why, and a detector you can run. API facts cite the Kite
-Connect v3 docs as read on 2026-10-04; anything marked "verify" was not
-confirmed — check https://kite.trade/docs/connect/v3/ before relying on it.
-Other brokers and SEBI retail-algo rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
+Defects here move real money or leak the highest-value secret in the system. Each item
+gives the rule, why, and a detector you can run. API facts cite the Kite Connect v3 docs as
+read on 2026-10-04; anything marked "verify" was not confirmed, so check
+https://kite.trade/docs/connect/v3/ before relying on it. Other brokers and SEBI retail-algo
+rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
+
+## Core rules
+
+1. The checksum is SHA-256 of `api_key + request_token + api_secret`, computed on the
+   server (§1).
+2. The `access_token` expires at 6 AM next day: expiry is a normal state, and a `403` with
+   `TokenException` means re-login, not retry (§2).
+3. `api_secret`, `request_token` and `access_token` never reach the browser, logs or errors (§3).
+4. Authenticate, authorize the owner, then rate limit; an unset owner setting means 403 (§5).
+5. The live path stays hard-disabled (409) until the owner authorises it (§7).
+6. A local order-value ceiling exists from day one and fails closed (§8a).
+7. Derive the idempotency key from the order's intent, not the click (§8b).
+8. A timeout after send is `unknown`, not `rejected`: no retry, no auto-cancel, suspend
+   automation, reconcile by `tag` or order id (§8c, §8d).
+9. API orders need a whitelisted static IP from 2026-04-01; reads and WebSocket work
+   from any IP (§8h).
+10. Holdings = settled + `t1_quantity`; a holdings read failure places nothing (§9).
+
+Worked sketches for rules 6 to 8 are in section 8.
 
 ## 1. Login flow and checksum
 
@@ -47,9 +66,8 @@ no DST, so 00:30 UTC is a constant).
 alerts every morning. It is also a feature: automation must stop, not loop,
 when the session lapses.
 
-**Detector.** A test that feeds a `now` of 05:59 IST and 06:01 IST and asserts
-the expiry moves by a day. Grep for retry loops around calls that can raise
-`TokenException`.
+**Detector.** A test that feeds a `now` of 05:59 IST and 06:01 IST and asserts the expiry
+moves by a day. Grep for retry loops around calls that can raise `TokenException`.
 
 ## 3. Token exchange and storage: server-side only
 
@@ -157,6 +175,45 @@ that is a *candidate* needing human acknowledgement; refuse to match when more
 than one broker order fits. Detector: inject a timeout after send; assert zero
 further placements and automation suspended.
 
+```python
+def intent_key(a):        # a: account, instrument, side, qty, otype, price, trigger, product, pad_session
+    raw = "|".join(str(x) for x in (a.account, a.instrument, a.side, a.qty, a.otype,
+                                    a.price, a.trigger, a.product, a.pad_session))
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def check_ceiling(order_value, ceiling):                 # 8a
+    if ceiling is None or order_value is None:           # unset or unpriceable: fail closed
+        raise LocalReject("no ceiling or no order value")
+    if order_value > ceiling:                            # ceiling = min(ABS_CAP, PCT * equity)
+        raise LocalReject(f"order value {order_value} exceeds ceiling {ceiling}")
+
+def place_once(store, broker, a, order_value, ceiling):
+    key = intent_key(a)
+    if (prior := store.get(key)) is not None:
+        return prior                                     # 8b: same intent, one broker call
+    if store.suspended(a.account):
+        raise Suspended(a.account)                       # 8d: an earlier unknown is unresolved
+    check_ceiling(order_value, ceiling)
+    tag = key[:20]                                       # 8b: Kite tag, alphanumeric, max 20
+    try:
+        result = Result("placed", broker.place(a, tag=tag))
+    except BrokerRejected as e:                          # explicit rejection from the broker
+        result = Result("rejected", reason=str(e))
+    except (TimeoutError, ConnectionError, ServerError): # 8c: request may have left
+        result = Result("unknown", tag=tag)
+        store.suspend(a.account)                         # no retry, no auto-cancel
+    store.put(key, result)
+    return result
+
+def reconcile(broker_orders, tag):                       # 8d: by tag, never by a fuzzy tuple
+    hits = [o for o in broker_orders if o.tag == tag]
+    return hits[0] if len(hits) == 1 else None           # 0 or several: a human decides
+```
+
+Wrong: `except TimeoutError: return place_order(...)` sends a second live order when the first
+reached the exchange. Right: the second call returns `unknown` with automation suspended,
+and `reconcile` finds the order by `tag`.
+
 **8e. Stale quote.** A stale quote **warns a human** (acknowledge, show last-tick
 age) and **blocks a machine**. Blocking manual exits on thin stocks makes
 illiquid positions un-exitable during fast moves. Detector: feed a quote older
@@ -187,8 +244,8 @@ cloud or laptop address breaks it.
 
 **Rule.** Diff targets against actual holdings and emit BUY / SELL / HOLD /
 IGNORE rows (IGNORE: held but not managed by the app).
-- Holdings quantity = settled + **T1** (unsettled same-day shares count as
-  owned), else a re-run double-buys.
+- Holdings quantity = settled + **T1** (`t1_quantity`; unsettled same-day shares count
+  as owned), else a re-run double-buys.
 - A **managed** gate: exits only touch symbols the app itself bought. A real
   account holds ETFs, gold bonds and manual picks an account-wide "held but not
   in target, so sell" sweep would liquidate.
@@ -202,23 +259,16 @@ IGNORE rows (IGNORE: held but not managed by the app).
 - Persist the real side; skip HOLD and IGNORE rows. Persist each order **before** placing
   the next so a crash cannot orphan live orders.
 
-**Two-phase plan and approve.** The rebalance function only **plans**. Executing
-with `dryRun: false` requires an approved plan id, and one executor function is
-the sole caller of `placeOrder`. This sits behind the §7 gate.
+**Why.** A planner that misses T1 buys again on a same-day re-run, and an account-wide
+sweep liquidates holdings the app never bought.
 
-**Owned quantity.** Take it from the app's own order ledger as BUY minus SELL
-filled quantity over **final-status** rows only, per exchange.
+Plan-and-approve execution, owned-quantity bookkeeping, input validation and test traps:
+[references/rebalance-planner.md](references/rebalance-planner.md). The rebalance function
+only plans; one executor is the sole caller of `placeOrder`, behind the §7 gate.
 
-**Input validation.** Validate an empty or invalid universe or symbol list
-before the exchange lookup, so the route returns 4xx, not 500.
-
-**Test trap.** A mutant that drops the final-status filter survives when the
-fixture's non-final row has NULL `filled_quantity`, because SQL `SUM` ignores
-NULL. Use a non-final row with a partial fill.
-
-**Detector.** Fixture with an ETF in holdings and not in the managed set — it
-must come out `IGNORE`. Run the planner twice — second run all HOLD. Make the
-holdings call throw — nothing is placed.
+**Detector.** Fixture with an ETF in holdings and not in the managed set: it must come out
+`IGNORE`. Run the planner twice: the second run is all HOLD. Make the holdings call throw:
+nothing is placed.
 
 ## 10. Order records are an audit trail
 

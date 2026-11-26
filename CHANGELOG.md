@@ -32,6 +32,19 @@
   not the previous session's close.
 
 ### Changed
+- All 19 skills were restructured to one standard:
+  - descriptions written to trigger the skill, with real task wording and symptoms;
+  - a numbered Core rules block at the top, linking to each section;
+  - Rule, Why and Detector sections;
+  - worked examples and short Python sketches for the rules most often got wrong.
+- Long catalogues and dated history moved to `references/` files in 11 skills.
+  Facts asserted by the evals and rates listed in `data/rates.json` stay in
+  SKILL.md.
+- A token diff confirmed that no rate, date, section, circular ID or URL was lost.
+- `CONTRIBUTING.md` now has a "Skill structure" section, and `scripts/validate.py`
+  checks links in `references/` files.
+- Five eval regexes were loosened. They had rejected correct wording such as
+  "applies only to the buy side".
 - `indian-broker-api-safety`: Fyers API rate limits from 16 Oct 2026. The NSE
   10-orders-per-second threshold now cites NSE/INVG/67858.
 - `itr-filing-schedules`: ITR-1 allows up to two house properties for AY 2026-27.

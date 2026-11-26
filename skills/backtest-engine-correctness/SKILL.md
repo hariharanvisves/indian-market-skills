@@ -1,6 +1,6 @@
 ---
 name: backtest-engine-correctness
-description: Defect classes in equity backtest engines that produce plausible numbers and survive review — null-close valuation, look-ahead marking, wrong annualisation, phantom round-trips (an engine that sells and rebuys names it keeps at every rebalance), cost sizing, non-finite metrics, regime-filter blind spots, engine versioning, and NSE fill realism (circuit locks, closing auction, trade-for-trade series, F&O ban). Use when writing, reviewing or auditing a backtester, when a CAGR/Sharpe/drawdown figure looks too good or too bad, or before quoting any backtest result for Indian equities.
+description: Checklist of 24 defect classes that make an equity backtest look plausible and be wrong — look-ahead marking, null-close valuation, CAGR with years = points/252, hardcoded sqrt(252) Sharpe, phantom round-trips on rebalance, fee-after-sizing, NaN metrics, regime filters that act only on rebalance dates, engine versioning and result-cache keys, and NSE fill realism (circuit-locked bars, closing auction from 3 Aug 2026, trade-for-trade series, F&O ban). Use when writing, reviewing or auditing a backtester or equity-curve code, when CAGR, Sharpe or drawdown looks too good, too bad or pinned at 99.99%, when trade count or win rate looks off, or before quoting any backtest result for Indian equities, even if the user only asks for a quick sanity check.
 license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
@@ -12,9 +12,25 @@ metadata:
 
 # Backtest Engine Correctness
 
-Every defect below produced a plausible number, passed its tests, and survived
-review. Each entry is: **rule**, **why**, **detector**. Figures marked "measured
-on NSE data" came from real runs; re-measure before relying on them.
+Every defect below produced a plausible number, passed its tests and survived review.
+Each entry is a **rule**, a **why** and a **detector**. Figures marked "measured on
+NSE data" came from real runs; re-measure before relying on them.
+
+## Core rules
+
+A model that reads only this block should avoid the worst mistakes. Rule numbers
+(§1–§24) are stable and cited by other skills.
+
+1. Fill a bar-*i* signal at bar *i+1*'s open, never at bar *i*'s close. [§1](#1-signal-on-bar-i-fills-on-bar-i1)
+2. Value a position with the last real close **at or before** the date; skip null and zero closes. [§2](#2-mark-to-market-backward-never-forward), [§3](#3-a-null-or-zero-close-must-never-be-multiplied)
+3. `years = (last − first date) / 365.25`, never `points / 252`; annualise Sharpe, Sortino and vol by observed periods per year, not `sqrt(252)`. [§6](#6-years-comes-from-elapsed-time-not-point-count), [§7](#7-annualise-by-actual-periods-per-year)
+4. Book an exit only for names absent from the next basket; resize retained ones. [§10](#10-no-phantom-round-trips)
+5. Size against the all-in cost, and charge by side, base and **trade date**. [§11](#11-size-against-the-all-in-cost-retained-positions-charge-nothing), [§12](#12-charges-are-side-specific-base-specific-and-dated)
+6. No metric may be NaN or Infinity; skip the pair, never substitute 0; Sharpe is null on a short window. [§13](#13-no-metric-may-be-non-finite-skip-the-pair-never-substitute-0), [§14](#14-sharpe-is-null-under-a-minimum-window)
+7. Quote a regime-filter result only with its rebalance frequency. [§16](#16-a-regime-filter-only-acts-on-rebalance-dates)
+8. Keep `simulate()` pure, version the engine on economic change, key caches on the whole price manifest. [§18](#18-simulate-is-pure-io-sits-outside), [§19](#19-version-the-engine-bump-only-when-the-economic-result-changes)
+9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules. [§20–§23](#f-nse-fill-realism)
+10. A survivorship-biased or half-adjusted price history fails before any rule here matters. [§24](#24-survivorship-and-corporate-actions)
 
 ## A. Valuation and time
 
@@ -27,6 +43,14 @@ largest source of fake edge.
 **Detector.** Perturb bar *i+1* onward (set every later close to a huge value)
 and re-run: selections and fills dated at or before *i* must not change. Any
 change is look-ahead.
+
+```python
+def test_no_lookahead(run, bars, i):
+    base = run(bars)
+    tampered = {s: b[: i + 1] + [{**x, "close": 1e9} for x in b[i + 1 :]]
+                for s, b in bars.items()}
+    assert fills_through(run(tampered), i) == fills_through(base, i)
+```
 
 ### 2. Mark to market backward, never forward
 
@@ -44,6 +68,20 @@ stop/target, hedge entry). Require one shared helper returning exact-date index
 or -1, with each caller choosing its own fallback. A fix applied to one call site
 and not the rest is the usual state; count raw usages and pin the count.
 
+Wrong versus right, with §3 folded in:
+
+```python
+# wrong: the first bar on or after d can be months ahead on a gappy symbol
+close = next(c for dt, c in bars if dt >= d)
+
+# right: last real close at or before d, skipping null/zero
+def mark(dates, closes, d):
+    i = bisect.bisect_right(dates, d) - 1
+    while i >= 0 and not closes[i]:
+        i -= 1
+    return closes[i] if i >= 0 else None
+```
+
 ### 3. A null or zero close must never be multiplied
 
 **Rule.** Skip null/zero closes and walk backward to the last real one, in
@@ -58,20 +96,11 @@ more than a plausible day move, and no trade has exit price 0.
 
 ### 4. A −90% step that recovers next bar is an accounting bug
 
-**Rule.** If equity (or a mark) falls ~90% and fully recovers on the next bar,
-look in your valuation code before blaming data.
-**Why.** No market event or bad print behaves that way. Chasing "bad data" first
-cost a wrong fix that changed nothing.
-**Detector.** Scan the equity curve for |step| > 50% followed by a step of
-inverse sign within one bar.
+**Rule.** Equity or a mark that falls ~90% and fully recovers on the next bar is a valuation bug, not bad data. Detail: [reference](references/secondary-defects.md#4-a-90-step-that-recovers-next-bar-is-an-accounting-bug).
 
 ### 5. The final mark is capped at the window end
 
-**Rule.** The last valuation and any close-out price must not exceed the
-requested end date, even if the data extends past it.
-**Why.** Extra fetched bars silently extend the tail past the requested end.
-**Detector.** Assert `lastEquityDate <= requestedEnd` with data deliberately
-fetched past it.
+**Rule.** The last valuation and any close-out price must not exceed the requested end date. Detail: [reference](references/secondary-defects.md#5-the-final-mark-is-capped-at-the-window-end).
 
 ### 6. `years` comes from elapsed time, not point count
 
@@ -85,6 +114,16 @@ grows with run length, so short smoke tests never show it.
 **Detector.** Run monthly vs daily rebalancing over the same span; `years` must
 be identical.
 
+Worked example: a curve that doubles over 10 years, sampled monthly (120 points).
+
+```python
+total = 2.0
+years_wrong = 120 / 252                         # 0.476
+cagr_wrong = total ** (1 / years_wrong) - 1     # 2**2.1 - 1  = 328.7%
+years = (last_date - first_date).days / 365.25  # 10.0
+cagr = total ** (1 / years) - 1                 # 2**0.1 - 1  = 7.18%
+```
+
 ### 7. Annualise by actual periods per year
 
 **Rule.** Sharpe, Sortino and annualised volatility scale by
@@ -96,25 +135,16 @@ larger: 93% vs 16.87% annualised vol on identical performance, about 5.5×.
 **Detector.** Resample the same equity path daily and monthly; annualised vol
 must agree to within sampling error. Mutate the constant and watch it fail.
 
+Compute `periods_per_year = len(returns) / years` using the `years` from §6; a
+21-day rebalance gives about 12, so scale by `sqrt(12)`.
+
 ### 8. Fetch window and calendar are not anchored on one symbol
 
-**Rule.** The date index is the **union** of all symbols' dates; the fetch start
-is derived from the requested start minus warm-up head-room, never a constant.
-**Why.** Building the calendar from "the first symbol" made that symbol's listing
-date the floor of the whole run. A hardcoded fetch start silently capped every
-backtest years after the data begins.
-**Detector.** Request a start before the first-sorted symbol lists; assert it is honoured.
-Holidays and special sessions: [nse-trading-calendar](../nse-trading-calendar/SKILL.md).
+**Rule.** The date index is the **union** of all symbols' dates; the fetch start is the requested start minus warm-up head-room, never a constant. Detail: [reference](references/secondary-defects.md#8-fetch-window-and-calendar-are-not-anchored-on-one-symbol).
 
 ### 9. Warm-up warnings are relative to what was asked
 
-**Rule.** Warn when simulated coverage of the *requested* window falls below a
-threshold (e.g. 90%), and report the percentage, effective start date and how
-much earlier to begin.
-**Why.** A threshold measured against warm-up length (not the request) stayed
-silent while a run lost a full year off the front (547 of 800 days).
-**Detector.** Request a window shorter than the longest lookback; assert the
-warning fires.
+**Rule.** Warn when simulated coverage of the *requested* window falls below a threshold (e.g. 90%), reporting the percentage, effective start and how much earlier to begin. Detail: [reference](references/secondary-defects.md#9-warm-up-warnings-are-relative-to-what-was-asked).
 
 ## B. Trades and costs
 
@@ -131,6 +161,15 @@ position at the end is neither a win nor a loss.
 **Detector.** A/B any trade-ledger edit: trade-count metrics move, CAGR and total
 return must be byte-identical. An unpriceable pick must count as a departure, or
 its trade stays open forever.
+
+Worked example: holding {A, B, C}, next basket {B, C, D}.
+
+```python
+exits  = held - next_basket          # {A}: the only closed trade
+resize = held & next_basket          # {B, C}: keep entry price and date
+buys   = next_basket - held          # {D}
+# wrong: sell all three, rebuy B, C, D -> 3 closed trades, 2 of them ~0% "wins"
+```
 
 ### 11. Size against the all-in cost; retained positions charge nothing
 
@@ -180,12 +219,7 @@ short a span to estimate it; say why.
 
 ### 15. Aggregate across periods before clamping at zero
 
-**Rule.** When a tax or loss-offset rule nets gains and losses within a year,
-aggregate across sub-periods (eras) first, then clamp at nil.
-**Why.** Clamping each era at zero discards a losing era and overstates tax.
-Rates and eras: [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
-**Detector.** Build one year with a gain era and a loss era; tax must equal tax
-on the netted total, not on the gain era alone.
+**Rule.** When a tax or loss-offset rule nets gains and losses within a year, aggregate across eras first, then clamp at nil. Detail: [reference](references/secondary-defects.md#15-aggregate-across-periods-before-clamping-at-zero).
 
 ## D. Regime filters and benchmarks
 
@@ -203,14 +237,7 @@ crash between month-ends; compare drawdown.
 
 ### 17. The benchmark is two inputs
 
-**Rule.** Distinguish the **display curve** (benchmark line and its drawdown)
-from the **regime driver** (the series a trend filter reads to change trades).
-**Why.** Only the second changes trades and therefore every metric. If metrics
-never receive the benchmark, alpha and beta do not exist in that engine; do not
-assume otherwise. A run configured for one price source may still fetch its
-benchmark from another unconditionally.
-**Detector.** Swap the benchmark source with the filter off: metrics unchanged.
-With the filter on: metrics may change. Grep what fetches the benchmark.
+**Rule.** Distinguish the **display curve** from the **regime driver** (the series a trend filter reads); only the second changes trades and metrics. Detail: [reference](references/secondary-defects.md#17-the-benchmark-is-two-inputs).
 
 ## E. Engine hygiene
 
@@ -237,36 +264,30 @@ shape, and re-measure there before deciding "no delta".
 
 **Result cache key.** Key a stored result on the canonical request, the engine
 version, a hash of the engine code and a hash of the **whole price manifest**.
-A content hash of one file misses manifest fields such as an unadjusted-from
-marker. Refuse to cache a run whose inputs have no content identity (live-fetched
-provider prices), and store only if the key did not change during the run.
-**Related defect.** A long-lived worker that loads prices once but re-reads
-snapshot provenance per call serves old prices labelled with the new snapshot
-hash after a data refresh.
+Refuse to cache a run whose inputs have no content identity. Detail and the
+stale-provenance defect: [reference](references/secondary-defects.md#result-cache-key).
 
 ## F. NSE fill realism
 
 Apply by **trade date**: pick the rule in force for each date in the backtest.
+Read [references/nse-fill-realism.md](references/nse-fill-realism.md) for price-band
+figures, halts, the settlement cycle, pre-open windows, GSM/ASM stages and the F&O
+ban thresholds. It also holds the sources and verification dates.
 
 ### 20. Circuit-locked bars are unfillable
 
 **Rule.** If a bar's open, high, low and close sit at one price limit (no
 two-way trading), a buy at the upper limit or a sell at the lower limit cannot
 fill. Skip or defer, do not fill at the limit.
-**Why.** Price bands of 2/5/10/20% apply to non-F&O stocks and are revised
-periodically. F&O stocks have no cash-market band, only a 10% dummy order-entry
-filter that NSE relaxes near the limit; stock-futures bands flex 10% to 15% to 20%
-(triggers at 9.90% and 14.90% of base). Source: NSE FAQ on price band / operating
-range flex; NSE/FAOP/63405 and NSE/FAOP/64995 (verified 2026-11-11).
+**Why.** Non-F&O stocks have 2/5/10/20% bands, revised periodically; F&O stocks
+have none in the cash market. Band detail and sources are in the reference.
 **Detector.** Count fills on bars where high == low == a band limit; expect zero.
 
 ### 21. Market halts, settlement and closing-price regime
 
-**Rule.** A 10/15/20% Nifty 50 or Sensex move halts trading (length depends on
-time of day; no halt for 10% after 14:30); treat intraday fills across a halt as
-unfillable (NSE circuit-breakers page, verified 2026-10-04). T+1 settlement applies to all equities from 27 Jan 2023; it was phased in by
-stock before that, so verify the cycle per stock for 2022 dates. Optional T+0 is beta (from 28 Mar 2024, top 500 from 31 Jan 2025). A
-close-based backtest must say which closing-price method applies on each date:
+**Rule.** A close-based backtest must say which closing-price method applies on
+each date. Market-wide halts, the T+1 and T+0 dates and the pre-open windows are
+in the reference; treat an intraday fill across a halt as unfillable.
 - **Before 3 Aug 2026**, close = VWAP of the last 30 minutes for all stocks.
 - **From 3 Aug 2026**, F&O stocks close from a Closing Auction Session
   (15:15–15:35; reference VWAP 15:00–15:15, ±3% band, matching 15:30–15:35) and
@@ -277,12 +298,10 @@ close-based backtest must say which closing-price method applies on each date:
   continuous trading for F&O stocks runs to 15:30. The circular's applicability
   and band paragraphs are not restated in its amended text: treat F&O-only and
   ±3% as unchanged until read.
+
+Source: SEBI circulars dated 16 Jan 2026 and 15 Oct 2026 (verified 2026-11-11).
 Expiry-day derivative settlement prices changed on the same dates: see
 [nse-options-mechanics](../nse-options-mechanics/SKILL.md).
-Pre-open order collection was 9:00–9:08 before 7 Sep 2026; from that date it is
-9:00–9:05 (limit and market), 9:05–9:10 (limit only), with continuous trading
-from 9:15. Source: SEBI circulars dated 16 Jan 2026 and 15 Oct 2026 (verified
-2026-11-11); NSE T+0 page (verified 2026-10-04).
 **Why.** "The close" is a different print under each regime, and an intraday
 fill across a halt never traded.
 **Detector.** A backtest filling "at the close" after 3 Aug 2026 on an F&O stock
@@ -291,28 +310,17 @@ is filling at an auction price; confirm the data source records that print.
 ### 22. Trade-for-trade series are not intraday-netted
 
 **Rule.** BE and BZ series settle trade-for-trade (gross, every trade
-deliverable). Do not model intraday netting there. Stage II–IV GSM names are
-trade-for-trade as well, and Stage III–IV trade only once a week (first trading
-day of the week).
-**Why.** Netting a same-day buy and sell there models a trade that settles
-gross. Source: NSE series legend; NSE GSM FAQ (verified 2026-11-11).
+deliverable); do not model intraday netting there. Stage II–IV GSM names are
+trade-for-trade too, and Stage III–IV trade only once a week.
 **Detector.** On a BE/BZ or GSM Stage II–IV name, a same-day buy and sell must
-book two deliverable trades; a Stage III–IV fill on any day other than the
-week's first trading day is impossible.
+book two deliverable trades. Sources are in the reference.
 
 ### 23. F&O ban and surveillance lists
 
 **Rule.** A stock enters the F&O ban when futures-equivalent open interest
-exceeds 95% of MWPL. MWPL is the lower of 15% of free float and 65× average
-daily delivery value (floor 10% of free float), recalculated quarterly; both
-apply from 1 Oct 2025 (before: MWPL 20% of free float, plain open interest). The
-exit threshold (80%) is from an older NSE page and **unconfirmed under the
-futures-equivalent method: verify against the current NSE circular**. Long-term
-ASM on F&O stocks: F&O margin at least 50% at Stage I rising to 100%, MWPL cut to
-75% / 50% from Stage II / III, no fresh contracts at Stage IV; cash margin 100%
-from Stage I, Stage IV gross settlement with a 5% band. GSM Stage I is 100%
-margin with a band of 5% or less. Source: SEBI circular 29 May 2025 (paras 5.2,
-6); NSE ASM and GSM FAQs (verified 2026-11-11).
+exceeds 95% of MWPL (MWPL rule from 1 Oct 2025; the 80% exit threshold is
+unconfirmed, verify it against the current NSE circular). ASM and GSM stages
+change margin, band and contract availability.
 **Why.** Ban, margin and band rules decide whether a position could be opened
 and at what cost; ignoring them fills trades that never existed.
 **Detector.** A derivatives backtest that opens positions in a banned name, or a

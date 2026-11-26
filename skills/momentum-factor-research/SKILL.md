@@ -1,6 +1,6 @@
 ---
 name: momentum-factor-research
-description: How to research and quote cross-sectional momentum on Indian equities without fooling yourself — the performance/volatility lookback ladder, volatility-estimator choice and why replacing it was rejected, parameter sensitivity (never quote CAGR without parameters and window), factor existence versus portfolio robustness, out-of-sample reversal of blend uplift, and safe evaluation of user-written factor formulas. Use when ranking stocks by momentum, designing or reviewing a factor formula, comparing a volatility estimator, or before quoting any momentum backtest figure.
+description: Method for researching and quoting cross-sectional momentum on Indian equities without fooling yourself — the 21/63/126/189/252-bar lookback ladder, volatility-estimator choice (why Yang-Zhang and Parkinson lost), parameter sensitivity, factor IC versus portfolio robustness, out-of-sample reversal of blend uplift, and safe evaluation of user-written factor formulas such as `6M Perf / 6M Vol`. Use when ranking NSE stocks by momentum or risk-adjusted momentum, defining 6M or 12M windows, designing or reviewing a factor formula or its parser, comparing or swapping a volatility estimator, or before quoting any momentum CAGR or Sharpe, even if the user only asks for a number to publish.
 license: MIT
 compatibility: Daily NSE close data. Figures marked "measured on NSE data" are dated findings from one codebase; re-measure on yours.
 metadata:
@@ -16,6 +16,17 @@ Cross-sectional momentum is the best-supported factor on Indian equities and the
 easiest to misreport. The failures below are about method, not about whether
 momentum works. Engine defects live in
 [backtest-engine-correctness](../backtest-engine-correctness/SKILL.md).
+
+## Core rules
+
+1. Define windows as bar counts on one ladder (21, 63, 126, 189, 252) shared by every factor. [§1](#1-lookback-ladder)
+2. Freeze one volatility estimator; changing it changes stored scores and is an engine-version bump. [§2](#2-volatility-estimator-is-a-contract)
+3. Do not swap estimators on theory. Yang-Zhang was the worst of six on NSE data (stale opens). Measure basket displacement instead. [§3](#3-estimator-replacement-is-second-order-the-window-is-first-order)
+4. Never quote a CAGR without parameters, universe rule and exact start and end dates. [§4](#4-defaults-are-load-bearing)
+5. Show the rank IC and its t-statistic before any equity curve. [§5](#5-factor-existence-is-not-portfolio-robustness)
+6. Promote a blend only after it beats its best component on a frozen, later validation window. [§6](#6-out-of-sample-reversal-of-a-blend-uplift)
+7. Never `eval` a user formula; parse it, dry-run it, fail on unresolved names and ÷0. [§7](#7-user-written-formula-engines)
+8. Rank only series whose last bar is the latest session, and count the exclusions. [§8](#8-live-scoring-ranks-only-current-series)
 
 ## 1. Lookback ladder
 
@@ -70,6 +81,12 @@ OHLC estimators also change the data contract (most pipelines carry only a
 close).
 **Detector.** Before accepting an estimator change, compute the top-N basket
 under old and new on the full universe and report the count of changed names.
+
+```python
+def displaced(scores_old: dict, scores_new: dict, n: int = 30) -> int:
+    top = lambda sc: set(sorted(sc, key=sc.get, reverse=True)[:n])
+    return len(top(scores_old) - top(scores_new))   # 1 name of 30 is noise; 6 is not
+```
 
 ## 4. Defaults are load-bearing
 
@@ -146,6 +163,19 @@ mis-parses ranks every symbol on a wrong number.
 8. **Async tests must actually run.** A synchronous harness passes any async
    assertion without running it; mutate an expected value to a false one and
    confirm it fails.
+
+The adjacency guard in items 3 and 4, keyed on token type and whitespace:
+
+```python
+# tokens: (kind, text, space_before)
+def check_adjacent_operators(tokens):
+    for prev, cur in zip(tokens, tokens[1:]):
+        if prev[0] == "op" and cur[0] == "op" and not cur[2]:
+            raise SyntaxError(f"adjacent operators {prev[1]}{cur[1]}")   # a +- b, a -- b
+
+# a + -b  -> space_before=True on "-": unary minus, evaluates
+# a +- b  -> space_before=False on "-": throws
+```
 
 ## 8. Live scoring ranks only current series
 

@@ -1,6 +1,6 @@
 ---
 name: nse-bhavcopy-corporate-actions
-description: Building a price history from NSE bhavcopy (legacy cm*bhav.csv, sec_bhavdata_full, CM-UDiFF) and the NSE corporate-actions API — file formats and where each is served, series filtering (EQ vs BE/BZ), column-layout traps, parsing split/bonus/dividend subject text, adjustment rules, banded post-action price walks, and caching Yahoo fetches. Use when ingesting NSE bhavcopy, adjusting prices for splits and bonuses, parsing corporate-action subjects, debugging a price cliff or a missing symbol history, or fetching Yahoo Finance prices for .NS tickers.
+description: Building an adjusted NSE price history from bhavcopy (legacy cm*bhav.csv, sec_bhavdata_full, CM-UDiFF) and the NSE corporate-actions API — which file format and host covers which dates, EQ vs BE/BZ series filtering, column-layout traps, parsing split/bonus/dividend subject text, adjustment factors, banded post-action price walks, and caching Yahoo .NS fetches. Use when ingesting NSE bhavcopy, a bhavcopy downloader stops getting files after July 2024, adjusting prices for splits and bonuses, parsing corporate-action subjects, debugging a price cliff or one-day 50% drop on a split date, delivery quantity of 0, a missing symbol history, or fetching Yahoo Finance prices for .NS tickers, even if the user never says "bhavcopy". Tax on bonus or split is corporate-action-taxation.
 license: MIT
 compatibility: Applies to NSE cash-market bhavcopy files and the NSE corporate-actions API. Format dates apply to NSE only.
 metadata:
@@ -12,6 +12,10 @@ metadata:
 
 # NSE Bhavcopy and Corporate Actions
 
+Turns NSE bhavcopy files and corporate-action records into a price history whose
+returns are right. Most defects here are silent: a wrong format date, a wrong
+column, a wrong factor or a one-bar assumption each give plausible-looking prices.
+
 Goes deeper than §1 and §3 of [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md)
 (date shift, the "longest clean run" price-sanity rule). Read that first. Universe
 and rename defects are in
@@ -19,6 +23,18 @@ and rename defects are in
 
 Host paths and layouts below were observed to work. NSE changes them without
 notice; re-probe before depending on one.
+
+## Core rules
+
+1. Legacy `cm*bhav.csv` ended 5 Jul 2024; CM-UDiFF replaces it from 8 Jul 2024. Check for it, or the pipeline stops without an error. [§1](#1-formats-hosts-and-the-delivery-data-floor)
+2. Delivery quantity does not exist before 30 Sep 2019 and is absent from UDiFF. Emit unavailable fields **empty, never 0**. [§1](#1-formats-hosts-and-the-delivery-data-floor)
+3. Prices use `SERIES == EQ`; liveness uses a wider same-ISIN series set. Do not merge the two filters. [§2](#2-prices-are-eq-only-identity-is-a-different-wider-set)
+4. Read the header before any positional read; the symbol is not always column 1 and `PREVCLOSE` moves between layouts. [§3](#3-column-layout-the-symbol-is-not-column-1)
+5. Parse `Re.` as well as `Rs.`; a bonus-plus-split subject is **two** price events. [§5](#5-corporate-actions-api)
+6. Adjust strictly before the ex-date (`date < exDate`). A split from Rs.10 to Rs.2 is factor 0.2 (new over old), not 5. [§6](#6-adjustment-rules)
+7. Ordinary dividends stay raw and rights are not adjusted by default. Mergers and demergers get no invented factor. [§6](#6-adjustment-rules)
+8. A correct factor can still show as a multi-session walk in a banded stock; do not assume one-bar rebasing. [§7](#7-banded-rebasing-an-action-can-take-several-sessions-to-show)
+9. The bhavcopy path needs its own price sanitiser or a split books as a fabricated crash. [§8](#8-price-sanity-guard-on-the-bhavcopy-path)
 
 ## 1. Formats, hosts and the delivery-data floor
 
@@ -33,19 +49,11 @@ on 8 Jul 2024. A pipeline hard-wired to the legacy name stops getting files on t
 date without an error unless it checks.
 
 Rules:
-- Use `nsearchives.nseindia.com`. `archives.nseindia.com` returned 403 for the same
-  paths earlier but served them on 2026-11-11; do not depend on it. A plain browser
-  User-Agent was enough; no cookies for these files.
-- API host (fetch failures seen from about 2026-11-16, observed 2026-11-26, no NSE announcement found):
-  `www.nseindia.com` pages and `/api/...` paths 301-redirect to the same path on
-  `www.nseindia.in`. The `.com` homepage returns 403 (Akamai) to scripted clients,
-  so a client that primes cookies on the `.com` homepage never gets cookies for
-  `.in`. On 2026-11-26 `GET https://www.nseindia.in/api/corporates-corporateActions?index=equities`
-  returned 200 JSON with no cookie priming. `nsearchives.nseindia.com` archive paths
-  (bhavcopy zips, circular PDFs) still served 200 with no redirect. Keep the API
-  host in one constant, call the `.in` host or follow redirects, and make a stalled
-  export or last-date-lag check fail loudly: a nightly fetch failed silently and
-  the export stalled for days when this changed.
+- Fetch archives from `nsearchives.nseindia.com`. The API host moved: `www.nseindia.com`
+  `/api/...` paths 301-redirect to `www.nseindia.in` (observed 2026-11-26). Keep the host
+  in one constant and make a stalled export fail loudly. Read
+  [references/nse-hosts-and-api-access.md](references/nse-hosts-and-api-access.md)
+  when a fetch returns 403, a redirect or nothing.
 - Delivery quantity **does not exist before 30 Sep 2019** (a 2019-09-27 request
   404s, 2019-09-30 serves) and is absent from UDiFF, so after 8 Jul 2024 it comes
   only from `sec_bhavdata_full`. Trade count is absent before about late 2011.
@@ -137,13 +145,14 @@ to move.
 ## 5. Corporate-actions API
 
 `nseindia.com/api/corporates-corporateActions?index=equities&from_date=DD-MM-YYYY&to_date=DD-MM-YYYY`
-needs `index=equities` (otherwise `Missing index`). It was earlier cookie-gated (GET
-the homepage first) and queried one year at a time; on 2026-11-11 it answered a bare
-curl and a 2000-2024 range in one call (39,046 rows), and serves back to at least
-2000. Keep cookie priming and year chunks as the safe default. The `subject`
-field is free text; every trap below was found by reading unparsed rows, which took
-price-affecting unparsed rows from 27 to 1. NSE's official MCP exposes the same data
-as `get_corporate_actions`: [nse-official-mcp](../nse-official-mcp/SKILL.md).
+needs `index=equities`; access notes are in
+[references/nse-hosts-and-api-access.md](references/nse-hosts-and-api-access.md).
+The `subject` field is free text; every trap was found by reading unparsed rows,
+which took price-affecting unparsed rows from 27 to 1. The three that change a
+price factor follow. Traps 3-6, 8 and 9 (debentures, multiple dividends, separators,
+ambiguous forms, two-tranche rights, ETFs) are in
+[references/corporate-action-subject-traps.md](references/corporate-action-subject-traps.md):
+read it when writing or fixing a subject parser.
 
 1. **`Re` versus `Rs`.** NSE writes the singular for one rupee (`To Re.1/-`).
    Requiring `Rs` left every split-to-Re.1 unparsed, including large well-known
@@ -151,27 +160,9 @@ as `get_corporate_actions`: [nse-official-mcp](../nse-official-mcp/SKILL.md).
 2. **Compound actions.** `Bonus 1:1 And Face Value Split From Rs.2/- To Re.1/-` is
    **two** price events on one ex-date. Typing it as SPLIT alone understates the
    adjustment by 2x. Emit a compound type carrying both ratios.
-3. **Bonus debentures and preference shares are not equity bonuses.** `Bonus Deb1:1`
-   issues debt; share count is unchanged. Exclude with
-   `/debenture|\bdeb\d|preference\s+share/i`, not the full word alone.
-4. **Multiple dividend figures in one subject.** `Final Dividend Rs.4/- And Special
-   Dividend Rs.10/-` pays Rs.14 on one ex-date. First-match understates; **sum every
-   stated figure** (300 rows checked to sum exactly).
-5. **Separator variants.** `Rs.5`, `Rs 5`, `Rs:- 5.50`, `Rs - 3.50`; singular `Re` for
-   sub-rupee amounts. Allowing `r[se][.:\s-]*` took amount coverage from 99.5% to
-   99.8%. Open the unparsed remainder instead of accepting a percentage.
-6. **Leave ambiguous forms empty.** `Interim Dividend 3 Per Share` has no currency
-   word; a bare-number rule would also swallow the ordinal in `2nd Interim Dividend`.
 7. **Split ratio orientation.** In one corpus every split ratio was `a>b` (`10:2`),
    so a bare `a/b` gives 5.0 where the price factor is 0.2. A fixture using `1:2`,
    the orientation that never occurs, cannot catch it.
-8. **Rights with two simultaneous tranches** (4:25 fully paid plus 2:25 partly paid)
-   have no single ratio. Leave blank.
-9. **The API files nothing for ETFs.** Zero rows for several large ETFs, so a
-   widened scope did not recover a known 1:100 split. Query the source for the
-   missing instrument class before widening a filter. Fix with a small hand-verified
-   table, each entry citing the two closes its ratio was derived from, and never let
-   it override a fetched action (a stale hardcoded factor would double-adjust).
 
 Detector: print a coverage ratio each run (dividend rows with a parsed amount,
 price-affecting rows with a parsed ratio) and warn below a floor, so a wording
@@ -195,6 +186,22 @@ change cannot zero a field silently.
   fold the action's symbol too, or the action is dropped while its target is
   queried.
 
+Worked example: a 5:1 split (Rs.10 to Rs.2, factor 0.2) with raw closes 2273 the
+day before the ex-date and 454 on it. The compound subject from §5 combines two
+factors by multiplying them: a 1:1 bonus is 1/2 and Rs.2 to Re.1 is 1/2, so 0.25.
+Typed as SPLIT alone it would apply 0.5, the 2x understatement.
+
+```python
+def adjust(bars, ex_date, factor):
+    # bars: [(date, close, volume)] ; compare dates, not timestamps
+    return [(d, c * factor, v / factor) if d < ex_date else (d, c, v)
+            for d, c, v in bars]
+
+# 2273 * 0.2 = 454.6 vs raw 454 on the ex-date: adjusted series is flat
+assert abs(2273 * 0.2 - 454) < 1
+combined = (1 / 2) * (1 / 2)   # bonus 1:1 x split Rs.2 -> Re.1 = 0.25
+```
+
 Whether bhavcopy prices are unadjusted for corporate actions: NSE publishes no
 statement that settles it. **Verify empirically on a known split date**: pick a
 symbol with a documented split, compare the close the day before and the day of, and
@@ -208,24 +215,17 @@ require failure; invert the factor and require failure.
 
 ## 7. Banded rebasing: an action can take several sessions to show
 
-Rule: do not assume a corporate action re-bases the raw price in one bar.
+Rule: do not assume a corporate action re-bases the raw price in one bar. A 5:7
+bonus (factor 0.5833) on one small-cap walked raw close 163.00 to 93.50 over ten
+sessions, five of them locked (`Open == High == Low == Close`), each move pinned at
+about -4.97% to -5.00%. The action, ratio and factor were all correct; the check's
+one-bar assumption was wrong.
 
-Why: a 5:7 bonus (factor 0.5833) on one small-cap walked raw close 163.00 to 93.50
-over ten sessions, five of them locked (`Open == High == Low == Close`), each move
-pinned at about -4.97% to -5.00%. The action, ratio and factor were all correct; the
-check's one-bar assumption was wrong, and three claims in its failure message were
-false ("raw closes are continuous", and others). The ex-date factor
-(`date < exDate`) was right, which is why hundreds of other symbols adjusted flat.
-
-Rules:
-- Detect the signature (several locked bars at the band, cumulative move reconciling
-  to the factor within tolerance), not a market rule. This repo's bhavcopy carried no
-  price-band column, so the band regime is an inference from the path. Say so and
-  flag it unresolved rather than asserting a band.
-- Population was 1 of 87 covered-era events. With n=1, loosening any gate leaves
-  the live suite green. Use synthetic fixtures for each gate and mutate each.
-- Distinguish from crashes: several-session falls with zero locked bars are
-  crashes, not band walks.
+Detect the signature (several locked bars at the band, cumulative move reconciling
+to the factor within tolerance), not a market rule. Several-session falls with zero
+locked bars are crashes, not band walks. Read
+[references/banded-rebasing.md](references/banded-rebasing.md) before writing or
+loosening a continuity gate.
 
 ## 8. Price-sanity guard on the bhavcopy path
 

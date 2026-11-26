@@ -1,6 +1,6 @@
 ---
 name: indian-broker-api-safety
-description: SEBI retail algo trading framework and per-broker API deltas for Indian broker APIs (Upstox, Dhan, Angel One SmartAPI, ICICI Breeze, Fyers, Zerodha Kite). Covers the 4 Feb 2025 SEBI circular and its phased dates to 1 Apr 2026, NSE implementation standards, the 10 orders-per-second threshold, exchange algo ID tagging, static IP whitelisting and weekly change limit, OAuth and 2FA, no open APIs, white-box vs black-box algos and Research Analyst registration, family-only algo sharing, kill switch, the ban on algo market orders, and a broker comparison of auth flow, token expiry time, order tag limits, rate limits, pending or in-transit order statuses and sandbox. Use when writing or reviewing an Indian algo trading bot, a multi-broker adapter, order throttling, static IP or cloud deployment for broker APIs, or when asked whether a retail algo needs registration, may be shared, or may use market orders.
+description: SEBI retail algo trading framework and per-broker API deltas for Indian broker APIs (Upstox, Dhan, Angel One SmartAPI, ICICI Breeze, Fyers, Zerodha Kite). Covers the 4 Feb 2025 SEBI circular and its phased dates to 1 Apr 2026, NSE implementation standards, the 10 orders-per-second threshold, exchange algo ID tagging, static IP whitelisting and weekly change limit, OAuth and 2FA, no open APIs, white-box vs black-box algos and Research Analyst registration, family-only algo sharing, kill switch, the ban on algo market orders, and per-broker token expiry, order tag limits, rate limits, pending or in-transit statuses and sandbox. Use when writing or reviewing an Indian algo trading bot, a multi-broker adapter or order-status mapper, order throttling, static IP or Lambda or cloud deployment for broker APIs, or when asked whether a retail algo needs registration, may be shared with friends, or may use market orders, even if SEBI is not mentioned. Kite-only code: kite-connect-safety.
 license: MIT
 compatibility: SEBI and NSE circulars and broker API docs as read on 2026-11-11. Broker limits change without notice; re-check each broker's docs before hard-coding.
 metadata:
@@ -12,13 +12,32 @@ metadata:
 
 # Indian Broker API Safety
 
-The regulatory layer and per-broker deltas for retail API and algo trading in India.
-General order-safety rules live in [kite-connect-safety](../kite-connect-safety/SKILL.md)
-and are not repeated here: server-side tokens (§3), authorization (§5), order ceiling
-(§8a), intent-derived idempotency key (§8b), the `unknown` outcome (§8c–8d) and the
-rebalance planner (§9). This skill says how those rules land on each broker. Each item
-gives the rule, why, and a detector. Anything marked "unverified" was not confirmed in
-a primary source.
+The regulatory layer and per-broker deltas for retail API and algo trading in India. A
+bot that works on one broker's constants (6 AM expiry, 20-character tags, a retry on
+failure) breaks on the next, and a pre-framework flow is non-compliant. General order-safety
+rules live in [kite-connect-safety](../kite-connect-safety/SKILL.md) and are not repeated
+here: server-side tokens (§3), authorization (§5), order ceiling (§8a), intent-derived
+idempotency key (§8b), the `unknown` outcome (§8c–8d) and the rebalance planner (§9). This
+skill says how those rules land on each broker. Anything marked "unverified" was not
+confirmed in a primary source.
+
+## Core rules
+
+1. The full framework applies to every broker since 2026-04-01; do not gate code on "if my
+   broker has gone live" (§1).
+2. The broker is the principal. One deployment holding several outsiders' broker tokens is
+   an algo provider and needs empanelment (§2).
+3. Every API order is an algo order and is tagged. At or below 10 orders per second only
+   registration is waived; the broker sends generic ID `99999` (§3).
+4. Order APIs need a broker-whitelisted static IP; home broadband, Lambda and CI runners
+   fail. Reads are usually exempt (§4).
+5. Hidden-logic "signals plus auto-execute" for other people is a black-box algo and needs
+   Research Analyst registration (§5).
+6. A self-built algo serves family only: self, spouse, dependent children, dependent parents (§6).
+7. Algo orders are never market orders: send a limit price or the broker's protection field (§7).
+8. Never reuse one broker's expiry, tag or rate constants for another (§8).
+9. A pending, in-transit or unlisted status is never `REJECTED`; unlisted maps to `UNKNOWN`
+   and the order is not retried (§9).
 
 Primary sources, read 2026-11-11:
 - SEBI circular SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/0000013, 4 Feb 2025
@@ -91,6 +110,21 @@ header or the IDs configured in its Algo Apps settings
 exchange, with a sliding one-second window set below the broker's limit (§8). Auto-slicing
 creates separate orders with their own order IDs (Fyers single-order docs), so count every
 slice. A test fires 30 intents in one second and expects at most the limit to leave the process.
+
+```python
+class SlidingLimiter:   # one per exchange/segment, shared by place, modify and cancel
+    def __init__(self, limit, window=1.0):          # limit set below the broker's own
+        self.limit, self.window, self.sent = limit, window, deque()
+
+    def acquire(self):
+        now = monotonic()
+        while self.sent and now - self.sent[0] >= self.window:
+            self.sent.popleft()
+        if len(self.sent) >= self.limit:
+            sleep(self.window - (now - self.sent[0]))
+            return self.acquire()
+        self.sent.append(monotonic())
+```
 
 ## 4. Static IP, keys and sessions
 
@@ -179,39 +213,24 @@ that keeps sending while confirmations lag. That loop is the runaway the rule fo
 
 ## 8. Per-broker deltas
 
-Each cell comes from the broker's own docs or support pages, read 2026-11-11.
+Token expiry and tag limits, read 2026-11-11 from each broker's own docs:
 
-**Auth and token lifetime**
-
-| Broker | Auth flow | Token expiry |
+| Broker | Token expiry | Client tag field |
 |---|---|---|
-| Zerodha Kite | `request_token` plus SHA-256 checksum, see the [kite skill](../kite-connect-safety/SKILL.md) §1 | 6 AM next day (kite.trade/docs/connect/v3/user) |
-| Upstox | OAuth 2.0 authorization code; also a TOTP+PIN token endpoint for individual apps and a notifier-approval flow | 3:30 AM next day, whatever the issue time (upstox.com/developer/api-documentation/get-token) |
-| Dhan | Token generated on Dhan Web; a TOTP endpoint; or API key consent in 3 steps (key and secret valid 12 months) | 24 hours from generation (dhanhq.co/docs/v2/authentication) |
-| Angel One | `loginByPassword` with client code, PIN and TOTP, returning a JWT; publisher login also exists | Until 12 midnight (smartapi.angelone.in/docs, User and FAQ) |
-| ICICI Breeze | Browser login gives `API_Session`; `CustomerDetails` returns `session_token`; requests are signed with SHA-256 of timestamp, JSON and secret | 24 hours or midnight, whichever is earlier; generated manually each day (icicidirect.com FAQ "What is a session key") |
-| Fyers | Auth code; `appIdHash` = SHA-256 of `app_id:app_secret`; returns an access and a refresh token | 6:30 AM daily; refresh-token lifetime unverified (fyers.in/api-docs, validate-auth-code) |
+| Zerodha Kite | 6 AM next day (kite.trade/docs/connect/v3/user) | `tag`, alphanumeric, max 20 |
+| Upstox | 3:30 AM next day, whatever the issue time (upstox.com/developer/api-documentation/get-token) | `tag`, max 40 (`UDAPI1119`) |
+| Dhan | 24 hours from generation (dhanhq.co/docs/v2/authentication) | `correlationId`, max 30, `[a-zA-Z0-9 _-]` |
+| Angel One | Until 12 midnight (smartapi.angelone.in/docs, User and FAQ) | `ordertag`, under 20 chars (`AB4008`) |
+| ICICI Breeze | 24 hours or midnight, whichever is earlier; generated manually each day (icicidirect.com FAQ "What is a session key") | `user_remark`, no spaces or special characters; length unverified |
+| Fyers | 6:30 AM daily; refresh-token lifetime unverified (fyers.in/api-docs, validate-auth-code) | `orderTag`, 1–30 alphanumeric, not the client ID or `Untagged` |
 
-**Orders**
+Read [references/broker-deltas.md](references/broker-deltas.md) for each broker's auth flow,
+order rate limits, full not-yet-final status lists, sandbox availability and extra traps
+(Upstox order window, Fyers daily block, Breeze NSE-only). Read it before building the
+status tables in section 9 or a limiter.
 
-| Broker | Client tag field | Order rate limit | Not-yet-final statuses | Sandbox |
-|---|---|---|---|---|
-| Zerodha Kite | `tag`, alphanumeric, max 20 | kite skill §8g | `PUT ORDER REQ RECEIVED`, `VALIDATION PENDING`, `OPEN PENDING`, `MODIFY VALIDATION PENDING`, `MODIFY PENDING`, `TRIGGER PENDING`, `CANCEL PENDING`, `AMO REQ RECEIVED` | None documented |
-| Upstox | `tag`, max 40 (`UDAPI1119`) | Unregistered: 10/s; registered: 50/s; 500/min, 2000/30 min, combined over place, modify, cancel, multi and GTT | `put order req received`, `validation pending`, `open pending`, `trigger pending`, `modify pending`, `modify validation pending`, `cancel pending`, `after market order req received`, `not cancelled`, `not modified` | Yes, sandbox apps and tokens |
-| Dhan | `correlationId`, max 30, `[a-zA-Z0-9 _-]` | 10/s, 250/min, 1000/h, 7000/day; 25 modifications per order | `TRANSIT` ("did not reach the exchange server"), `PENDING` | Yes, closed environment, not paper trading (dhan.co support) |
-| Angel One | `ordertag`, under 20 chars (`AB4008`) | `placeOrder`, `modifyOrder`, `cancelOrder`: each 9/s, 500/min, 1000/h | `open pending`, `trigger pending`, `modify pending`, `after market order req received`, `modify after market order req received` | None documented |
-| ICICI Breeze | `user_remark`, no spaces or special characters; length unverified | 100 calls/min, 5000/day; 10 orders/s combined over place, modify, cancel and square-off | `Requested`, `Queued`; meaning of `Ordered` and `Freezed` unverified, so map them to `UNKNOWN` | None documented |
-| Fyers | `orderTag`, 1–30 alphanumeric, not the client ID or `Untagged` | From 16 Oct 2026, Standard plan (no Prime subscription): transaction APIs 10/s, 200/min, 100000/day, data APIs 5/s, 50/min, 5000/day; Prime: 10/s, 500/min, 500000/day for both ([notice](https://fyers.in/notice-board/changes-to-fyers-api-rate-limits-and-usage)); place, modify and cancel stay within 10/s | `4` Transit, `6` Pending; async place returns `id_fyers`, not an order ID | None documented |
-
-More traps from the same pages:
-- Upstox Place Order only works from 5:30 AM to 12:00 AM IST (`UDAPI100074`).
-- Fyers blocks the user for the rest of the day after the per-minute limit is exceeded
-  more than 3 times in a day.
-- Breeze covers NSE only and routes unregistered algos through a single API key.
-- Dhan's order book carries an `algoId` field.
-
-**Rule.** Do not reuse one broker's constants for another. Hard-coding Kite's 6 AM expiry
-or 20-char tag across brokers breaks Upstox at 3:30 AM. It also silently truncates or
+**Rule.** Do not reuse one broker's constants for another. **Why.** Hard-coding Kite's 6 AM
+expiry or 20-char tag across brokers breaks Upstox at 3:30 AM, and silently truncates or
 rejects Dhan and Fyers keys.
 
 **Detector.** Keep one constants module per broker, and have it cite its docs URL and
@@ -223,7 +242,7 @@ verification date. Write a test that checks expiry for every broker at 03:29, 03
 **Rule.**
 - Each broker adapter maps raw status to one internal set:
   `PENDING | OPEN | PARTIAL | FILLED | CANCELLED | REJECTED | EXPIRED | UNKNOWN`.
-- Keep the mapping as an explicit lookup table per broker, built from the lists in §8.
+- Keep the mapping as an explicit lookup table per broker, built from the status lists in [references/broker-deltas.md](references/broker-deltas.md).
 - Normalise case and whitespace before the lookup (Upstox is lowercase, Kite uppercase,
   Fyers uses integers, Breeze uses words).
 - **A status the table does not list maps to `UNKNOWN`.** `UNKNOWN` follows the kite
@@ -238,12 +257,41 @@ verification date. Write a test that checks expiry for every broker at 03:29, 03
 - Substring matching marks Upstox `not cancelled` as cancelled, although that order is
   still live.
 
+```python
+STATUS = {   # exact lookup per broker, keys lowercased; extend from the reference lists
+    "dhan":   {"transit": "PENDING", "pending": "PENDING"},
+    "fyers":  {4: "PENDING", 6: "PENDING"},
+    "upstox": {"open pending": "PENDING", "not cancelled": "PENDING", "not modified": "PENDING"},
+}
+
+def normalise(broker, raw):
+    key = raw.strip().lower() if isinstance(raw, str) else raw
+    return STATUS[broker].get(key, "UNKNOWN")   # never substring, never default REJECTED
+
+def portable_tag(intent_key: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", intent_key)[:19]   # under Angel's limit, inside every other
+```
+
+Dhan `TRANSIT` gives `PENDING`, so the bot does not resend and reconciles by `correlationId`.
+A 32-character hex UUID as tag breaks Kite (max 20) and Angel (under 20); `portable_tag`
+returns 19 characters of it.
+
 **Detector.**
 - For each broker, a test feeds every documented status and expects a mapped value.
 - A random string must map to `UNKNOWN`.
 - `grep -rnE "default:|\.get\(status, |in status" src/*adapter*` must find no
   fallback other than `UNKNOWN` and no substring match.
 - A property test checks that every generated tag passes all six brokers' tag rules.
+
+## Verifying an implementation
+
+- No flag gates the framework on a broker's go-live date (§1).
+- 30 intents in one second let at most the limiter's limit through, slices included (§3).
+- The startup egress-IP check refuses to arm the order path on a mismatch (§4).
+- No live-path `MARKET` order type without a limit price or protection field (§7).
+- Expiry tests pass at 03:29, 03:31, 06:01 and 06:31 IST per broker (§8).
+- Every documented status maps; a random string maps to `UNKNOWN`; `TRANSIT` never
+  maps to `REJECTED`; every generated tag passes all six brokers' rules (§9).
 
 ## Scope
 

@@ -31,7 +31,7 @@
         "Stamp duty is buy side only",
         "DP charge is sell side only and flat per scrip"
       ],
-      "must_match": ["(?i)buy[- ]side only|only on (the )?buy|buy (leg|side) only", "(?i)DP[^.]{0,80}sell"],
+      "must_match": ["(?i)buy[- ]side only|only (on|to) (the )?buy|buy (leg|side) only", "(?i)DP[^.]{0,80}sell"],
       "must_not_match": ["(?i)stamp duty (is )?(charged|levied|applies) on both"]
     },
     {

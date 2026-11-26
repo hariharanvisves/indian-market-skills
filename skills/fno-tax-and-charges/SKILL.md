@@ -1,6 +1,6 @@
 ---
 name: fno-tax-and-charges
-description: Charges and income tax on Indian equity and index futures and options (F&O) for resident individuals. Charges - STT by side and base (futures on traded price, options on premium, exercised options on intrinsic value, paid by the buyer) with the Finance Act 2026 rates from 1 April 2026, exchange transaction charge on premium, SEBI fee, buy-side stamp duty. Tax - F&O as non-speculative business income, intraday equity as speculative, ITR-3, loss set-off and 8/4-year carry-forward, ICAI turnover for tax audit, §44AB thresholds, §44AD/§58 presumptive interplay, deductible expenses, Income-tax Act 2025 section numbers. Use when building an F&O brokerage, P&L or tax calculator, computing F&O or intraday tax, turnover or audit applicability, reconciling an F&O contract note, or when code applies STCG/LTCG, §111A/§112A or a notional-value STT to derivatives.
+description: Charges and income tax on Indian equity and index futures and options (F&O) for resident individuals. Charges - STT by side and base (futures on traded price, options on premium, exercised options on intrinsic value, paid by the buyer) with the Finance Act 2026 rates from 1 April 2026, exchange transaction charge on premium, SEBI fee, buy-side stamp duty. Tax - F&O as non-speculative business income, intraday equity as speculative, ITR-3, loss set-off and 8/4-year carry-forward, ICAI turnover for tax audit, §44AB thresholds, §44AD/§58 presumptive interplay, deductible expenses, Income-tax Act 2025 section numbers. Use when building an F&O brokerage, P&L or tax calculator, computing F&O or intraday tax, turnover or audit applicability, reconciling an F&O contract note, or when code applies STCG/LTCG, §111A/§112A or a notional-value STT to derivatives, even if the user only says "options tax", "F&O P&L" or "intraday tax".
 license: MIT
 compatibility: Rates verified 2026-11-11 against NSE circular 02/2026, the Finance Act 2026 and Zerodha and Upstox charge schedules; sections against the gazetted Income-tax Act 2025; turnover against the ICAI Guidance Note on Tax Audit (Revised 2026). Re-verify before use, as rates change with each Finance Act and exchange circular.
 metadata:
@@ -16,6 +16,19 @@ A generic agent makes two errors on Indian derivatives. It prices option charges
 on **notional value**, and it taxes F&O profit as **capital gains**. Both are
 wrong. Option charges sit on premium, and F&O is **business income**. This skill
 holds both structures. Cash-segment equity lives elsewhere (see Scope).
+
+## Core rules
+
+1. **Option STT is on premium**, not notional: 0.15% of premium on a sale, never of strike or underlying ([section 2](#2-what-implementations-get-wrong-on-charges)).
+2. **Exercised options pay STT on intrinsic value** (settlement price minus strike), and the **purchaser** pays it.
+3. **STT is sell-only; stamp duty is buy-only.** Intraday cash-equity STT is also sell-only (rate owner: [indian-equity-charges](../indian-equity-charges/SKILL.md)).
+4. **Key every STT rate to the trade date:** three regimes, with futures 0.05% and options 0.15% from 2026-04-01 ([section 1](#1-charges-by-side-and-base-nse-equity-and-index-fo)).
+5. **F&O is non-speculative business income, ITR-3.** No §111A or §112A, no holding period, no STCG/LTCG, no ₹1.25 lakh exemption ([section 4](#4-classification-business-income-not-capital-gains)).
+6. **Intraday equity is speculative business income.** A speculative loss offsets only speculative profit, for **4** years; an F&O loss offsets any head except salary, for **8** years, if the return is filed by the due date ([section 5](#5-loss-set-off-and-carry-forward)).
+7. **Tax-audit turnover is the sum of absolute differences**, not net P&L and not contract value ([section 6](#6-turnover-for-tax-audit-the-icai-method)).
+8. **Audit applies above ₹1 crore** of business turnover, or ₹10 crore when cash receipts and payments are each at most 5%.
+9. **Presumptive taxation (§44AD / §58) is an election**, with no loss allowed against it ([section 7](#7-presumptive-taxation-44ad--58)).
+10. **STT is deductible on the business head** (§32(k)); under capital gains it is not ([section 8](#8-deductible-expenses)).
 
 ## 1. Charges by side and base: NSE equity and index F&O
 
@@ -88,29 +101,34 @@ stt_exer  = long and itm_at_expiry ? qty * (settle - strike if call else strike 
 STT rounding and the GST base are cash-segment rules, owned by
 [indian-equity-charges](../indian-equity-charges/SKILL.md).
 
+A date-keyed lookup makes the regime table testable:
+
+```python
+from datetime import date
+
+STT_SALE = {  # newest first; fraction of turnover
+    "future": [(date(2026, 4, 1), 0.0005), (date(2024, 10, 1), 0.0002), (date.min, 0.000125)],
+    "option": [(date(2026, 4, 1), 0.0015), (date(2024, 10, 1), 0.001), (date.min, 0.000625)],
+}
+
+def stt_sale(kind, trade_date, turnover):
+    return next(turnover * r for start, r in STT_SALE[kind] if trade_date >= start)
+
+stt_sale("future", date(2026, 3, 20), 1_500_000)  # 300.0 (0.02%)
+stt_sale("future", date(2026, 4, 20), 1_500_000)  # 750.0 (0.05%)
+stt_sale("option", date(2026, 5, 12), 300 * 50)   # 22.5  (premium, not 300 x 24,000)
+```
+
 ## 3. Section numbers and years
 
 The Income-tax Act 2025 is in force from 1 April 2026 (§1(3)). FY 2025-26
 (AY 2026-27) and earlier fall under the 1961 Act; tax year 2026-27 onward under
-the 2025 Act, the same date the STT rise took effect. 2025 numbers were matched
-by content against the gazetted text. ITR JSON field names may keep 1961 numbers.
-
-| Rule | 1961 Act | 2025 Act |
-|---|---|---|
-| Business income head | §28 | §26 |
-| Speculation business is separate | §28 Expl. 2 | §26(3) |
-| "Speculative transaction"; derivatives excluded | §43(5), proviso (d) | §66(31)(a), §66(33) |
-| STT deductible against business income | §36(1)(xv) | §32(k) |
-| General business expenses | §37(1) | §34(1) |
-| Same-head and inter-head set-off | §70, §71 | §108, §109 |
-| Business loss carry-forward, 8 years | §72 | §112 |
-| Speculation loss: only vs speculation, 4 years | §73, §73(4) | §113 |
-| Carry-forward needs a return by due date | §80 with §139(3) | §121 (return under §263(1)) |
-| Presumptive business income | §44AD | §58 |
-| Tax audit | §44AB | §63 |
-
-The 1961 numbers for §36(1)(xv), §37(1), §70 and §71 were not re-read against
-the 1961 text. The rest are quoted in the ICAI Guidance Note.
+the 2025 Act, the same date the STT rise took effect. ITR JSON field names may keep
+1961 numbers. This skill cites the 2025 number first, with the 1961 number where
+useful (business income §26 [§28], speculation §66(31) [§43(5)], STT deduction
+§32(k) [§36(1)(xv)], tax audit §63 [§44AB], presumptive §58 [§44AD]). The full
+table, with the not-yet-re-read 1961 numbers flagged, is in
+[references/act-2025-sections.md](references/act-2025-sections.md).
 
 ## 4. Classification: business income, not capital gains
 
@@ -183,6 +201,11 @@ per symbol or per day.
 sold for ₹12,000 and bought back for ₹4,000 (+₹8,000). A long option bought for
 ₹10,000 is sold for ₹2,000 (−₹8,000). A short option sold for ₹6,000 expires
 worthless (+₹6,000).
+
+```python
+diffs = [40_000, -25_000, 8_000, -8_000, 6_000]
+sum(abs(d) for d in diffs)   # 87,000 turnover; sum(diffs) = 21,000 is net P&L
+```
 
 Net P&L is ₹21,000: **not turnover**. Absolute differences sum to **₹87,000**.
 Rule 2 has two readings that commentators dispute; under the second, the ₹12,000

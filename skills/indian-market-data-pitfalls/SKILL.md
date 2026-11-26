@@ -1,6 +1,6 @@
 ---
 name: indian-market-data-pitfalls
-description: Index of failure modes in Indian market and broker data — IST-to-UTC date shifts (toISOString one day early), survivorship bias in Nifty universes, split/bonus price cliffs, statement drift, cross-source duplicates, scheme-name merges, parser coverage, paise precision. Use when ingesting NSE bhavcopy, Zerodha/Groww statements, CAS/CAMS files or AMFI NAV history, building a backtest universe, or debugging wrong holdings, dates shifted by a day, duplicate transactions or an implausible return. Links to the skill owning each detail.
+description: Index of silent failure modes in Indian market and broker data, each linked to the skill that owns the detail — IST-to-UTC date shifts (toISOString one day early), survivorship bias in Nifty universes, split/bonus price cliffs and price-sanity filters, broker-statement drift, cross-source duplicate transactions, mutual-fund scheme-name merges, parser coverage, paise rounding. Use when ingesting NSE bhavcopy, Zerodha/Groww statements, CAS/CAMS files or AMFI NAV history, building a backtest universe, or debugging wrong holdings, dates shifted by a day, doubled invested amount, an implausible return or a 50% one-day drop. Start here when the symptom is known but the owning skill is not.
 license: MIT
 compatibility: Applies to NSE/BSE market data and Indian broker/RTA statement formats.
 metadata:
@@ -14,6 +14,22 @@ metadata:
 
 Each item below is a defect class that passes tests, produces plausible numbers,
 and is found only by looking for it. Ordered by how much damage it does silently.
+This skill owns the first four rules in the table below (date shift, price-sanity
+filters, precision, sanity gates) and indexes the rest.
+
+## Core rules
+
+| # | Rule | Owner |
+|---|---|---|
+| 1 | Never round-trip a date-only value through `toISOString()`; test under `TZ=Asia/Kolkata`. | [§1](#1-ist--utc-date-shift) |
+| 2 | Resolve universe membership as of each bar's date; state how far back it reaches. | [§2](#2-survivorship-bias-in-index-universes), [nse-universe-survivorship](../nse-universe-survivorship/SKILL.md) |
+| 3 | Keep the longest clean run in a price filter, with the defect bar in neither segment. | [§3](#3-corporate-action-price-breaks-and-the-cleaning-rule-that-eats-your-data) |
+| 4 | Use integer paise; compare with a tolerance, not equality of roundings. | [§8](#8-money-precision) |
+| 5 | A uniform one-day offset is your own timezone transform; a non-uniform one is order vs allotment date. | [§4](#4-broker-statement-format-drift) |
+| 6 | Dedupe cross-source transactions on a price-free key; never match scheme names by token overlap. | [§5](#5-cross-source-duplicate-transactions), [§6](#6-mutual-fund-scheme-name-matching) |
+| 7 | A non-empty parse is not success; track coverage and an arithmetic identity. | [§7](#7-parser-health-produced-something-is-not-success) |
+| 8 | Gate writes on a plausibility floor; a successful fetch is not current data. | [§9](#9-sanity-gates-on-ingested-data) |
+| 9 | Adjust splits and bonuses by factor strictly before the ex-date; check each bhavcopy format and column layout. | [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) |
 
 ## 1. IST → UTC date shift
 
@@ -39,6 +55,15 @@ cannot discriminate).
 
 Detector: run date tests with `TZ=Asia/Kolkata` and assert a date-only input
 comes back as the same calendar date.
+
+```js
+// TZ=Asia/Kolkata: local midnight 06 Mar is 05 Mar 18:30Z
+new Date('06 Mar 2025').toISOString().slice(0, 10);      // '2025-03-05'  wrong
+
+const pad = (n) => String(n).padStart(2, '0');
+const d = new Date('06 Mar 2025');
+`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;  // '2025-03-06'
+```
 
 ## 2. Survivorship bias in index universes
 
@@ -75,6 +100,17 @@ Two rules:
 Detector: before shipping any price-sanity filter, **measure where defects
 actually fall** in real series. The premise "bad bars cluster at the start of history" is testable
 in one pass, and recent corporate actions falsify it.
+
+```python
+def longest_clean_run(closes, max_move=0.40):
+    # a bad move into i makes bar i untrustworthy: it ends one run and starts neither
+    runs, start = [], 0
+    for i in range(1, len(closes)):
+        if abs(closes[i] / closes[i - 1] - 1) > max_move:
+            runs.append((start, i)); start = i + 1
+    runs.append((start, len(closes)))
+    return max(runs, key=lambda r: r[1] - r[0])   # half-open [start, end)
+```
 
 Bonus and split are **not transfers**. For their cost and acquisition-date
 treatment see [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md); do

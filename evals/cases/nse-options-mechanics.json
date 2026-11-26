@@ -55,7 +55,7 @@
         "(?i)\\bnull\\b|\\bNone\\b|unavailable"
       ],
       "must_not_match": [
-        "(?i)return (the )?last iterate\\b(?![^.]*(never|not|don't|do not))"
+        "(?i)(?<!n't )(?<!not )(?<!never )return (the )?last iterate\\b(?![^.]*(never|not|don't|do not))"
       ]
     },
     {

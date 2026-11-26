@@ -1,6 +1,6 @@
 ---
 name: mf-scheme-matching
-description: Rules for matching Indian mutual-fund scheme names across CAS, CAMS, KFintech, Groww and AMFI data without silently merging different funds — total-parse matching, plan and option slots (Direct/Regular, Growth/IDCW), rename aliases, AMFI NAVAll.txt lookup by ISIN, folio-aware FIFO grouping, and price-free cross-source dedupe. Use when importing mutual-fund transactions from more than one source, writing a scheme resolver or fuzzy name matcher, fixing duplicate or merged holdings, or changing anything that feeds FIFO lots or realised capital gains.
+description: Rules for matching Indian mutual-fund scheme names across CAS, CAMS, KFintech, Groww and AMFI data without silently merging different funds — total-parse matching into identity, plan and option slots (Direct/Regular, Growth/IDCW), rename aliases, AMFI NAVAll.txt lookup by ISIN, folio normalisation and folio-aware FIFO grouping, and price-free cross-source dedupe. Use when importing mutual-fund transactions from more than one source, writing a scheme resolver, fuzzy or Jaccard name matcher, NAV lookup or ISIN-to-scheme map, when units of a fund double after a second import or Direct and Regular plans get merged, or when anything feeds FIFO lots or realised capital gains, even if the user only asks to "match fund names". File layouts are in indian-broker-statement-formats.
 license: MIT
 compatibility: Applies to AMFI, CAMS, KFintech and broker-app scheme naming conventions as of the SEBI 2021 IDCW rename.
 metadata:
@@ -12,11 +12,30 @@ metadata:
 
 # Mutual-Fund Scheme Matching
 
-One wrong merge puts two funds into one FIFO queue: lots are consumed from the
-wrong fund and realised gains are wrong, with nothing erroring. One wrong split
-leaves a fund visible as "unresolved". **Every failure must fall toward
-unresolved, never toward a merge.** Format facts for the source files are in
+One wrong merge puts two funds into one FIFO queue: lots are consumed from the wrong fund
+and realised gains are wrong, with nothing erroring. One wrong split leaves a fund visible
+as "unresolved". **Every failure must fall toward unresolved, never toward a merge.**
+Format facts for the source files are in
 [indian-broker-statement-formats](../indian-broker-statement-formats/SKILL.md).
+
+## Core rules
+
+1. Parse every token into exactly one slot (identity, plan, option); a leftover token means
+   unresolved. Never compare token bags (§1).
+2. No similarity score, Jaccard threshold or edit distance, ever (§2).
+3. An unstated option is `null`, not Growth; only a per-scheme sourced table may default it (§3).
+4. Fix a failing name by adding vocabulary, never by loosening equality (§4).
+5. Renames come from a sourced allow-list; AMC renames are flagged, not matched. Dividend
+   to IDCW is a deliberate map (§5).
+6. A dropped-AMC-prefix match needs an ordered suffix, equal plan and option, and a unique hit (§6).
+7. Key on ISIN where the source has one. Pick the AMFI `NAVAll.txt` row by ISIN against both
+   ISIN columns, with columns read from the header (§7).
+8. The cross-source dedupe key is price-free, with an absolute unit tolerance, and requires
+   different sources (§8).
+9. Group FIFO lots by `(fund identity, folio)` (§9).
+10. After a re-import, realised gains must be unchanged to the rupee (§10).
+
+Worked sketches are in sections 1, 7, 8 and 9.
 
 ## 1. Parse totally; do not compare token bags
 
@@ -32,8 +51,41 @@ identity vanish from the comparison, and a vanished token can only cause a false
 accept. In the project this came from, six review rounds produced six distinct
 silent merges, each introduced by the fix for the previous one.
 
-**Tell.** Matching code with `Set`, `includes`, overlap ratios, "strip noise",
-or "first matching word wins". Delete it.
+**Detector.** Matching code with `Set`, `includes`, overlap ratios, "strip noise", or
+"first matching word wins". Delete it.
+
+```python
+VOCAB = {"direct": ("plan", "direct"), "dir": ("plan", "direct"),
+         "regular": ("plan", "regular"), "reg": ("plan", "regular"),
+         "growth": ("option", "growth"), "gr": ("option", "growth"),
+         "plan": ("filler", None), "option": ("filler", None),
+         "fund": ("filler", None), "scheme": ("filler", None)}
+
+def parse(name):
+    name = re.sub(r"\((formerly|erstwhile)[^)]*\)", "", name, flags=re.I)   # before tokenizing
+    identity, slots, tail = [], {"plan": None, "option": None}, False
+    for tok in re.findall(r"[a-z0-9&]+", name.lower()):
+        kind, val = VOCAB.get(tok, ("identity", tok))
+        if kind == "filler":
+            continue
+        if kind == "identity":
+            if tail:
+                return None                  # identity word after plan/option: fail the parse
+            identity.append(val)
+        else:
+            tail = True
+            if slots[kind] not in (None, val):
+                return None                  # two plans or two options
+            slots[kind] = val
+    return tuple(identity), slots["plan"], slots["option"]
+```
+
+`parse("Example Flexi Cap Fund - Direct Growth")` equals
+`parse("Example Flexi Cap Direct Plan Growth Option")`. The Regular name differs in its plan
+slot, so the pair never merges. "Growth Opportunities Fund" fails closed to unresolved here;
+the `fund`/`scheme` boundary rule in
+[references/name-vocabulary.md](references/name-vocabulary.md) resolves it. Only the
+vocabulary, never `==`, grows.
 
 ## 2. No fuzzy, Jaccard, edit-distance or token-subset matching
 
@@ -45,7 +97,7 @@ sourced allow-list (section 5), never from closeness.
 differ by one token and by a different expense ratio and NAV. Similarity cannot
 tell a rename from a different fund.
 
-**Tell.** A threshold constant (0.45, 0.8) in a name matcher.
+**Detector.** A threshold constant (0.45, 0.8) in a name matcher.
 
 ## 3. `option: null` is not Growth
 
@@ -58,7 +110,7 @@ null; never null to growth.
 corrupts the lots. Likewise a name that is silent on plan must not match a
 Direct name.
 
-**Tell.** `option ?? 'growth'` anywhere outside a per-scheme table.
+**Detector.** `option ?? 'growth'` anywhere outside a per-scheme table.
 
 ## 4. Widen the vocabulary, never the rule
 
@@ -67,26 +119,16 @@ abbreviation) and keep the equality rule unchanged. Each addition needs an
 anti-over-merge test proving two genuinely different funds stay distinct;
 Direct vs Regular is the standard probe.
 
-**Vocabulary to handle explicitly:**
-- Abbreviations: `DG` (direct growth), `RG` (regular growth), `DP` (direct
-  plan), `Dir`, `Reg`, `Gr`.
-- Custody suffix such as `(Non-Demat)`.
-- Plan detection is whole-word: `Direct` must not match inside another token of
-  a Regular plan name.
-- Rename annotations `(formerly ...)` / `(erstwhile ...)`: strip the annotation
-  **before** tokenizing, so the old name is not parsed as part of the identity.
-- A repeated identical option ("Direct Growth Plan Growth Option") is one
-  option, not a conflict. A second, different option, or two plans, fails the
-  parse.
-- Option words are not deletable noise: "Growth Opportunities Fund" and
-  "Dividend Yield Fund" contain option words inside the scheme's own name. Treat
-  `fund` / `scheme` as identity boundaries and read the option only from the
-  tail.
+**Vocabulary.** Abbreviations (`DG`, `RG`, `DP`, `Dir`, `Reg`, `Gr`), custody suffixes,
+whole-word plan detection, `(formerly ...)` stripping before tokenizing, repeated identical
+options, and option words inside a scheme's own name are listed in
+[references/name-vocabulary.md](references/name-vocabulary.md). Read it when a real name
+fails to parse.
 
 **Why.** A loosened rule applies to every name; a vocabulary entry applies only
 to the token it defines.
 
-**Tell.** A fix that edits the comparison function instead of a vocabulary table.
+**Detector.** A fix that edits the comparison function instead of a vocabulary table.
 
 ## 5. Renames and dividend-to-IDCW: explicit and sourced
 
@@ -99,7 +141,7 @@ default.
 **Why.** An unresolved old-name row is visible and recoverable. A wrong graft is
 silent.
 
-**Tell.** A resolver that returns a match for names no source says are the same
+**Detector.** A resolver that returns a match for names no source says are the same
 fund.
 
 ## 6. Dropped AMC prefix: last-resort suffix match, narrowly
@@ -114,7 +156,7 @@ disqualifying evidence, not missing evidence.
 **Why.** Each relaxed condition admits a same-suffix fund of another house, and
 that merge is silent.
 
-**Tell.** Two stored funds both satisfying the suffix test: the row must stay
+**Detector.** Two stored funds both satisfying the suffix test: the row must stay
 unresolved.
 
 ## 7. Prefer the ISIN; pick AMFI schemes by ISIN
@@ -143,8 +185,29 @@ identifier across sources. `Option` is spelled many ways (`IDCW`, `Growth Option
 `Payout of Income Distribution cum capital withdrawal option`), so do not match on
 it. Read the column order from the file header on every download.
 
-**Tell.** An NAV looked up by a name search returning a Regular-plan NAV for a
+**Detector.** An NAV looked up by a name search returning a Regular-plan NAV for a
 Direct holding.
+
+```python
+def amfi_row(lines, isin):
+    cols = None
+    for line in lines:
+        parts = [p.strip() for p in line.split(";")]
+        if parts[0] == "Scheme Code":
+            cols = parts                      # layout comes from the header, every download
+            continue
+        if cols is None or len(parts) != len(cols):
+            continue                          # category lines, AMC lines, blanks
+        row = dict(zip(cols, parts))
+        if isin in (row["ISIN Div Payout/ ISIN Growth"], row["ISIN Div Reinvestment"]):
+            return row                        # both ISIN columns, never the name
+    return None                               # unresolved, not a name-search fallback
+
+def norm_folio(raw: str) -> str:
+    return re.sub(r"\s+", "", raw)            # "1234 / 56" == "1234/56"
+
+lot_key = (resolved_identity, norm_folio(folio))   # section 9: FIFO queue per fund and folio
+```
 
 ## 8. Cross-source dedupe: price-free, precision-tolerant, month-bucketed
 
@@ -169,11 +232,23 @@ the duplicate check on `asset class | resolved symbol | side | date | units`,
 - Resolve names to the stored canonical symbol **before** the dedupe, or the key
   never matches.
 
-**Tell.** Units of a fund double after importing a second statement.
+**Detector.** Units of a fund double after importing a second statement.
 Reconcile per fund against a holdings statement: expect a ratio of **1.000**;
 exactly 2.000 is a duplicate; 1.1-1.9 usually means one source covers only part of
 the position. Aggregate the statement per fund first (a fund in two folios reads as
 a spurious multiple), and a switch pair is not a duplicate.
+
+```python
+def is_cross_source_dup(a, b, unit_tol, day_tol):
+    return (a.source != b.source                          # same-source rows are real repeats
+            and (a.asset_class, a.symbol, a.side) == (b.asset_class, b.symbol, b.side)
+            and abs((a.date - b.date).days) <= day_tol    # small: SIP instalments sit a month apart
+            and abs(a.units - b.units) <= unit_tol)       # absolute bound; no price anywhere
+```
+
+Check with plain arithmetic: 12.34 (2dp) and 12.345 (3dp) differ by 0.005, so `unit_tol`
+must cover 0.005 plus the float guard. A test pair differing by exactly `unit_tol` and one by
+slightly more must give opposite answers (section 11).
 
 **Unit dust.** Float residue (about 1e-14 units) trips a strict FIFO oversell
 check, so give it a tolerance (see the float-boundary rule in
@@ -191,7 +266,7 @@ the source carries a folio. Merge folios only for display aggregates.
 redemption consumes from the folio it was placed in. Pooling them changes which
 lots are sold, so changes the realised gain and the holding period.
 
-**Tell.** A fund with two folios whose realised STCG/LTCG split disagrees with
+**Detector.** A fund with two folios whose realised STCG/LTCG split disagrees with
 the RTA's own statement.
 
 ## 10. Re-import gate: realised gains unchanged to the rupee
@@ -204,7 +279,7 @@ duplicate slipped past the key or a lot was mis-grouped.
 **Why.** Duplicate or merged rows do not crash; they alter FIFO consumption and
 the tax figure. This is the one end-to-end check that sees both defects.
 
-**Tell.** Total units rise while cash flow is unchanged. Run the gate on real
+**Detector.** Total units rise while cash flow is unchanged. Run the gate on real
 files before declaring an importer done; unit tests pin the key, not the
 outcome.
 

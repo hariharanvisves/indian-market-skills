@@ -91,7 +91,8 @@ def main():
             err(md, "agents must set readonly: true (Cursor ignores tools:)")
 
     docs = ["README.md", "CONTRIBUTING.md", "CLAUDE.md", "AGENTS.md"]
-    for md in [*(ROOT / d for d in docs), *(d / "SKILL.md" for d in skills), *agents]:
+    refs = [md for d in skills for md in sorted(d.glob("references/*.md"))]
+    for md in [*(ROOT / d for d in docs), *(d / "SKILL.md" for d in skills), *refs, *agents]:
         if md.exists():
             check_links(md)
 

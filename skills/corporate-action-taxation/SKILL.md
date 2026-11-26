@@ -1,11 +1,11 @@
 ---
 name: corporate-action-taxation
-description: Indian income-tax treatment of corporate actions for resident individuals holding listed shares — buybacks under three date-keyed regimes (§115QA company tax before 1 Oct 2024; deemed dividend at slab plus a capital loss to 31 Mar 2026; capital gains with a promoter additional tax from 1 Apr 2026), dividends (slab rate, tax year of declaration, ₹10,000 TDS threshold, no interest deduction from tax year 2026-27), bonus shares (nil cost, holding from allotment), splits and consolidations, rights entitlements, demergers (book-value cost split), mergers, dividend and bonus stripping, and 31-Jan-2018 grandfathering for bonus and split lots. Use when building lot or cost-basis logic for corporate actions, taxing a buyback, bonus, split, demerger, merger or rights issue, reviewing code that reuses price-adjustment factors as cost basis, or porting US stock-dividend or spin-off basis rules. Gives Income-tax Act 2025 sections with 1961 equivalents.
+description: Indian income-tax treatment of corporate actions for resident individuals holding listed shares — buybacks under three date-keyed regimes (§115QA company tax before 1 Oct 2024; deemed dividend at slab plus a capital loss to 31 Mar 2026; capital gains with a promoter additional tax from 1 Apr 2026), dividends (slab rate, tax year of declaration, ₹10,000 TDS threshold, no interest deduction from tax year 2026-27), bonus shares (nil cost, holding from allotment), splits and consolidations, rights entitlements, demergers (book-value cost split), mergers, dividend and bonus stripping, and 31-Jan-2018 grandfathering for bonus and split lots. Use when building lot or cost-basis logic for corporate actions, taxing a buyback, bonus, split, demerger, merger or rights issue, reviewing code that reuses price-adjustment factors as cost basis, or porting US stock-dividend or spin-off basis rules, even if the user only says "bonus" or "buyback". Gives Income-tax Act 2025 sections with 1961 equivalents.
 license: MIT
 compatibility: Verified 2026-11-11 against the gazetted Income-tax Act 2025, the Finance Act 2026 (No. 4 of 2026) and the Union Budget memoranda for 2019, 2020, 2022, 2024, 2025 and 2026, for tax year 2026-27; re-verify before use, as rules change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -14,15 +14,26 @@ metadata:
 
 A corporate action changes two different things: the **price series**, which
 return calculations need, and the **tax lots**, which cost basis and holding
-period need. Code that derives one from the other is wrong, and the direction of
-the error depends on the action. Price mechanics live in
-[nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
-Rates, the 12-month boundary, set-off and grandfathering arithmetic live in
-[indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md). This skill
-says which lot each action creates, at what cost, from what date, and how a
-buyback or a dividend is taxed.
+period need. Code that derives one from the other is wrong. This skill says which
+lot each action creates, at what cost, from what date, and how a buyback or a
+dividend is taxed. Price mechanics: [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
+Rates, the 12-month boundary, set-off and grandfathering arithmetic: [indian-capital-gains-tax](../indian-capital-gains-tax/SKILL.md).
 
-**Sections.** 2025-Act numbers come first, with 1961-Act numbers in brackets.
+## Core rules
+
+1. **Cost basis comes from lot events, never from a price-adjustment factor** ([section 1](#1-price-adjustment-is-not-cost-basis-adjustment)).
+2. **Bonus shares are a new lot:** nil cost, holding period from the allotment date. The original lot is untouched ([section 4](#4-bonus-shares)).
+3. **A split rescales the same lot:** total cost unchanged, original date carried (derived, not stated in the statute) ([section 5](#5-splits-and-consolidations)).
+4. **Buybacks have three regimes keyed on the buyback date:** exempt to 30 Sep 2024 (company pays §115QA); from 1 Oct 2024 to 31 Mar 2026 the gross consideration is a deemed dividend at slab and the cost becomes a capital loss; from 1 Apr 2026 capital gains, with a promoter additional tax ([section 2](#2-buybacks-three-regimes-keyed-on-the-buyback-date)).
+5. **Dividends are slab income** in the tax year of declaration, with a ₹10,000 TDS threshold per paying company, no interest deduction from tax year 2026-27, and no effect on any lot's cost ([section 3](#3-dividends)).
+6. **Demerger cost splits by net book value ratio**, never by a price ratio; the resulting shares keep the parent's date ([section 7](#7-demergers)).
+7. **A merger into an Indian company is not a transfer:** cost and date carry over ([section 8](#8-mergers-and-amalgamations)).
+8. **A rights issue adds a lot** at the subscription price and leaves the original cost alone ([section 6](#6-rights-issues-and-rights-entitlements-re)).
+9. **India has no wash-sale rule:** dividend stripping bites only on an exempt dividend; bonus stripping ignores the loss ([section 9](#9-dividend-and-bonus-stripping-175-94)).
+
+## Citation conventions
+
+2025-Act numbers come first, with 1961-Act numbers in brackets.
 FY 2025-26 and earlier returns follow the 1961 Act, and ITR JSON fields still
 carry 1961 numbers (the AY 2026-27 ITR-2 schema has `Dividend22f`,
 `CapitalLossBuyBackShares` and `LossSec94of7Or94of8`). The 2025 text below is
@@ -83,6 +94,21 @@ In 2024, 20 shares are bought back at ₹60. Under the 2024–26 regime:
 
 The same buyback on or after 1 Apr 2026 gives a capital gain of ₹400, classified
 by holding period.
+
+```python
+from datetime import date
+
+def buyback_heads(buyback_date, qty, price, cost_per_share):
+    proceeds, cost = qty * price, qty * cost_per_share
+    if buyback_date < date(2024, 10, 1):
+        return {}                                      # exempt for the holder
+    if buyback_date < date(2026, 4, 1):
+        return {"dividend": proceeds, "capital_loss": cost}
+    return {"capital_gain": proceeds - cost}
+
+buyback_heads(date(2025, 1, 15), 20, 60, 40)   # dividend 1,200 and capital loss 800
+buyback_heads(date(2026, 5, 10), 20, 60, 40)   # capital gain 400
+```
 
 **Promoter additional tax** (§69(2)–(3), as substituted by Finance Act 2026 §42).
 It applies only to a buyback under Companies Act §68 where the holder is a

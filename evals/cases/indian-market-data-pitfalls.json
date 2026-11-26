@@ -84,7 +84,7 @@
       ],
       "must_match": [
         "(?i)allot",
-        "(?i)uniform"
+        "(?i)uniform|same (amount|offset|shift|sign and size)"
       ],
       "must_not_match": [
         "(?i)^\\W*yes\\b"

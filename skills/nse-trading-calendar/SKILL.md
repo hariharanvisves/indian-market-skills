@@ -1,6 +1,6 @@
 ---
 name: nse-trading-calendar
-description: Building a correct NSE/BSE trading and settlement calendar for backtests, T+1 settlement and derivatives expiry — where the official per-segment holiday list is published, late-declared closures, Muhurat and other special live sessions (budget-day weekend sessions, DR-site sessions), mock sessions that are not trading days, trading holidays vs settlement (clearing) holidays, expiry-day shift to the previous trading day, and the dated history of weekly-expiry weekdays. Use when generating trading days for an Indian backtest, computing a settlement date or an expiry date, deciding whether the market is open on a date, handling Diwali or a holiday in a date loop, or reviewing code that uses pandas business days, a US holiday calendar, a weekday filter, or missing bhavcopy files to decide trading days.
+description: Builds a correct NSE/BSE trading, clearing and expiry calendar — per-segment holiday lists from NSE's holiday-master API, late-declared closures, Muhurat and budget-day weekend sessions, mock sessions that are not trading days, trading versus clearing (settlement) holidays for T+1 dates, expiry-day shift to the previous trading day, and the dated history of weekly-expiry weekdays (Thursday to Tuesday for contracts expiring from 1 Sep 2025). Use when generating trading days for an Indian backtest, computing a settlement or expiry date, deciding whether the market is open on a date, handling Diwali or a holiday in a date loop, or reviewing code that uses pd.bdate_range, BDay, USFederalHolidayCalendar, exchange_calendars, a weekday filter or missing bhavcopy files to infer trading days.
 license: MIT
 compatibility: NSE (India) cash, F&O, currency and commodity segments; BSE equity-derivatives expiry days. Holiday lists, sessions and expiry rules change by circular; dates verified against NSE, NSE Clearing and BSE sources as of 2026-11-11.
 metadata:
@@ -12,17 +12,20 @@ metadata:
 
 # NSE Trading Calendar
 
-A trading calendar built from weekdays, from a US calendar or from the files
-that happen to download is wrong on a handful of dates a year. Those dates are
-the ones that matter: expiries, settlement, Diwali. Each entry below is
-**rule**, **why**, **detector**.
+A trading calendar built from weekdays, from a US calendar or from the files that
+happen to download is wrong on a handful of dates a year: expiries, settlement,
+Diwali. Each entry below is **rule**, **why**, **detector**.
 
-Owners elsewhere: session timings, closing price and T+1 phase-in are in §21 of
-[backtest-engine-correctness](../backtest-engine-correctness/SKILL.md). The
-expiry instant and settlement price are in
-[nse-options-mechanics](../nse-options-mechanics/SKILL.md). Bhavcopy file
-formats are in
-[nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
+## Core rules
+
+1. The calendar is dated data per segment with a source per row; never `bdate_range` or a US calendar. [§1](#1-the-calendar-is-dated-config-with-a-source), [§3](#3-segments-have-different-holidays)
+2. Take the list from the exchange and re-fetch it; closures are declared late. [§2](#2-where-the-list-comes-from-and-how-it-changes)
+3. T+1 settlement walks the **clearing** calendar, not the trading calendar. [§4](#4-trading-holiday-is-not-settlement-holiday-t1-uses-the-clearing-list)
+4. Muhurat and weekend budget sessions are live trading days that settle; mock sessions are not days. [§5](#5-muhurat-trading-a-dated-short-real-session), [§6](#6-other-special-sessions-and-mock-sessions-that-are-not-sessions)
+5. An expiry on a holiday shifts to the **previous** trading day, and stored expiries are recomputed when the list changes. [§7](#7-expiry-day-scheduled-weekday-shifted-to-the-previous-trading-day)
+6. The expiry weekday is a dated lookup: NIFTY weeklies were Thursday and are Tuesday for contracts expiring from 1 Sep 2025. [§8](#8-the-expiry-weekday-has-changed-it-is-a-dated-table)
+7. Key by IST date; session times are per-date config. [§9](#9-session-times-and-ist)
+8. Never infer holidays from missing or present bhavcopy files. [§10](#10-never-infer-holidays-from-missing-bhavcopy-days)
 
 ## 1. The calendar is dated config with a source
 
@@ -108,6 +111,15 @@ Examples, derived from the 2026 clearing list:
   and 1 Apr is a clearing holiday. Trades from 1 Apr also settle on 2 Apr, so
   one settlement date carries two trade dates.
 
+```python
+def settlement_date(trade_date, clearing_days):
+    d = trade_date + timedelta(days=1)
+    while d not in clearing_days:       # weekends, trading and clearing holidays absent
+        d += timedelta(days=1)
+    return d
+# 2026-02-18 -> 02-20 (19 Feb is a clearing holiday); 2026-03-30 -> 04-02
+```
+
 **Why.** "T+1 = next trading day" gives the wrong pay-in date, margin-funding
 interest and sell-before-delivery check. The error sits only around clearing
 holidays, so tests on normal weeks pass.
@@ -179,6 +191,15 @@ Examples from NSE F&O bhavcopy:
 - NIFTY weekly for Tue 10 Nov 2026 expired on Mon 9 Nov. The weekly for
   Tue 24 Nov 2026 expires on Mon 23 Nov.
 
+```python
+def expiry_date(scheduled, regular_trading_days):
+    d = scheduled
+    while d not in regular_trading_days:   # special sessions are not in this set (§5)
+        d -= timedelta(days=1)
+    return d
+# Tue 2026-11-10 is a holiday -> Mon 2026-11-09; next-day shifting would give Wed 11 Nov
+```
+
 **Why.** Two errors are common:
 - **Shifting forward.** Rolling to the next trading day gives the wrong date
   and overstates time to expiry for every contract in the series.
@@ -198,17 +219,14 @@ The expiry **instant** (time of day) is a separate question; see
 ## 8. The expiry weekday has changed; it is a dated table
 
 **Rule.** Look up the expiry weekday by (exchange, index, contract type, expiry
-date). Never use a constant.
+date). Never use a constant. Read
+[references/expiry-weekday-history.md](references/expiry-weekday-history.md) for
+the full dated table (Sep 2023 to Sep 2025, NSE and BSE, with circular IDs).
 
-| Effective for | Change | Source |
-|---|---|---|
-| from 4 Sep 2023 | BANKNIFTY weekly Thursday → Wednesday; first Wednesday expiry 6 Sep 2023 | NSE/FAOP/57540 |
-| from 20 Nov 2024 | One weekly benchmark index per exchange | see [nse-options-mechanics](../nse-options-mechanics/SKILL.md) |
-| contracts expiring after 3 Jan 2025 | SENSEX weekly Friday → Tuesday; monthly last Friday → last Tuesday | BSE 20241128-70 |
-| from EOD 1 Jan 2025 | BANKNIFTY (last Wed), FINNIFTY (last Tue), MIDCPNIFTY (last Mon), NIFTYNXT50 (last Fri) monthly → last Thursday; NIFTY unchanged on Thursday | NSE/FAOP/65336 |
-| proposed 4 Apr 2025 | Move to Monday. **Deferred on 27 Mar 2025 and never applied** | NSE/FAOP/66938, NSE/FAOP/67338 |
-| contracts expiring on or after 1 Sep 2025 | NSE: all equity derivatives on Tuesday, monthly on last Tuesday; first Tuesday weekly 2 Sep 2025 | SEBI/HO/MRD/TPD-1/P/CIR/2025/76 (26 May 2025); NSE/FAOP/68589, 68747 (<https://nsearchives.nseindia.in/content/circulars/FAOP68747.pdf>) |
-| contracts expiring after 1 Sep 2025 | BSE: SENSEX weekly Tuesday → Thursday; monthly → last Thursday | BSE 20250617-11, 20250623-59 |
+For NIFTY weeklies in the 2024–2026 window:
+- before 1 Sep 2025: **Thursday**;
+- contracts expiring on or after **1 Sep 2025**: **Tuesday** (NSE), first Tuesday
+  weekly 2 Sep 2025.
 
 **Why.** A backtest of NIFTY weeklies over 2024–2026 with "Tuesday" throughout
 places every pre-September-2025 expiry two days early. Code written during
@@ -266,6 +284,13 @@ days for the range. Report both differences.
 - **Provenance.** Fail the build on any calendar row without a source.
 
 ## Scope
+
+Owners elsewhere: session timings, closing price and T+1 phase-in are in §21 of
+[backtest-engine-correctness](../backtest-engine-correctness/SKILL.md). The
+expiry instant and settlement price are in
+[nse-options-mechanics](../nse-options-mechanics/SKILL.md). Bhavcopy file
+formats are in
+[nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).
 
 Informational engineering guidance, not investment advice. Holiday lists,
 special sessions and expiry rules are set by exchange and clearing circulars,

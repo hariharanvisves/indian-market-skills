@@ -1,6 +1,6 @@
 ---
 name: nse-universe-survivorship
-description: Building survivorship-free NSE index universes — reconstructing point-in-time membership from index-change press releases, why an ever-member union is a weaker claim, press-release parser defects, and deriving ticker renames without merging distinct companies. Use when backtesting over Nifty 50/100/200/500 or other NSE indices, ingesting NSE index-change releases or constituent CSVs (ind_nifty50list.csv), building a symbol rename map, handling delisted tickers, or when a backtest return looks too good against the index's own buy-and-hold.
+description: Building survivorship-free NSE index universes — reconstructing point-in-time membership from index-change press releases, why an ever-member union is a weaker claim, press-release parser defects, constituent CSV sources, and deriving ticker renames without merging distinct companies. Use when backtesting over Nifty 50/100/200/500 or other NSE indices, using today's constituent list on past dates, ingesting NSE index-change releases or constituent CSVs (ind_nifty50list.csv), building a symbol rename map, handling delisted tickers, or when a backtest return looks too good against the index's own buy-and-hold, even if the user never says "survivorship". Prices and corporate actions are nse-bhavcopy-corporate-actions.
 license: MIT
 compatibility: Applies to NSE index data (nseindia.com, niftyindices.com) and NSE equity tickers. BSE needs a different, browser-driven route.
 metadata:
@@ -12,6 +12,11 @@ metadata:
 
 # NSE Universe Survivorship
 
+Builds the set of stocks an index actually held on each date. Today's constituent
+list on past dates inflates returns and a wider list inflates them more. The fixes:
+point-in-time membership, honest labelling of weaker claims, and rename maps that
+never merge distinct companies.
+
 Goes deeper than §2 of [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md),
 which states the basic bias. Read that first. Price-side defects (formats,
 series, corporate actions) are in
@@ -19,6 +24,19 @@ series, corporate actions) are in
 
 Endpoint paths and field names below were observed to work; NSE changes them
 without notice. Re-probe before relying on one.
+
+## Core rules
+
+1. Never apply today's constituents to past dates; a wider current list (Nifty 200) is worse than Nifty 50, not a mitigation. [§1](#1-todays-constituents-on-history-inflate-returns-and-a-wider-universe-is-worse)
+2. Reconstruct membership by walking **backwards** from today's verified list, inverting each change event. [§2](#2-point-in-time-membership-reconstruct-backwards-from-todays-anchor)
+3. Filter `content.field_type` case-insensitively (`NSE INDICES` became `NSE Indices` in May 2025). [§2](#2-point-in-time-membership-reconstruct-backwards-from-todays-anchor)
+4. Zero warnings is not correctness: a deleted 1-for-1 swap is invisible. A build that warns is quarantined, not written. [§3](#3-zero-warnings-proves-no-unbalanced-gap-nothing-more)
+5. An ever-member union is a weaker claim, and survivorship bias in reverse if backtested as the index. Label it. [§4](#4-an-ever-member-union-is-a-weaker-claim-not-point-in-time)
+6. Parse press releases by layout; never take "the last all-caps token". [§5](#5-press-release-parser-defects)
+7. Derive index-name patterns from the archive's distinct strings, not the modern spelling. [§6](#6-index-names-drift-factor-indices-sharing-the-number-are-different-indices)
+8. Fetch each constituents CSV by its pinned filename and reject a body that starts with `<`. [§7](#7-constituent-lists-nse-csvs-strategy-indices-bse)
+9. A rename fold is an identity claim: ISIN wins, compare issuers (first 7 characters) not full ISINs, no many-to-one folds. [§8](#8-ticker-renames-a-map-applied-to-prices-is-an-identity-claim)
+10. Report the earliest covered date, and symbols requested versus used, on every result. [§2](#2-point-in-time-membership-reconstruct-backwards-from-todays-anchor), [§9](#9-absence-is-not-delisting-nothing-serves-retired-tickers)
 
 ## 1. Today's constituents on history inflate returns, and a wider universe is worse
 
@@ -50,6 +68,21 @@ walk forward from an assumed old list.
 Why: forward walks compound gaps invisibly. A backward walk from a known-correct
 anchor makes a missed circular show up as an impossible inversion ("included X
 was not present to remove").
+
+```python
+def members_asof(anchor, events, date):
+    # anchor: today's verified set; events: [(effective, included, excluded)]
+    cur = set(anchor)
+    for eff, inc, exc in sorted(events, key=lambda e: e[0], reverse=True):
+        if eff <= date:
+            break
+        if not inc <= cur:
+            raise ValueError(f"included {sorted(inc - cur)} was not present to remove")
+        cur = (cur - inc) | exc
+    return cur
+```
+
+A missed circular surfaces as the `ValueError`, not as a wrong list.
 
 Source: NSE's press-release CMS endpoint,
 `GET https://www.nseindia.com/api/press-release-cms20?fromDate=DD-MM-YYYY&toDate=DD-MM-YYYY`
@@ -129,41 +162,18 @@ it can be validated as PIT at any date.
 ## 5. Press-release parser defects
 
 Rule: a row parser that takes "the last all-caps token" is wrong for at least two
-layouts.
-
-1. **Trailing token eats the Effective Date column.** Releases carrying a per-row
-   date column print `Zuari Industries Limited  ZUARIAGRO  April 9, 2012`. The
-   last `[A-Z0-9&-]{2,}` token is `2012`. This yields a wrong symbol rather than
-   a failure, lands in both `included` and `excluded`, and loses the release's
-   real changes. Strip a trailing `Month D, YYYY` first and reject all-digit
-   tokens.
-2. **G-Sec/SDL/bond releases share the channel.** They key on ISIN with a Maturity
-   Date column and no Symbol column, so the parser scrapes a maturity year as a
-   symbol. Screen fixed-income releases out in the shared parser, not in one
-   caller: a caller reading PDFs off disk never sees the API summary that the
-   other caller filtered on.
-3. **Section nesting.** Releases nest a numbered prose heading (`1) Replacements
-   on account of semi-annual review`), a lettered index heading (`a) Nifty 50`),
-   then tables. Treating the numbered level as the index collapsed one release
-   into five pseudo-indices. Use the lettered heading.
-4. **Effective date placement.** It appears in the title (`w.e.f. April 02, 2018`)
-   or the body (`shall become effective from March 27, 2020`), sometimes wrapped
-   mid-date. Collapse whitespace first.
-5. **Name-only releases.** Older releases list company names with no symbol
-   column. "Last token of the row" returns `LTD`. Resolve names by **exact match
-   or an explicit alias only**; fuzzy matching swaps Reliance Industries for
-   Reliance Infrastructure.
-6. **Same release, two hosts.** NSE CMS and niftyindices serve one document under
-   different filenames with identical content. Dedupe on content
-   `(effective, index, included, excluded)`, not filename; applying a change twice
-   cannot be inverted.
+layouts. A trailing `Month D, YYYY` effective-date column yields the year as a
+symbol, and G-Sec/SDL/bond releases sharing the channel yield a maturity year.
+Name-only releases need exact match or an explicit alias, never fuzzy matching.
+The same release served under two filenames must be deduped on content
+`(effective, index, included, excluded)`. Read
+[references/press-release-parser-defects.md](references/press-release-parser-defects.md)
+for all six layouts when writing or debugging the parser.
 
 Detector: enumerate every distinct symbol your parser ever emitted and reject
-anything all-digit, a single character, or in the legal-suffix set. Repair
-already-parsed events only where the defect signature is provable (an all-digit
-symbol), never "re-parse everything", because re-parsing a de-duplicated sibling
-refills it and doubles rows (88 duplicates against zero in one corpus). Abort the
-write if the result contains any duplicate row.
+anything all-digit, a single character, or in the legal-suffix set. Abort the
+write if the result contains any duplicate row; repair already-parsed events only
+where the defect signature is provable, never "re-parse everything".
 
 ## 6. Index names drift; factor indices sharing the number are different indices
 
@@ -187,23 +197,13 @@ midsmallcap 400 date from about 2016, large-midcap 250 from 2018.
 
 ## 7. Constituent lists: NSE CSVs, strategy indices, BSE
 
-- NSE archive CSVs under `nsearchives.nseindia.com/content/indices/` work with a
-  browser User-Agent and no cookies, but filenames are **inconsistent per index**
-  (`ind_nifty50list.csv` versus `ind_nifty200Momentum30_list.csv`). Pin each
-  explicitly. A derived name returns an HTML error page; reject a body that starts
-  with `<`.
-- **Strategy/factor indices** (Alpha 50, Value 20, High Beta 50) are not in those
-  CSVs (404 under every filename tried). Use the live-site market-data API after
-  loading a page for cookies. Response data sat one level deeper than expected,
-  the first row is the index itself, and some index names have two spellings where
-  only one returns rows.
-- Old third-party GitHub mirrors of constituents lists are years stale.
-- **BSE has no plain-HTTP source.** It needs browser automation: constituents come
-  from one host keyed on scrip code with no ticker, the scrip master from a second
-  host, and the two block cross-origin reads. Join on scrip code. BSE sector
-  indices are classifications (hundreds of names), not curated baskets. Some
-  endpoints return only the top 30 for every index, which looks plausible and
-  silently truncates.
+NSE archive CSVs under `nsearchives.nseindia.com/content/indices/` work with a
+browser User-Agent and no cookies, but filenames are **inconsistent per index**
+(`ind_nifty50list.csv` versus `ind_nifty200Momentum30_list.csv`): pin each
+explicitly, because a derived name returns an HTML error page. Strategy indices
+and BSE need other routes; read
+[references/constituent-lists-and-sources.md](references/constituent-lists-and-sources.md)
+before fetching either.
 
 Detector: reject a body that starts with `<`, and a list shorter than the index's
 member count.
@@ -215,29 +215,13 @@ history silently. But a wrong fold transplants one company's price history, and
 its index membership, onto another. Eight of 95 Nifty 50 ever-members traded under
 a different ticker in the window.
 
-Rules, each measured:
+Two rules stay here. The other eight (ISIN reach, no chaining, date adjacency,
+many-to-one folds, ambiguous successors, uniqueness, series set, regeneration) are
+in [references/ticker-rename-rules.md](references/ticker-rename-rules.md): read it
+when generating or reviewing a rename map.
 
-1. **ISIN reach depends on which files you load.** The legacy bhavcopy carries ISIN
-   from about late 2011 to 5 Jul 2024 and UDiFF carries it after; only
-   `sec_bhavdata_full` has none (formats in
-   [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) §1). A pipeline that
-   switched to `sec_bhavdata_full` in 2019 loses ISIN for later renames. A rename is
-   ISIN-derivable only if the old ticker traded in an ISIN-bearing window of the
-   files you loaded.
 2. **ISIN wins conflicts.** Where price continuity and ISIN disagree, the ISIN is on
    the correct final ticker and continuity stopped at an intermediate hop.
-3. **Do not chain hops.** Chaining assumes every intermediate is in the map; one
-   missing hop silently yields a stale ticker. Flatten at generation. A map where
-   several sources share one ISIN and point to one target is a legitimately
-   flattened chain, not a collision.
-4. **Date adjacency is not evidence.** In any 20-session window the exchange lists
-   dozens of unrelated IPOs, ETFs and rights entitlements (46 candidates for one
-   symbol). Suffixed lines (`-RE`, `-BE`) are never successors.
-5. **Reject many-to-one folds.** Two different old symbols claiming one target
-   means at least one is wrong. Co-trading on the same session proves distinct
-   issuers (one pair overlapped on 4,168 sessions). Measure co-trading using the
-   same series filter as the generator, or you get false overlaps from rights
-   lines.
 6. **Compare issuers, not full ISINs.** An ISIN's first seven characters name the
    issuer; the last four the security. A re-denomination (face value change) keeps
    the issuer and changes the suffix: `INE450D01013 -> INE450D01021` is one
@@ -245,18 +229,13 @@ Rules, each measured:
    Refuse only when both are known, differ at issuer level and are disjoint.
    Reject malformed identifiers (`IN0000000000`) rather than truncating them, or
    every placeholder matches every other. Do not forget the INF (fund) prefix.
-7. **Leave ambiguous unapplied.** More than one qualifying successor is a human
-   decision from a source document. In one corpus 247 such cases were recorded and
-   never applied.
-8. **Uniqueness is not identity.** Promoting a candidate because it is the only
-   survivor converts every killed rival into a confident rename with no evidence.
-   Track a separate `identityConfirmed` flag; "applied" is not "confirmed".
-9. **Series set for "is this listing alive".** Use the same-listing series
-   ([nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md) §2). Dropping them fabricates a termination date and opens a false
-   successor window.
-10. **Regeneration is a semantic change.** A wider price corpus reduced candidate
-    counts without raising identity certainty and promoted ambiguous entries to
-    confident ones. Diff the confirmed set before adopting a regenerated map.
+
+```python
+def same_issuer(old_isin, new_isin):
+    return old_isin[:7] == new_isin[:7]   # first 7 name the issuer, last 4 the security
+
+same_issuer("INE450D01013", "INE450D01021")   # True: re-denomination, one listing
+```
 
 Detector: assert the confirmed set **by name**. A counts-only contract (`564
 applied / 262 confirmed`) stays green when six confirmed renames leave and nine
