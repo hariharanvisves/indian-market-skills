@@ -5,7 +5,7 @@ license: MIT
 compatibility: Verified 2026-11-11 against the gazetted Income-tax Act 2025, the Finance Act 2026 (No. 4 of 2026) and the Union Budget memoranda for 2019, 2020, 2022, 2024, 2025 and 2026, for tax year 2026-27; re-verify before use, as rules change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -37,9 +37,8 @@ Rates, the 12-month boundary, set-off and grandfathering arithmetic: [indian-cap
 FY 2025-26 and earlier returns follow the 1961 Act, and ITR JSON fields still
 carry 1961 numbers (the AY 2026-27 ITR-2 schema has `Dividend22f`,
 `CapitalLossBuyBackShares` and `LossSec94of7Or94of8`). The 2025 text below is
-checked against the gazetted Act (Act 30 of 2025). The bracketed numbers are
-mapped by content, so check one against the 1961 text before you cite it in a
-filing. Budget memoranda cited as "memo YYYY" are at
+checked against the gazetted Act (Act 30 of 2025). The bracketed numbers were
+checked against the 1961 text on incometaxindia.gov.in (as amended to Finance Act 2025). Budget memoranda cited as "memo YYYY" are at
 `https://www.indiabudget.gov.in/budget<YYYY-YY>/doc/memo.pdf`. The 2026 memo is
 at [indiabudget.gov.in/doc/memo.pdf](https://www.indiabudget.gov.in/doc/memo.pdf).
 
@@ -81,7 +80,7 @@ takes the 100 originals first and then 50 bonus shares:
 
 | Buyback date | Shareholder's treatment | Source |
 |---|---|---|
-| before 1 Oct 2024 | Exempt [§10(34A)]. The company paid additional tax at 20% of distributed income [§115QA]. Listed companies were covered only from 5 Jul 2019. | memo 2019; memo 2024 |
+| before 1 Oct 2024 | Exempt [§10(34A)]. The company paid additional tax at 20% of distributed income [§115QA]. A listed company's buyback is covered only if its public announcement was made after 5 Jul 2019 (Taxation Laws (Amendment) Act 2019 §7). One announced on or before that date is outside §115QA, so the holder's §10(34A) exemption does not reach it. | memo 2019; memo 2024; [Taxation Laws (Amendment) Act 2019 §7](https://egazette.gov.in/WriteReadData/2019/214648.pdf) |
 | 1 Oct 2024 – 31 Mar 2026 | **Whole consideration** is a deemed dividend [§2(22)(f)], taxed at slab with no expense deduction. The cost of the tendered shares becomes a capital loss, because consideration is deemed nil [§46A]. That loss is STCL or LTCL by holding period. | memo 2024 |
 | from 1 Apr 2026 (tax year 2026-27) | Capital gains: consideration minus cost (§69(1)). §2(40)(f) is omitted, so there is no dividend. | Finance Act 2026 §§35, 42; memo 2026 |
 
@@ -98,10 +97,15 @@ by holding period.
 ```python
 from datetime import date
 
-def buyback_heads(buyback_date, qty, price, cost_per_share, listed=True, promoter=False):
+def buyback_heads(buyback_date, qty, price, cost_per_share, listed=True, promoter=False,
+                  announcement_date=None):
     proceeds, cost = qty * price, qty * cost_per_share
-    if listed and buyback_date < date(2019, 7, 5):
-        raise ValueError("listed buyback before 5 Jul 2019: not covered by the exempt regime")
+    if listed and buyback_date < date(2024, 10, 1):
+        if announcement_date is None:
+            raise ValueError("listed buyback: announcement date needed")
+        if announcement_date <= date(2019, 7, 5):
+            raise ValueError("listed buyback announced on or before 5 Jul 2019: "
+                             "outside §115QA; capital-gains treatment not modelled here")
     if buyback_date < date(2024, 10, 1):
         return {}                                      # exempt for the holder
     if buyback_date < date(2026, 4, 1):
@@ -115,12 +119,14 @@ buyback_heads(date(2025, 1, 15), 20, 60, 40)   # dividend 1,200 and capital loss
 buyback_heads(date(2026, 5, 10), 20, 60, 40)   # capital gain 400
 buyback_heads(date(2026, 5, 10), 20, 60, 40, promoter=True)   # capital gain 400 plus the flag
 buyback_heads(date(2019, 1, 1), 20, 60, 40, listed=False)     # {}: exempt, unlisted
-buyback_heads(date(2019, 1, 1), 20, 60, 40)                   # ValueError: listed, before 5 Jul 2019
+buyback_heads(date(2023, 3, 1), 20, 60, 40, announcement_date=date(2023, 2, 1))   # {}: exempt, listed
+buyback_heads(date(2019, 8, 1), 20, 60, 40, announcement_date=date(2019, 7, 5))   # ValueError: announced on 5 Jul 2019
+buyback_heads(date(2023, 3, 1), 20, 60, 40)                   # ValueError: announcement date needed
 ```
 
 The flag only marks a promoter holder. Apply the additional-tax table below to the
-gain by its holding period. A listed buyback before 5 Jul 2019 falls outside the
-exempt regime, so the function refuses it rather than return an empty result.
+gain by its holding period. A listed buyback announced on or before 5 Jul 2019 falls outside
+§115QA and the exempt regime, so the function refuses it rather than return an empty result.
 
 **Promoter additional tax** (§69(2)–(3), as substituted by Finance Act 2026 §42).
 It applies only to a buyback under Companies Act §68 where the holder is a
@@ -132,7 +138,7 @@ SEBI Buy-Back Regulations 2018. The extra tax sits on top of the normal rate:
 | Not a domestic company (includes individuals) | +10% | +17.5% |
 | Domestic company | +2% | +9.5% |
 
-That additional tax carries a 12% surcharge (Finance Act 2026 §2(6)). The memo
+That additional tax carries a 12% surcharge (Finance Act 2026 §3(6)). The memo
 puts the result at an effective 30% for promoters and 22% for promoter companies.
 
 **Traps.**

@@ -21,5 +21,5 @@ by content against the gazetted text. ITR JSON field names may keep 1961 numbers
 | Presumptive business income | §44AD | §58 |
 | Tax audit | §44AB | §63 |
 
-The 1961 numbers for §36(1)(xv), §37(1), §70 and §71 were not re-read against
-the 1961 text. The rest are quoted in the ICAI Guidance Note.
+§36(1)(xv), §37(1) and §71 are as printed in the CBDT ITR-3 form and instructions;
+the §70 number was not re-read against the 1961 text. The rest are quoted in the ICAI Guidance Note.

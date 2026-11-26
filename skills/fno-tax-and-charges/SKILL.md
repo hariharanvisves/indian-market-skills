@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rates verified 2026-11-11 against NSE circular 02/2026, the Finance Act 2026 and Zerodha and Upstox charge schedules; sections against the gazetted Income-tax Act 2025; turnover against the ICAI Guidance Note on Tax Audit (Revised 2026). Re-verify before use, as rates change with each Finance Act and exchange circular.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -37,8 +37,8 @@ holds both structures. Cash-segment equity lives elsewhere (see Scope).
 | STT on sale | **0.05%** | **0.15%** | **sell only** | futures: traded price × qty; options: **premium** × qty |
 | STT on exercise | — | **0.15%** | **purchaser** (the long holder) | **intrinsic value** = call: settlement − strike; put: strike − settlement, × qty |
 | Exchange transaction charge (NSE) | 0.00183% | 0.03553% | both | futures: turnover; options: **premium** |
-| SEBI fee | ₹10 per crore | ₹10 per crore | both | turnover; options: premium turnover as brokers bill it (unverified against SEBI's regulation) |
-| Stamp duty | 0.002% | 0.003% | **buy only** | buy-side turnover; options: premium turnover as brokers bill it (unverified against the Stamp Act) |
+| SEBI fee | ₹10 per crore | ₹10 per crore | both | turnover; options: premium traded, plus notional value of contracts exercised or assigned (SEBI (Stock Brokers) Regulations 2026, reg. 41(1), Explanation (B)) |
+| Stamp duty | 0.002% | 0.003% | **buy only** | buy-side turnover; options: premium paid by the buyer (Indian Stamp Act §21 proviso (i)) |
 | GST | 18% | 18% | both | brokerage + SEBI fee + transaction charge |
 
 Sources: STT rates from NSE circular 02/2026 (NSE/FATAX/73524, 31 Mar 2026, <https://nsearchives.nseindia.in/content/circulars/FATAX73524.pdf>), transaction charges (0.00183% futures, 0.03553% options premium, including ₹0.01/crore IPFT) from NSE/FA/73061 (27 Feb 2026, effective 1 Mar 2026, <https://nsearchives.nseindia.in/content/circulars/FA73061.pdf>),
@@ -129,7 +129,7 @@ The Income-tax Act 2025 is in force from 1 April 2026 (§1(3)). FY 2025-26
 the 2025 Act, the same date the STT rise took effect. ITR JSON field names may keep
 1961 numbers. This skill cites the 2025 number first, with the 1961 number where
 useful (business income §26 [§28], speculation §66(31) [§43(5)], STT deduction
-§32(k) [§36(1)(xv); 1961 number not re-read], tax audit §63 [§44AB], presumptive §58 [§44AD]). The full
+§32(k) [§36(1)(xv)], tax audit §63 [§44AB], presumptive §58 [§44AD]). The full
 table, with the not-yet-re-read 1961 numbers flagged, is in
 [references/act-2025-sections.md](references/act-2025-sections.md).
 
@@ -187,7 +187,8 @@ Three asymmetries US-trained code misses:
 
 Turnover is **not** contract value and **not** net P&L. The ICAI Guidance Note
 on Tax Audit (Revised 2026), para 5.11(b), sets it "only and only for the
-purpose of computing turnover for tax audit":
+purpose of computing turnover for tax audit". The note says its method is solely
+for determining §44AB applicability. The method:
 
 1. The total of favourable and unfavourable differences on squared-off trades,
    meaning the **sum of absolute** settled differences.

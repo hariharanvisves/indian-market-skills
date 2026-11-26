@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to resident-individual returns on the Indian e-filing portal. Form, schedule and rule facts verified 2026-11-11 for AY 2026-27 and tax year 2026-27. Not tax advice; rates and thresholds are deliberately left to the capital-gains skill and the statute.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -189,7 +189,7 @@ LTCG = 0; expect STCG unchanged and 50 carried forward.
   table silently mis-converts. For capital gains the month-before-transfer rate is
   settled for the sale side only; whether cost converts at the purchase-side rate is
   unsettled, per [foreign-equity-for-residents](../foreign-equity-for-residents/SKILL.md#4-currency-conversion-sbi-tt-buying-rate-month-before).
-- **Form 67** (Form 44 from tax year 2026-27) must be filed within 12 months
+- **Form 67** (Form 44 from tax year 2026-27; Rule 76(12); Rule 128(9)) must be filed within 12 months
   after the end of the financial year of the income, with the return itself filed
   under §139(1) or §139(4); for an updated return, by the date that return is filed.
   Filing it before the return is safe practice, not a legal precondition; never
@@ -199,7 +199,7 @@ LTCG = 0; expect STCG unchanged and 50 carried forward.
 - In FSI, relief = min(tax paid abroad, Indian tax on that income), computed
   separately for each source of income per country. Leaving the
   Indian-tax column at 0 **silently zeroes the credit with no validation error**;
-  compute it as the marginal-rate tax on the foreign income.
+  compute it as the Indian tax payable on that income (Rule 76(7)(a); Rule 128(7) for AY 2026-27 and earlier). The rule names neither a marginal nor an average rate; for non-treaty countries §160(3)(c) uses the average Indian rate (Indian tax divided by total income).
 - Part B-TTI's foreign-asset question defaults to No even with Schedule FA filled;
   a false No is a black-money-law exposure. Warn loudly.
 - What goes into Schedule FA, RSU and US-stock cost, LRS/TCS:
@@ -307,8 +307,8 @@ remaining instalments, so the quarterly accrual
 split of capital gains and dividends must be tracked and is also entered in the
 portal's quarterly accrual table. The §112A exemption is annual, applied to the
 year's total, not per instalment. Late-filing interest (§234A; §423) is charged
-on tax net of advance tax, TDS/TCS, §89/§90/§91 relief and MAT/AMT credit only;
-self-assessment tax is not in that list and must not be netted into that base.
+on tax net of advance tax, TDS/TCS, §89/§90/§91 relief and MAT/AMT credit.
+The statutory list does not name self-assessment tax, but CBDT Circular 2/2015 (following CIT v. Prannoy Roy, 309 ITR 231 (SC)) says no §234A interest is charged on self-assessment tax paid before the due date: net self-assessment tax paid on or before the due date, not tax paid after it.
 
 **Why.** Each of these changes the interest figure; one wrong and the return
 shows interest not owed, or omits interest that is.
@@ -354,9 +354,8 @@ cannot be re-verified and silently applies to the wrong year.
 **Rule.** The due date (§263(1)(c); §139(1) in 1961 numbering) depends on the assessee.
 The Act as passed (Gazette, Act No. 30 of 2025,
 https://egazette.gov.in/WriteReadData/2025/265620.pdf) has 31 July, 31 October and
-30 November. The 31 August row for non-audit business cases comes from the e-filing
-portal FAQ for AY 2026-27 and the Finance Act 2026 change to that table; the enacted
-Finance Act 2026 text was not read (unverified).
+30 November. The 31 August row for non-audit business cases comes from the Finance Act 2026
+(Act No. 4 of 2026, s.66(a), https://egazette.gov.in/WriteReadData/2026/271439.pdf), which substitutes the §263(1)(c) table.
 
 | Assessee | Due date |
 |---|---|
@@ -368,8 +367,7 @@ Finance Act 2026 text was not read (unverified).
 The clock keys on whether the return has a **business head** (presumptive, books, or
 F&O, even at a loss), not on the form alone. Late fee, §234A interest and the
 `ItrFilingDueDate` field all read it. Check CBDT extensions before fixing a date;
-Circular 07/2026 reportedly moved the AY 2026-27 audit-case date to 21 Nov 2026
-(unverified).
+CBDT Circular 07/2026 (28 Sep 2026) moved the AY 2026-27 return due date for the 31 October (audit) row to 21 Nov 2026 and the §44AB audit-report date to 21 Oct 2026 (https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-09/Circular-7-2026.pdf).
 
 A belated return (§263(4); §139(4)) cannot select the old regime and carries no
 capital or business loss forward; a revised return has a 12-month window and a fee after 9 months. The

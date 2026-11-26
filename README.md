@@ -12,7 +12,7 @@
   <a href="https://github.com/hariharanvisves/indian-market-skills/stargazers"><img src="https://img.shields.io/github/stars/hariharanvisves/indian-market-skills?style=flat-square&color=ff9933&label=stars" alt="Stars"></a>
   <a href="https://github.com/hariharanvisves/indian-market-skills/releases"><img src="https://img.shields.io/github/v/release/hariharanvisves/indian-market-skills?style=flat-square&color=0f2a4a&label=release" alt="Release"></a>
   <a href="https://github.com/hariharanvisves/indian-market-skills/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/hariharanvisves/indian-market-skills/validate.yml?style=flat-square&label=validate" alt="Validate"></a>
-  <img src="https://img.shields.io/badge/skills-19-2fbf71?style=flat-square" alt="19 skills">
+  <img src="https://img.shields.io/badge/skills-21-2fbf71?style=flat-square" alt="21 skills">
   <a href="#install"><img src="https://img.shields.io/badge/works_with-Claude_Code_·_Codex_·_Cursor_·_Gemini-0f2a4a?style=flat-square" alt="Works with Claude Code, Codex, Cursor and Gemini"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license"></a>
 </p>
@@ -23,7 +23,7 @@
 
 <table>
 <tr>
-<td align="center" width="33%"><h3>19 skills</h3>tax, charges, NSE data, statements, backtests, options, broker APIs</td>
+<td align="center" width="33%"><h3>21 skills</h3>tax, charges, NSE data, statements, backtests, options, broker APIs</td>
 <td align="center" width="33%"><h3>4 reviewers</h3>read-only agents that audit your diff, with a slash command each</td>
 <td align="center" width="33%"><h3>Every rate dated</h3>checked against a statute, circular or broker schedule, with its source</td>
 </tr>
@@ -55,7 +55,7 @@ when the task calls for it, and you don't need to change how you prompt.
 installs into Claude Code, Codex, Cursor, Gemini CLI and many other agents:
 
 ```bash
-npx skills add hariharanvisves/indian-market-skills                  # all 19 skills
+npx skills add hariharanvisves/indian-market-skills                  # all 21 skills
 npx skills add hariharanvisves/indian-market-skills --list           # browse first
 npx skills add hariharanvisves/indian-market-skills --skill indian-capital-gains-tax
 ```
@@ -104,7 +104,7 @@ codex plugin add indian-market-skills@indian-market-skills
 gemini extensions install https://github.com/hariharanvisves/indian-market-skills
 ```
 
-Gemini gets the 19 skills and `AGENTS.md`. The reviewer agents use Claude Code
+Gemini gets the 21 skills and `AGENTS.md`. The reviewer agents use Claude Code
 tool names, so Gemini does not load them.
 
 </details>
@@ -156,6 +156,8 @@ Restart the agent session and the skill is available.
 | [`fno-tax-and-charges`](skills/fno-tax-and-charges/) | F&O and intraday as business income (non-speculative vs speculative), ITR-3, tax-audit turnover, dated F&O STT, stamp duty and exchange charges |
 | [`corporate-action-taxation`](skills/corporate-action-taxation/) | Cost basis and holding period across bonus, split, rights, demerger and merger; buybacks in three dated regimes; dividend and bonus stripping |
 | [`foreign-equity-for-residents`](skills/foreign-equity-for-residents/) | US stocks and RSUs for resident Indians: 24-month threshold, SBI TT rate conversion, LRS and TCS, DTAA withholding, Schedule FA on a calendar year |
+| [`non-equity-capital-gains`](skills/non-equity-capital-gains/) | Land, buildings, gold, unlisted shares and depreciable assets: holding periods, the 23 Jul 2024 rate change and the indexation option, CII, stamp-duty value, and the §54 / §54F / §54EC exemptions |
+| [`nps-taxation`](skills/nps-taxation/) | NPS contributions by regime (only the employer deduction survives the new regime), 14% vs 10% employer limits, the ₹7.5 lakh perquisite cap, the 60% exempt lump sum and the PFRDA 80% option, partial withdrawals, annuity income |
 
 ### Costs and valuation
 
@@ -247,7 +249,9 @@ They cause silent errors that push results the wrong way:
   On 2026-11-11 the suite ran three times in full on Sonnet. A grader also read
   every answer against its expectations: 94 of 103 were correct, 5 partial and
   4 wrong. Each miss led to a fix, either clearer skill wording or a trigger phrase
-  (9 skills) or a corrected check (17 evals). The last full run passed 99 of 103.
+  (9 skills) or a corrected check (17 evals). The last full run, on 2026-11-26,
+  passed 113 of 118. All five misses were checks that rejected a correct answer;
+  the checks were fixed and the saved answers now pass.
   Its 4 misses were wording the checks didn't accept, and after fixing those,
   all 103 saved answers pass.
 - **With vs without the plugin.** In a side-by-side run on Sonnet, the same agent passed
@@ -265,7 +269,7 @@ table in your own code, and re-check before relying on any figure here.
 ## Project structure
 
 ```
-skills/<name>/SKILL.md      19 skills (Agent Skills format)
+skills/<name>/SKILL.md      21 skills (Agent Skills format)
 reviewers/<name>.md         4 read-only reviewer agents
 commands/review-*.md        slash commands that run the reviewers
 evals/cases/<name>.json     trigger and answer evals, one file per skill

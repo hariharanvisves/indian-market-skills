@@ -5,7 +5,7 @@ license: MIT
 compatibility: Covers NSE (India) equity and index options. Settlement and session timings change by exchange circular — verify current values before relying on them.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -157,8 +157,10 @@ of the ITM/OTM boundary**.
   the last 30 minutes of continuous trading across exchanges.
 
 Source: SEBI circulars 16 Jan 2026 (para 4.9) and 15 Oct 2026 (para 4.9),
-verified 2026-11-11; the rule before 3 Aug 2026 was not re-verified here. The
-derivation is per segment and comes from the clearing corporation's rules.
+verified 2026-11-11; before 3 Aug 2026, index contracts settled on the index
+value from the last-30-minute VWAP of its constituents, and stock contracts on the
+VWAP of the underlying across exchanges (SEBI Master Circular 30 Dec 2024, Ch. 5
+¶1.1.9, ¶3.1.2.7). The derivation is per segment and comes from the clearing corporation's rules.
 
 **Detector.** Settle a near-the-money contract at expiry from the config for that
 date range; ITM/OTM must flip when the last traded price and the settlement price

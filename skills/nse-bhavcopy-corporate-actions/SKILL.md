@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE cash-market bhavcopy files and the NSE corporate-actions API. Format dates apply to NSE only.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -80,7 +80,7 @@ GS and others on the same day, and mixing series double-counts a day.
 Rule: for "is this listing still alive" (termination dates, rename windows), use a
 **wider** set. Measured over the ISIN-bearing years by checking whether the same
 symbol's other-series row carries the same ISIN as its EQ listing: BE, BZ, BL, IL,
-SM and ST carry the same ISIN as EQ. BL is NSE's block-deals series (gross settlement, no netting; NSE legend of series); IL is read as the inter-institutional series (unverified). Of 151+ series codes,
+SM and ST carry the same ISIN as EQ. BL is NSE's block-deals series (gross settlement, no netting; NSE legend of series); IL was NSE's institutional (inter-institutional deals) series, discontinued from 1 Jul 2018 (NSE/CMTR/37880), so it appears only in older files. Of 151+ series codes,
 the N-series, Y/Z/W series, GS, GB, MF and the like carried different ISINs, so
 they are different instruments.
 
@@ -272,10 +272,10 @@ on any one-bar move near the split ratio.
   remains. In one measurement a cold run took 23.3s and a warm one 3.5s with
   byte-identical output.
 - Yahoo's chart API is unofficial and undocumented. Observed 2026-11-26 on
-  `RELIANCE.NS` with `interval=1d`: `meta.chartPreviousClose` was the close before
-  the range start for `range=1mo` and equalled the first returned bar's close for
-  `5d` and `1y`; `meta.previousClose` was absent. It is not the previous session's
-  close beyond `1d`. Compute the daily change from the last two bar closes, and
+  `RELIANCE.NS` with `interval=1d`: `meta.chartPreviousClose` equalled the
+  first returned bar's close for `5d`, `1mo` and `1y`, and was the previous
+  session's close only for `1d`; `meta.previousClose` was absent. Compute the
+  daily change from the last two bar closes, and
   verify against raw bar closes, not another endpoint of the same app.
 - Yahoo serves nothing for retired NSE tickers (see
   [nse-universe-survivorship](../nse-universe-survivorship/SKILL.md) §9); this

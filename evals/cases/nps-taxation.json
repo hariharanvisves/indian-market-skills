@@ -1,0 +1,130 @@
+{
+  "skill_name": "nps-taxation",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "How much of my employer's NPS contribution is tax-free if I stay in the new tax regime?"
+      },
+      {
+        "prompt": "Is the extra ₹50,000 NPS deduction under 80CCD(1B) still available if I choose the default regime?"
+      },
+      {
+        "prompt": "NPS now allows an 80% lump sum at retirement. Is the whole 80% tax-free?"
+      },
+      {
+        "prompt": "I'm building a salary tax calculator. How should I cap 80CCD(2) for a private-company employee versus a state government employee?"
+      },
+      {
+        "prompt": "Is the pension I get from an NPS annuity taxable, and is buying the annuity itself taxed?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "How do I fill Schedule VI-A and export the deduction totals in ITR-2 JSON?",
+        "owner": "itr-filing-schedules"
+      },
+      {
+        "prompt": "I sold equity mutual fund units after 14 months. Is that LTCG and at what rate?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "What are the STT and stamp duty on a ₹1 lakh delivery buy on NSE?",
+        "owner": "indian-equity-charges"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I work for a private company. Basic plus DA is ₹10,00,000 a year. My employer puts ₹1,30,000 a year into my NPS and I put in ₹1,50,000 of my own. What NPS deduction can I claim under the new regime and under the old regime?",
+      "expectations": [
+        "New regime: only the employer contribution is deductible, the full ₹1,30,000 because the limit for every employer is 14% of basic plus DA (₹1,40,000); the own ₹1,50,000 gets no deduction",
+        "Old regime: employer contribution limited to 10% = ₹1,00,000; own contribution ₹1,00,000 (10% of salary) under the ₹1.5 lakh limit plus ₹50,000 under the extra 80CCD(1B) amount, total ₹2,50,000",
+        "Cites the 14% / 10% split by regime and employer type"
+      ],
+      "must_match": [
+        "(?<![\\d,.])50,?000(?!\\d)|0\\.5 ?lakh",
+        "(?<![\\d,.])2,?50,?000(?!\\d)|(?<![\\d,.])2\\.5 ?(lakh|L)\\b",
+        "(?i)\\b14 ?%",
+        "(?i)\\b10 ?%",
+        "(?i)no deduction[^.]{0,100}(own|employee)|(own|employee)[^.]{0,100}no deduction|(own|employee)[^.]{0,100}\\b(not|nil|zero|nothing|disallowed)\\b[^.]{0,40}(deductible|allowed|claimable|eligible|deduct)"
+      ],
+      "must_not_match": [
+        "(?i)new (tax )?regime(?:(?!old)[^.]){0,150}(own|employee)(?:(?!not)[^.]){0,60}\\s(is|are|can be)\\s+(fully\\s+)?(deductible|allowed)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm a self-employed consultant with gross total income of ₹12,00,000 and I put ₹2,50,000 into NPS this year. I have no other 80C investments. How much can I deduct if I choose the old regime, and what if I stay in the new regime?",
+      "expectations": [
+        "Old regime: own contribution limited to 20% of gross total income (₹2,40,000) but inside the ₹1.5 lakh limit, so ₹1,50,000 plus the extra ₹50,000, total ₹2,00,000; the remaining ₹50,000 is not deductible",
+        "New regime: no deduction for own contributions, and a self-employed person has no employer contribution to claim"
+      ],
+      "must_match": [
+        "(?<![\\d,.])2,?00,?000(?!\\d)|(?<![\\d.,])2 ?lakh\\b|₹2L\\b",
+        "(?i)\\b20 ?%",
+        "(?i)(?<![\\d,])50,?000(?!\\d)[^.]{0,100}(no deduction|not (be )?(deductible|allowed|claimable|eligible)|no (further )?(deduction|relief)|cannot be (claimed|deducted)|can't be (claimed|deducted)|lost)|(not|cannot|can't|no)\\b[^.]{0,40}(deduct|allow|claim)[^.]{0,100}(?<![\\d,])50,?000",
+        "(?i)\\bnew\\b[^.]{0,200}\\b(no|nil|zero|nothing|not)\\b[^.]{0,80}(deduct|allow|claim)|\\b(no|nil|zero|nothing)\\b[^.]{0,40}(deduction|deductible)[^.]{0,120}\\bnew\\b|new regime\\W{0,8}(₹ ?0|nil|zero|nothing)\\b|new regime\\b(?s:.){0,250}\\bno deduction"
+      ],
+      "must_not_match": [
+        "(?i)new (tax )?regime(?:(?!old)[^.]){0,120}\\b(can|may|will) (claim|deduct)(?:(?!not)[^.]){0,60}(2,?50,?000|2,?00,?000|1,?50,?000|50,?000)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "This year my employer contributed ₹4,00,000 to my EPF, ₹3,50,000 to my NPS and ₹1,00,000 to a superannuation fund. Is any of that taxable?",
+      "expectations": [
+        "Adds the three employer contributions (₹8,50,000) and applies the ₹7,50,000 aggregate cap",
+        "Treats the ₹1,00,000 excess as a perquisite, plus the annual accretion (interest or returns) on that excess",
+        "Says the cap is separate from the 14% or 10% NPS deduction limit"
+      ],
+      "must_match": [
+        "(?<![\\d,.])8,?50,?000(?!\\d)|(?<![\\d,.])8\\.5 ?(lakh|L)\\b",
+        "(?i)7,?50,?000|7\\.5 ?(lakh|L)\\b",
+        "(?i)perquisite",
+        "(?i)(excess|above|over|exceeds?)[^.]{0,60}(?<![\\d,.])(1,?00,?000|1 ?lakh)|(?<![\\d,.])(1,?00,?000|1 ?lakh)[^.]{0,60}(excess|perquisite|taxable|over|above)",
+        "(?i)accretion|(interest|dividend|returns?|growth|income)[^.]{0,50}\\b(on|from|earned on|accrued on) (the |that |this )?(excess|surplus|₹?\\s?1,?00,?000|₹?\\s?1 ?lakh)"
+      ],
+      "must_not_match": [
+        "(?i)\\bnone of (it|that|this|these)\\b[^.]{0,20}\\b(is|are) taxable|\\bnothing (here )?is taxable|\\bno part (of it )?is taxable"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I'm a non-government NPS subscriber retiring with a ₹50 lakh corpus. Under the new PFRDA rules I take 80% as lump sum (₹40 lakh) and put ₹10 lakh into an annuity. How much of the lump sum is tax-free?",
+      "expectations": [
+        "Quotes or applies Schedule II Sl. 6(b): the payment must not exceed 60% of the total corpus (₹30 lakh here); PFRDA's 80% lump sum was not matched by a tax change",
+        "Does not call the ₹40 lakh (80%) tax-free: the cautious reading taxes the whole ₹40 lakh; the alternative reading taxes only the ₹10 lakh excess; states which reading it uses or flags the ambiguity",
+        "Says buying the annuity is not itself taxed; the pension is taxed when received"
+      ],
+      "must_match": [
+        "(?i)60 ?%",
+        "(?<![\\d,.])30 ?lakh|(?<![\\d,])30,00,000|₹30L\\b",
+        "(?i)(40 ?lakh|40,00,000|80 ?%|whole|entire|all|10 ?lakh|excess|above 60)[^.]{0,80}\\b(is|are|would be|becomes?|be|stays?|remains?)\\s+(fully |wholly |entirely )?(taxable|taxed|chargeable)|(taxable|taxed|chargeable)[^.]{0,80}(40 ?lakh|40,00,000|10 ?lakh|10,00,000|excess|whole|entire)|\\b(strict|literal)\\b[^\\n]{0,80}\\|\\s*(the )?(whole|entire) ₹ ?40 ?lakh|\\bwhole amount received\\b[^.]{0,40}\\bas income\\b",
+        "(?i)unverified|assum|reading|interpret|uncertain|literal|unclear|not settled|open question|cautious|conservative|depend",
+        "(?i)annuity[^.]{0,80}(not|no|nil)\\b[^.]{0,40}(tax|income)|annuity[^.]{0,60}(exempt|tax[- ]free|not treated as received)"
+      ],
+      "must_not_match": [
+        "(?i)(80 ?%|40 lakh|₹ ?40,00,000)(?!\\d)[^.]{0,40}?\\s(is|are|will be|stays|remains|would be)\\s+(fully |wholly |entirely |completely |all )?(tax[- ]free|exempt)",
+        "(?i)\\ball of (it|the lump sum|that)\\s+(is|would be|will be)\\s+(tax[- ]free|exempt)",
+        "(?i)(?<![\\d,.])(24|32|48) ?lakh[^.]{0,40}(tax[- ]free|exempt)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I've contributed ₹8,00,000 of my own money to NPS and my employer has added ₹4,00,000. The corpus is now ₹20,00,000. How much partial withdrawal is tax-free?",
+      "expectations": [
+        "Limits the exempt partial withdrawal to 25% of the subscriber's own contributions, which is ₹2,00,000",
+        "Explains that employer contributions and returns are not in the base, so it is not 25% of the corpus (₹5,00,000) or of own plus employer (₹3,00,000)"
+      ],
+      "must_match": [
+        "(?<![\\d,.])2,?00,?000(?!\\d)|(?<![\\d.,])2 ?lakh\\b|₹2L\\b",
+        "(?i)25 ?%",
+        "(?i)own contribution|contributions? (made )?by (you|the subscriber|him)|your own"
+      ],
+      "must_not_match": [
+        "(?i)(?<![\\d,])(5,?00,?000|5 ?lakh|3,?00,?000|3 ?lakh)(?!\\d)[^.]{0,30}\\b(is|are|would be|will be)\\s+(tax[- ]free|exempt)"
+      ]
+    }
+  ]
+}

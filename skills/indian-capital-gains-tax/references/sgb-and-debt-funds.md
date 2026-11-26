@@ -12,7 +12,7 @@ Purpose: edge-case rules for SGBs and debt mutual funds, moved out of SKILL.md s
 - **Redemption at RBI maturity is exempt only if an individual held the bond
   from the date of original issue till maturity** (§70(1)(x) of the 2025 Act as
   substituted by the Finance Act 2026, from 1 April 2026; §47(viic) in 1961
-  numbering); earlier redemptions by any individual were exempt. A
+  numbering); earlier redemptions by any individual (not an HUF) were exempt under §47(viic) as it read to 31 Mar 2026, for bonds under the SGB Scheme 2015. A
   secondary-market buyer's redemption, or an early redemption, is a taxable
   capital gain. Omit exempt redemptions from the capital-gains rows
   upstream; do not emit a zero row. Fail loudly if one reaches the schedule writer.
@@ -41,7 +41,7 @@ numbering) changed on **1 April 2026**. From then a fund is specified if it inve
 more** in units of such a fund (the fund-of-funds limb), measured on the annual
 average of the daily closing figures. A tax-year loop over 2023-24 to 2025-26 must
 use the pre-2026 definition, not this one
-([open claim](../../../docs/unverified-claims.md)). Test debt FoF, bond index,
+(up to 31 Mar 2026: a mutual fund investing not more than 35% of its total proceeds in equity shares of domestic companies, on the annual average of daily closing figures; §50AA Explanation (ii) as inserted by the Finance Act 2023 s.24). Test debt FoF, bond index,
 target-maturity, gilt and money-market funds as specified **before** any generic
 FoF, index or international rule; equity-oriented hybrids and arbitrage funds are
 not specified. An unknown or missing MF sub-category must reject (fail closed),

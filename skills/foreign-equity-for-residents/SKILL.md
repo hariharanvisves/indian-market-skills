@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rules verified 2026-11-11 against the Income-tax Act 2025, Finance Act 2026, Income-tax Rules 2026 and the AY 2026-27 ITR-2. Covers FY 2025-26 (1961 Act) and tax year 2026-27 onward (2025 Act). Not tax advice; re-verify each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -25,7 +25,7 @@ Schedule and Form 67 / Rule 128 mechanics by [itr-filing-schedules](../itr-filin
 2. **A US share is not listed in India:** long term only after **more than 24 months** (calendar months), LTCG 12.5% without indexation, STCG at slab, and no ₹1.25 lakh exemption or 31-Jan-2018 grandfathering ([section 3](#3-foreign-shares-are-not-listed-equity-in-india)).
 3. **Convert at the SBI TT buying rate** on the last day of the month before the month of transfer. Never the trade-date spot or an RBI reference rate ([section 4](#4-currency-conversion-sbi-tt-buying-rate-month-before)).
 4. **RSU and ESPP cost is the FMV taxed as perquisite**; the holding period runs from allotment, not grant. Take the INR value from Form 16 ([section 5](#5-rsu-espp-and-esop)).
-5. **LRS TCS is tax paid on your behalf**: in tax year 2026-27, 20% of the excess over ₹10 lakh for investment, with the ₹10 lakh counted cumulatively per PAN per financial year. It is a return credit, never part of cost ([section 2](#2-lrs-limit-and-tcs-on-the-remittance)).
+5. **LRS TCS is tax paid on your behalf**: in tax year 2026-27, 20% of the excess over ₹10 lakh for investment, with the ₹10 lakh counted cumulatively per remitter per financial year. It is a return credit, never part of cost ([section 2](#2-lrs-limit-and-tcs-on-the-remittance)).
 6. **US dividend credit** is the lower of foreign tax and Indian tax, with foreign tax capped at the 25% treaty rate. File **Form 67** (**Form 44** from tax year 2026-27) ([section 6](#6-us-dividends-treaty-rate-and-foreign-tax-credit)).
 7. **Schedule FA covers the calendar year** ending 31 December, with peak and closing values. The ₹20 lakh Black Money Act relief removes the penalty, not the duty to report ([section 7](#7-schedule-fa-calendar-year-peak-and-closing-value)).
 8. **Switch law by year:** FY 2025-26 uses the 1961 Act, Rule 115/128 and Form 67; tax year 2026-27 uses the 2025 Act, Rule 206/76 and Form No. 44.
@@ -79,13 +79,15 @@ foreign-income branches and the FA branch must each test for ROR, not for "resid
   [Master Direction](https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10192)).
   This is a FEMA cap in USD, not a tax threshold.
 - The authorised dealer collects TCS on LRS remittances above **₹10 lakh**, counted
-  **cumulatively per PAN per financial year**, not per remittance. For
+  **cumulatively per remitter per financial year**, not per remittance. The statute
+  aggregates the buyer's remittances in the financial year; it does not name PAN or
+  say how one bank sees another's remittances. For
   purposes other than education or medical treatment, investment included, the
   rate is **20% of the excess** (§394(1) Table Sl. 7(b)). Finance Act 2026 §85(e)
   cut only the education and medical rate, from 5% to 2%, from 1 Apr 2026.
 - For FY 2025-26, Finance Act 2025 §72 raised the §206C(1G) threshold from ₹7 lakh
   to ₹10 lakh ([incometaxindia.gov.in](https://www.incometaxindia.gov.in/w/section-72-94)).
-  The 1961-text 20% rate is unverified here; check §206C(1G) for that year.
+  The §206C(1G) second proviso sets 20% of the excess over ₹10 lakh for purposes other than education or medical treatment ([§206C](https://www.incometaxindia.gov.in/w/section-206c-36)).
 - TCS is **tax paid on your behalf**, not a fee (§390(5)). Claim it as a credit in
   the return. An employee can also ask the employer to count it against salary TDS
   (§392(4)(a)(v) [§192(2B)]).
@@ -101,7 +103,7 @@ first collects nothing, the second collects 20% × 6,00,000 = ₹1,20,000.
 ```python
 from decimal import Decimal
 
-THRESHOLD = 10_00_000                               # whole rupees, cumulative per PAN per FY
+THRESHOLD = 10_00_000                               # whole rupees, cumulative per remitter per FY
 
 def tcs_lrs_investment(cumulative_before, remitted):   # tax year 2026-27, other than education or medical
     over = max(cumulative_before + remitted - THRESHOLD, 0) - max(cumulative_before - THRESHOLD, 0)
@@ -202,7 +204,7 @@ month-end TTBR from a dated, sourced table. A missing rate (a month-end on a wee
 or holiday, when SBI may publish none) must be resolved by the documented fallback
 rule for that case, not by silently swallowing the error and not by interpolating or
 borrowing a neighbouring day's rate in code; without a documented rule, raise a named
-missing-rate error.
+missing-rate error. Rule 206 has no fallback. Rule 207(1)'s "last such published rate may be taken" is written for TDS under Rule 207(2) only, so using it here is an analogy.
 
 ## 5. RSU, ESPP and ESOP
 
@@ -281,20 +283,16 @@ credit = min(withheld_inr, 0.25 * dividend_inr, indian_tax_inr)
   **peak value during the period** and the **closing value**. It also asks for the
   gross amount paid or credited and the gross sale proceeds. Table A2 holds the
   broker or custodial account. Peak needs daily or per-transaction history.
-- Converting closing value at the 31 Dec TTBR and peak at the peak-date TTBR is
-  secondary-source practice, unverified; check the ITR-2 instructions.
+- Closing value converts at the 31 Dec TTBR, peak value at the peak-date TTBR and cost at the investment-date TTBR ([e-filing portal guide](https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-03/Step%20by%20Step%20Guide%20FA%20FSI.pdf)).
 - **Penalty.** Black Money Act §43: ₹10 lakh for an undisclosed or wrongly
-  disclosed foreign asset (unverified at primary source; check
-  [§43](https://www.incometaxindia.gov.in/w/section-43-114)). Finance (No. 2) Act
-  2024 §156 switched off §42/§43 where assets other than immovable property total
-  **≤ ₹20 lakh**, from 1 Oct 2024
-  ([Gazette](https://egazette.gov.in/WriteReadData/2024/255676.pdf)). Finance Act
+  disclosed foreign asset ([§43](https://www.incometaxindia.gov.in/w/section-43-114)).
+  From 1 Oct 2024, §42/§43 do not apply where assets other than immovable property
+  total **≤ ₹20 lakh** (Finance (No. 2) Act 2024 §164,
+  [Gazette](https://egazette.gov.in/WriteReadData/2024/256436.pdf)). Finance Act
   2026 §160 extends that carve-out to prosecution (§49, §50).
 - That relief removes the **penalty, not the duty to report**: the form has no de
   minimis. Finance Act 2026 Chapter IV also creates a Foreign Assets of Small
-  Taxpayers Disclosure Scheme, 2026 (FAST-DS), starting on a notified date; check its
-  status. Reported, not primary-confirmed: notified 14 Aug 2026 (Notification
-  114/2026), in force 16 Aug 2026, declarations by 31 Dec 2026; verify.
+  Taxpayers Disclosure Scheme, 2026 (FAST-DS), in force 16 Aug 2026 under Notification 114/2026 (G.S.R. 732(E), 14 Aug 2026), with declarations due by 31 Dec 2026 and a valuation date of 31 Mar 2026 ([CBDT FAQs](https://www.incometaxindia.gov.in/documents/81799/15520974/FAST-DS-FAQs.pdf)).
 
 **Why.** If FA is built from the FY capital-gains ledger, it misses calendar-year
 holdings. That is the incomplete disclosure the penalty is aimed at.

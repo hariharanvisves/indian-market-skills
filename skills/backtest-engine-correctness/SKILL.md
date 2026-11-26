@@ -5,7 +5,7 @@ license: MIT
 compatibility: Engine-agnostic. NSE rules are dated; each section says which regime applies to which backtest dates.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -29,7 +29,7 @@ A model that reads only this block should avoid the worst mistakes. Rule numbers
 6. No metric may be NaN or Infinity; skip the pair, never substitute 0; Sharpe is null on a short window. [§13](#13-no-metric-may-be-non-finite-skip-the-pair-never-substitute-0), [§14](#14-sharpe-is-null-under-a-minimum-window)
 7. Quote a regime-filter result only with its rebalance frequency. [§16](#16-a-regime-filter-only-acts-on-rebalance-dates)
 8. Keep `simulate()` pure, version the engine on economic change, key caches on the whole price manifest. [§18](#18-simulate-is-pure-io-sits-outside), [§19](#19-version-the-engine-bump-only-when-the-economic-result-changes)
-9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026 and again on 7 Dec 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules. [§20–§23](#f-nse-fill-realism)
+9. NSE fills depend on the date: closing-price regime changed on 3 Aug 2026 and again on 7 Dec 2026, circuit-locked bars cannot fill, trade-for-trade and F&O-ban names have their own rules, and a gap through a stop fills at the gap price, never the stop. [§20–§23](#f-nse-fill-realism)
 10. A survivorship-biased or half-adjusted price history fails before any rule here matters. [§24](#24-survivorship-and-corporate-actions)
 
 ## A. Valuation and time
@@ -289,6 +289,10 @@ fill. Skip or defer, do not fill at the limit.
 have none in the cash market. Band detail and sources are in the reference.
 **Detector.** Count fills on bars where high == low == a band limit; expect zero.
 
+**Gap through a stop.** A stop fills at the first tradable price after it triggers, which on a
+gap is the open, not the stop price. A stop-limit whose limit the gap skipped may not fill.
+Detail, sketch and detector: [references/nse-fill-realism.md](references/nse-fill-realism.md).
+
 ### 21. Market halts, settlement and closing-price regime
 
 **Rule.** A close-based backtest must say which closing-price method applies on
@@ -301,9 +305,11 @@ in the reference; treat an intraday fill across a halt as unfillable.
   VWAP close with trading to 15:30.
 - **From 7 Dec 2026** (SEBI circular 15 Oct 2026), the auction is 15:30–15:40 with
   reference VWAP of the last 15 minutes of continuous trading (15:15–15:30), so
-  continuous trading for F&O stocks runs to 15:30. The circular's applicability
-  and band paragraphs are not restated in its amended text: treat F&O-only and
-  ±3% as unchanged until read.
+  continuous trading for F&O stocks runs to 15:30. The amended text elides its
+  applicability (¶4.1) and band (¶4.4.1) paragraphs with '…', so the 16 Jan 2026
+  rules stay: F&O stocks only, ±3% band (SEBI circular 15 Oct 2026, ¶4). Its ¶4.8
+  (unexecuted iceberg orders carried into the closing auction) takes effect on
+  8 Feb 2027, not 7 Dec 2026.
 
 Source: SEBI circulars dated 16 Jan 2026 and 15 Oct 2026 (verified 2026-11-11).
 Expiry-day derivative settlement prices changed on the same dates: see

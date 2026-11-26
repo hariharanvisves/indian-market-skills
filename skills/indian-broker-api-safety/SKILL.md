@@ -5,7 +5,7 @@ license: MIT
 compatibility: SEBI and NSE circulars and broker API docs as read on 2026-11-11. Broker limits change without notice; re-check each broker's docs before hard-coding.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   jurisdiction: India
   verified: "2026-11-11"
 ---
@@ -39,6 +39,8 @@ confirmed in a primary source.
 8. Never reuse one broker's expiry, tag or rate constants for another (§8).
 9. A pending, in-transit or unlisted status is never `REJECTED`; unlisted maps to `UNKNOWN`
    and the order is not retried (§9).
+10. Entry-side limits (daily loss, trades per day, entry window) block opening orders only;
+    a closing or reducing order is never blocked by them (§7).
 
 Primary sources, read 2026-11-11:
 - SEBI circular SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/0000013, 4 Feb 2025
@@ -142,8 +144,9 @@ class SlidingLimiter:   # one per API key, shared by place, modify and cancel on
 - The client's own static IP is needed only when the client runs their own algo. With a
   vendor platform hosted at the broker, the broker server's IP applies (NSE FAQ Q3, Q6, Q10).
 - Every API session must be logged out daily before the next trading day starts (§A.8).
-  This is why most broker tokens in §8 expire overnight. Dhan's lasts 24 hours from
-  generation, so a Dhan session needs its own daily logout.
+  This is why most broker tokens in §8 expire overnight. Dhan's token is valid 24 hours
+  from generation (docs.dhanhq.co authentication). Dhan documents no logout or
+  revocation call, so renew or regenerate it daily and drop the token at day end.
 - Open APIs are not permitted. Access goes only through a unique vendor-client API key plus
   the whitelisted IP. Authentication is OAuth-based and API access needs 2FA (SEBI ¶5.I(d);
   NSE/INVG/67858 §I.c–e).
@@ -217,6 +220,32 @@ that keeps sending while confirmations lag. That loop is the runaway the rule fo
 - Run a fault-injection test: the broker returns pending forever. The bot must halt after
   N unconfirmed orders, not after N rejections. This is the kite skill §8d rule with a
   regulatory basis.
+
+**Entry-side limits never trap a position.** This is an engineering rule about your own
+client's limits, not a statement of what the exchange or broker kill switch blocks (no primary
+circular was read for that).
+- Daily-loss, trades-per-day and entry-time-window limits gate **opening** orders only: those that
+  open or increase a position.
+- A closing or reducing order always passes them, so a tripped limit cannot leave a position
+  open that the bot can no longer exit.
+- Refuse an exit only when it is malformed or larger than the open position, because that would
+  flip or open a position. Cap an oversized exit to the position or reject it; never let it
+  through as a new entry.
+
+```python
+def admit(signed_qty, position, limits_tripped):
+    if signed_qty == 0 or signed_qty * position < 0 and abs(signed_qty) > abs(position):
+        return False                      # malformed, or an over-sized exit that would flip
+    reduces = signed_qty * position < 0
+    return reduces or not limits_tripped  # exits skip entry limits; entries obey them
+```
+
+**Why.** A daily-loss limit is tripped exactly when the position is most dangerous. If the
+same limit also blocks the exit, the bot holds a losing position it was built to cut.
+
+**Detector.** Trip the daily-loss limit, then send an exit for the open quantity: it must go
+through. Send an entry in the same state: it must be refused. Send an exit larger than the
+position: refused or capped.
 
 ## 8. Per-broker deltas
 

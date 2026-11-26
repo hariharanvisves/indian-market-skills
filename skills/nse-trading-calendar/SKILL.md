@@ -5,7 +5,7 @@ license: MIT
 compatibility: NSE (India) cash, F&O, currency and commodity segments; BSE equity-derivatives expiry days. Holiday lists, sessions and expiry rules change by circular; dates verified against NSE, NSE Clearing and BSE sources as of 2026-11-11.
 metadata:
   author: hariharanvisves
-  version: "1.1"
+  version: "1.2"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -26,6 +26,7 @@ Diwali. Each entry below is **rule**, **why**, **detector**.
 6. The expiry weekday is a dated lookup: NIFTY weeklies were Thursday and are Tuesday for contracts expiring from 1 Sep 2025. [§8](#8-the-expiry-weekday-has-changed-it-is-a-dated-table)
 7. Key by IST date; session times are per-date config. [§9](#9-session-times-and-ist)
 8. Never infer holidays from missing or present bhavcopy files. [§10](#10-never-infer-holidays-from-missing-bhavcopy-days)
+9. Derive "no new entries after" and "flatten by" from that date's session schedule, with an injectable clock; never a fixed wall-clock constant. [§9](#9-session-times-and-ist)
 
 ## 1. The calendar is dated config with a source
 
@@ -260,6 +261,30 @@ closing-auction and pre-open changes. Store times per date and per special
 session (§5, §6). Key the calendar by IST `date`, never by a midnight-UTC
 `datetime`: the shift is in §1 of
 [indian-market-data-pitfalls](../indian-market-data-pitfalls/SKILL.md).
+
+**Session-hours rule.** Derive "no new entries after" and "flatten by" from the schedule for
+that date, as an offset from that date's session close (regular, Muhurat, budget-day or
+DR-site, §5, §6). A constant like `15:15` is wrong on a short Muhurat day and after any
+timing change. Inject the clock (a `now()` argument or a replay clock) so a replay is
+deterministic, and compute cut-offs in IST.
+
+```python
+def cutoffs(schedule, d, entry_gap, flatten_gap):    # schedule[d] = (open_time, close_time), IST
+    close = datetime.combine(d, schedule[d][1], IST)
+    return close - entry_gap, close - flatten_gap    # no-new-entries-after, flatten-by
+
+def entries_allowed(schedule, d, now_fn, entry_gap, flatten_gap):
+    return now_fn() < cutoffs(schedule, d, entry_gap, flatten_gap)[0]
+```
+
+Quote the regular-session timings (pre-open, normal market, closing session) only from an
+NSE primary page or circular; the pre-open and closing-auction dates already sourced here are
+in the reference above. Broker intraday (MIS) square-off times are the broker's own, set on the
+broker's page: this skill states none, so read the page for the broker in use.
+
+**Detector.** Replay 2026-11-08 (Muhurat, §5) with the clock at 15:30 IST: entries must be
+refused. Grep the live path for a literal time such as `15:15` or `time(15,`; none may gate
+entries or flatten.
 
 ## 10. Never infer holidays from missing bhavcopy days
 

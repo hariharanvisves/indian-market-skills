@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rates verified 2026-11-11 against the Income-tax Act 2025 (§196, §198) and the Finance Act 2026, for AY 2026-27 and tax year 2026-27; re-verify before use, as they change with each Finance Act.
 metadata:
   author: hariharanvisves
-  version: "1.3"
+  version: "1.4"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -41,9 +41,9 @@ traps that route an asset into the wrong regime.
 
 - **Annual exemption: ₹1,25,000** of *aggregate* LTCG per financial year. LTCG
   only. Not per trade, not per scrip.
-- Both rates changed on **2024-07-23** (STCG 15%→20%, LTCG 10%→12.5%, exemption
-  ₹1,00,000→₹1,25,000). Key the rate to the **sale date**; a series spanning that
-  date cannot use one constant.
+- Both rates changed on **2024-07-23** (STCG 15%→20%, LTCG 10%→12.5%). Key the rate to the
+  **sale date**. The ₹1,25,000 limit applies to the aggregate of LTCG before and after that date for the whole of FY 2024-25 (§112A proviso, Finance (No. 2) Act 2024 s.31); a series spanning that
+  date cannot use one rate constant.
 - Surcharge and cess apply on top and are out of scope here.
 
 Other asset classes are **not** §112A and get **no ₹1.25L exemption**: debt mutual

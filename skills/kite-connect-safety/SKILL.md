@@ -5,7 +5,7 @@ license: MIT
 compatibility: Written against Kite Connect v3 (https://kite.trade/docs/connect/v3/); the principles apply to any Indian broker REST API.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -35,8 +35,10 @@ rules: [indian-broker-api-safety](../indian-broker-api-safety/SKILL.md).
 9. API orders need a whitelisted static IP from 2026-04-01; reads and WebSocket work
    from any IP (§8h).
 10. Holdings = settled + `t1_quantity`; a holdings read failure places nothing (§9).
+11. A risk-check PASS covers only the exact order it was computed for; any edit voids it, and a
+    BLOCK is final (§8i).
 
-Worked sketches for rules 6 to 8 are in section 8.
+Worked sketches for rules 6 to 8 and 11 are in section 8.
 
 ## 1. Login flow and checksum
 
@@ -257,6 +259,31 @@ orderbook and positions work from any IP
 (https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/static-ip).
 Detector: the deployed order path egresses from the registered IP; a dynamic
 cloud or laptop address breaks it.
+
+**8i. Risk verdict bound to the exact order.** A risk check that approves "an order" and
+a sender that sends "the order" can drift apart: the user edits the quantity after the PASS and the
+edited order goes out unchecked. Fingerprint the order (instrument, exchange, side, qty, order
+type, price, trigger, product, validity) and store each verdict under `(session, fingerprint)`.
+The executor sends only when a `PASS` exists for the fingerprint of the order in hand, in the
+current session. Any edit changes the fingerprint, so the old PASS no longer applies and the check
+runs again. A `BLOCK` is final for that fingerprint: asking again returns the stored BLOCK, and
+only a changed order or an explicit step-up override can proceed. This gate decides *whether* an
+order may go; the idempotency key (§8b) decides whether it already went. Keep both, as the key
+omits the verdict and the fingerprint omits the pad session. Detector: get a PASS, raise `qty` by
+one, then send; the broker client must not be called. Also: re-run a BLOCKed order unchanged; it
+stays blocked.
+
+```python
+def fingerprint(o):       # o: instrument, exchange, side, qty, otype, price, trigger, product, validity
+    raw = "|".join(str(x) for x in (o.instrument, o.exchange, o.side, o.qty, o.otype,
+                                    o.price, o.trigger, o.product, o.validity))
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def send_checked(verdicts, session, broker, o):
+    if verdicts.get((session, fingerprint(o))) != "PASS":   # missing, BLOCK or edited order
+        raise LocalReject("no PASS for this exact order in this session")
+    return broker.place(o)
+```
 
 ## 9. Position-aware rebalance planner
 

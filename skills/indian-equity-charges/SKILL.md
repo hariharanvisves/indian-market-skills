@@ -5,7 +5,7 @@ license: MIT
 compatibility: Rates verified 2026-11-11 against Zerodha and Groww published charge schedules; re-verify before relying on them, as they change with the Union Budget and exchange circulars.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -41,7 +41,7 @@ cost errors.
 | GST | 18% | both | **brokerage + SEBI fee + transaction charge** |
 | DP charge | varies by broker: ₹15.34 at Zerodha (includes its own GST); ₹3.5 + ₹16.5 plus 18% GST at Groww | **sell only** | **flat, per scrip** |
 
-NSE rates are from NSE/FA/73061 (27 Feb 2026), effective 1 Mar 2026 (<https://nsearchives.nseindia.in/content/circulars/FA73061.pdf>): per ₹ crore per side, including ₹0.01 IPFT, cash 307 (0.00307%), futures 183 (0.00183%), options 3,553 on premium (0.03553%). Whether IPFT sits inside the GST base is not confirmed.
+NSE rates are from NSE/FA/73061 (27 Feb 2026), effective 1 Mar 2026 (<https://nsearchives.nseindia.in/content/circulars/FA73061.pdf>): per ₹ crore per side, including ₹0.01 IPFT, cash 307 (0.00307%), futures 183 (0.00183%), options 3,553 on premium (0.03553%). Whether IPFT sits inside the GST base is not confirmed. The difference is 18% of ₹0.01 per crore, about ₹0.002 per crore.
 
 ### Intraday differs on three lines
 
@@ -158,7 +158,7 @@ def round_half_up(x):
 ## 5. Keeping the rates honest
 
 **Every rate above is a moving target.** Cash-equity STT (0.1% / 0.025%) was not
-touched by the F&O STT revisions of 2024 and Budget 2026, but NSE's cash
+touched by the F&O STT revisions of 1 Oct 2024 (NSE/FATAX/63809) and 1 Apr 2026 (NSE/FATAX/73524), but NSE's cash
 transaction charge changed with a 2026-03-01 circular. Two rules:
 
 - **Load rates from a dated, single-owner table**, never inline them at a call

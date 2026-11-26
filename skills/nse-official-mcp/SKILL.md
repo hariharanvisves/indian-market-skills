@@ -5,7 +5,7 @@ license: MIT
 compatibility: NSE-hosted MCP servers at mcp.nseindia.in (serverInfo nse-bhavcopy-redis-mcp 1.0.0 and cm-market-mcp 1.0.0). Tool lists, server instructions and the landing page at https://www.nseindia.in/nse-mcp were read on 2026-11-26; NSE changes them without notice, so re-run tools/list before relying on a tool name.
 metadata:
   author: hariharanvisves
-  version: "1.0"
+  version: "1.1"
   verified: "2026-11-26"
   jurisdiction: India
 ---
@@ -226,7 +226,8 @@ watch and indices every minute, and that data is "Stale outside market hours"
 - Index filters are substring matches: filtering `nifty 50` also returns `Nifty 500`.
   Pick the exact name from the result.
 - Symbol lookups return ETFs (for example `NIFTYBEES`) alongside equities.
-- `cm-market` splits listings by series: equities (`EQ`, `BE`, `BL`, `BT`, `IL`, `IQ`),
+- `cm-market` splits listings by series: equities (`EQ`, `BE`, `BL`, `BT`, `IL`, `IQ`)
+  (NSE discontinued the IL series from 1 Jul 2018, NSE/CMTR/37880),
   SME (`SM`, `ST`), bonds and government securities, and call auction (`CA`, `CB`).
   Filter to the series you mean. For what each series implies see
   [nse-bhavcopy-corporate-actions](../nse-bhavcopy-corporate-actions/SKILL.md).

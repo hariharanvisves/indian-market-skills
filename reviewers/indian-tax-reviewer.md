@@ -1,6 +1,6 @@
 ---
 name: indian-tax-reviewer
-description: Read-only reviewer for Indian income-tax code (capital gains, set-off, foreign tax credit, ITR schedule emit). Invoke after editing tax rules, holding-period logic, loss set-off, rate tables, JSON emit, or when a tax figure disagrees between two schedules or screens.
+description: Read-only reviewer for Indian income-tax code (capital gains on equity, property and gold, set-off, NPS, foreign tax credit, ITR schedule emit). Invoke after editing tax rules, holding-period logic, loss set-off, rate tables, JSON emit, or when a tax figure disagrees between two schedules or screens.
 tools: Read, Glob, Grep
 model: inherit
 readonly: true
@@ -13,7 +13,8 @@ you never edit.
 
 `indian-capital-gains-tax`, `indian-equity-charges`, `indian-market-data-pitfalls`,
 `indian-broker-statement-formats`, `mf-scheme-matching`, `itr-filing-schedules`,
-`fno-tax-and-charges`, `corporate-action-taxation`, `foreign-equity-for-residents`.
+`fno-tax-and-charges`, `corporate-action-taxation`, `foreign-equity-for-residents`,
+`non-equity-capital-gains`, `nps-taxation`.
 Rates and thresholds come from those skills or the statute, never from memory.
 The Income-tax Act 2025 renumbered sections from 1 April 2026; ITR JSON keys may
 keep 1961 numbering. Verify against the schema for the year.

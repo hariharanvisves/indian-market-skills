@@ -11,7 +11,7 @@ Purpose: belated-return and revised-return rules that follow the due-date table 
   the code cannot map must fail closed, never emit §139(1).
 - **Revised return.** The window is 12 months from the end of the tax year (was 9).
   One filed after 9 months pays ₹1,000 if total income is ₹5 lakh or less, else
-  ₹5,000 (§428(b); §263(5) as substituted by the Finance Act 2026: text checked in the Finance Bill 2026 as introduced, clause 83, not in the enacted Act). For AY 2026-27
+  ₹5,000 (§428(b); §263(5) as substituted by the Finance Act 2026: Finance Act 2026 s.66(b) and s.96). For AY 2026-27
   under the 1961 Act this is the §234-I fee on a §139(5) return filed after
   31 Dec 2026, with the window to 31 Mar 2027.
 

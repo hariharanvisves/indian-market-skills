@@ -1,0 +1,149 @@
+{
+  "skill_name": "non-equity-capital-gains",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "I inherited a plot in Pune that my father bought in 2008 and I am selling it now. How is the capital gain taxed after indexation was removed?"
+      },
+      {
+        "prompt": "I sold a flat for ₹95 lakh but the stamp duty value is ₹1.1 crore. Which value do I use to compute capital gains?"
+      },
+      {
+        "prompt": "Can I claim section 54F if I sell unlisted shares and gold and then buy a house? How much is exempt if the house costs less than the sale value?"
+      },
+      {
+        "prompt": "How much can I put in 54EC bonds after selling land, how long must I hold them, and how long do I have to invest?"
+      },
+      {
+        "prompt": "My firm sold an old machine that is part of a block of assets for more than the written down value. Is that gain long term or short term?"
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "I held equity mutual fund units for 18 months and sold them at a gain. What is the LTCG rate and the exemption?",
+        "owner": "indian-capital-gains-tax"
+      },
+      {
+        "prompt": "Which row of Schedule CG and which schedule do I use to report an exemption claimed on a property sale in the ITR?",
+        "owner": "itr-filing-schedules"
+      },
+      {
+        "prompt": "I bought US stocks through INDmoney and sold some. How do I convert the dollar cost to rupees and report them?",
+        "owner": "foreign-equity-for-residents"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I am a resident individual. I bought a plot of land in May 2015 and sold it in October 2026. Which LTCG rate applies, and can I still use indexation?",
+      "expectations": [
+        "Says the default long-term rate is 12.5% without indexation",
+        "Explains that for land or buildings acquired before 23 July 2024, a resident individual or HUF may instead have the tax computed at 20% with indexation, and pays the lower of the two",
+        "Does not say indexation is available for every asset or abolished with no exception for this plot"
+      ],
+      "must_match": [
+        "12\\.5\\s?%",
+        "20\\s?%",
+        "(?i)index",
+        "(?i)\\b(lower|lesser|less|smaller|whichever|cheaper)\\b[^\\n]{0,80}20\\s?%|20\\s?%[^\\n]{0,80}\\b(lower|lesser|less|smaller|whichever|cheaper)\\b|\\b(lower|lesser)\\s+of\\s+(the\\s+)?two\\b|\\b(lower|lesser) tax wins\\b",
+        "(?i)23(rd|th)?(\\s+of)?\\s+July,?\\s+2024|July\\s+23(rd)?,?\\s+2024|2024-07-23|23[-/.]07[-/.]2024"
+      ],
+      "must_not_match": [
+        "(?i)12\\.5\\s?%\\s*(rate\\s*)?(with|after|using)\\s+indexation"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Two sales in the same year. (a) A plot I bought on 2024-09-10 and sold on 2026-11-20. (b) Unlisted company shares I bought on 2024-10-01 and sold on 2026-08-01. Give the holding period class, the tax treatment and whether indexation is possible for each.",
+      "expectations": [
+        "Treats (a) as long term, because it was held more than 24 months, taxed at 12.5% with no indexation and no option, because it was acquired after 22 July 2024",
+        "Treats (b) as short term, because unlisted shares need more than 24 months, so the gain is taxed at slab rates and not at 12.5%",
+        "Does not apply the 12-month listed-share threshold to either asset"
+      ],
+      "must_match": [
+        "12\\.5\\s?%",
+        "(?i)slab",
+        "(?i)24 months|two years|2 years",
+        "(?i)(\\(a\\)|plot|land)[^.;]{0,150}\\b(long[- ]term|LTCG)\\b|\\|\\s*\\*\\*long[- ]term\\*\\*\\s*\\|\\s*\\*\\*short[- ]term\\*\\*",
+        "(?i)(\\(b\\)|unlisted)[^.;]{0,150}\\b(short[- ]term|STCG|slab)\\b|\\(b\\)(?s:.){0,400}\\bshort[- ]term\\b"
+      ],
+      "must_not_match": [
+        "(?i)\\bplot\\b[^.]{0,60}(?<!not )(?<!n't )\\b(eligible|qualifies) (for|to) (the )?(20\\s?%|indexation|indexed)",
+        "(?i)unlisted (company )?shares?[^.]{0,40}\\b(are|is|become|becomes) long[- ]term after 12 months"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I sold a flat for ₹1,00,00,000. In scenario A the stamp duty value is ₹1,08,00,000; in scenario B it is ₹1,12,00,000. What full value of consideration do I use for capital gains in each?",
+      "expectations": [
+        "Scenario A: the stamp duty value is within 110% of the actual price, so the actual ₹1,00,00,000 is used",
+        "Scenario B: the stamp duty value exceeds 110%, so the whole stamp duty value of ₹1,12,00,000 is used, not only the excess",
+        "Names the 110% tolerance"
+      ],
+      "must_match": [
+        "(?i)110\\s?%|1\\.1\\s?(x|times)",
+        "(?i)(whole|entire|full|complete)[^.]{0,80}(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,80}(whole|entire|full|complete)|(1[.,]12\\s*(crore|cr)\\b|1,12,00,000|₹?\\s?112\\s*lakh)[^.]{0,120}not (just|only|merely)[^.]{0,25}(excess|difference)|(1,12,00,000|1[.,]12\\s*(crore|cr)\\b)[^\\n]{0,200}\\b(whole|entire|cliff)\\b",
+        "(?i)(within|up to|under|below|inside|less than|lower than|does not exceed|doesn't exceed|not more than|not exceed)[^.]{0,60}110\\s?%"
+      ],
+      "must_not_match": [
+        "(?i)(?<!not )(?<!n't )(?<!n’t )\\b(taxed|taxable|charged|added)\\b (only|just) (on|for) (just )?the (difference|excess|shortfall)|\\b(taxed|taxable|charged|added)\\b (on|for) just the (difference|excess)",
+        "(?i)scenario b[^.]{0,100}(1,00,00,000|1\\s*(crore|cr)\\b|100 lakh)[^.]{0,30}\\b(is|are|will be|stays|remains|stands?|continues)\\b( still)? (used|applied|the full value)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I sold land held for 6 years. Net sale consideration after expenses is ₹2,00,00,000 and the long-term gain is ₹1,00,00,000. I bought one residential house for ₹80,00,000 within a year. How much is exempt under section 54F, and how much is taxable?",
+      "expectations": [
+        "Computes the exemption proportionally: gain x cost of new house / net consideration = ₹40,00,000",
+        "Concludes ₹60,00,000 remains taxable as long-term gain",
+        "Does not treat the ₹80,00,000 cost of the house as the exempt amount"
+      ],
+      "must_match": [
+        "(?i)40,00,000|40 lakh|0\\.4 crore|4,000,000",
+        "(?i)proportion|pro[- ]rata|\\b40\\s?%|two[- ]fifths|80[^.]{0,20}(/|÷|divided by|over|out of)[^.]{0,20}(2,00,00,000|2 crore|200 lakh)",
+        "(?i)(60,00,000|60 lakh|0\\.6 crore)[^.]{0,60}(taxable|taxed|chargeable|liable)|(taxable|taxed|chargeable)[^.]{0,60}(60,00,000|60 lakh|0\\.6 crore)"
+      ],
+      "must_not_match": [
+        "(?i)\\bexempt(ion)? amount (is|=|equals|will be|would be) ₹?\\s?(80,00,000|80 lakh)|\\b(exempt(ion)?|amount exempt) (is|=|equals) ₹?\\s?(80,00,000|80 lakh)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I sold land on 2026-08-12 with a long-term gain of ₹80,00,000. I put ₹20,00,000 into REC bonds on 2026-12-15 and plan to put ₹60,00,000 into NHAI bonds on 2027-03-01 for section 54EC. How much is exempt, and what are the limits?",
+      "expectations": [
+        "States the investment must be made within six months of the transfer, so the 2027-03-01 NHAI investment is too late",
+        "Only the ₹20,00,000 REC investment qualifies, so ₹60,00,000 stays taxable",
+        "States the ₹50 lakh limit and the five-year lock-in"
+      ],
+      "must_match": [
+        "(?i)six months|6 months",
+        "(?i)50 lakh|50,00,000|5,000,000",
+        "(?i)(60,00,000|60 lakh|0\\.6 crore)[^.]{0,60}(taxable|not exempt|taxed|not eligible|not qualify|chargeable)|(taxable|chargeable|taxed)[^.]{0,60}(60,00,000|60 lakh|0\\.6 crore)",
+        "(?i)(five|5)[- ]years?|lock[- ]in"
+      ],
+      "must_not_match": [
+        "(?i)(entire|whole|full) (₹?\\s?80 lakh|80,00,000|gain) (is|will be|becomes) (fully )?exempt",
+        "(?i)(NHAI|2027-03-01|1 March 2027|March 2027)[^.;]{0,60}(?<!not )(?<!n't )(?<!n’t )\\b(qualif(y|ies|ied)|is eligible|are eligible|is exempt|are exempt)\\b"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "All three are land sales by a resident individual, after 1 April 2026. (a) Bought 2024-09-10, sold 2026-09-10. (b) Bought 2024-09-10, sold 2026-09-11. (c) Bought 2024-07-23, sold 2026-12-01. For each, is the gain short term or long term, and may I choose 20% with indexation?",
+      "expectations": [
+        "(a) is short term because exactly 24 months is not more than 24 months, so slab rates apply and the indexation option never arises",
+        "(b) is long term at 12.5% with no indexation option, because it was acquired after 22 July 2024",
+        "(c) is long term but was acquired on 23 July 2024, not before it, so there is no 20% indexed option and the rate is 12.5%"
+      ],
+      "must_match": [
+        "(?i)(\\(a\\)|exactly 24 months|2026-09-10|10 Sep(tember)? 2026)[^.;]{0,150}\\b(short[- ]term|STCG|slab)\\b",
+        "(?i)(\\(b\\)|2026-09-11|11 Sep(tember)? 2026)[^.;]{0,150}\\b(long[- ]term|LTCG|12\\.5)",
+        "(?i)(\\(c\\)|2024-07-23|23 July 2024)[^.;]{0,200}(\\bno\\b[^.;]{0,30}\\b(option|choice|indexation)|not (eligible|available|allowed|entitled)|cannot|can't|can’t|12\\.5\\s?%)|\\(c\\)[^\\n]{0,200}\\b(no|not)\\b[^\\n]{0,60}(12\\.5\\s?%|indexation|option|qualif)"
+      ],
+      "must_not_match": [
+        "(?i)(\\(a\\)|2026-09-10)[^.;()]{0,60}(?<!not )(?<!n't )(?<!n’t )\\b(is|are|becomes|counts as|qualifies as)( a)? (long[- ]term|LTCG)",
+        "(?i)(\\(c\\)|2024-07-23|23 July 2024)[^.;]{0,100}\\b(can|may|could|is entitled to)\\b(?!['’])[^.;]{0,20}\\b(choose|opt|claim|elect)[^.;]{0,40}index"
+      ]
+    }
+  ]
+}

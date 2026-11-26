@@ -5,7 +5,7 @@ license: MIT
 compatibility: Applies to NSE/BSE-listed non-financial companies. Method-agnostic; covers only the India deltas to standard DCF and comps practice.
 metadata:
   author: hariharanvisves
-  version: "1.2"
+  version: "1.3"
   verified: "2026-11-11"
   jurisdiction: India
 ---
@@ -40,8 +40,8 @@ verify per schema.
 |---|---|---|
 | §200 (old 115BAA) | 22% + 10% surcharge + 4% cess = **25.168%** | Opt-in; forgoes most deductions and incentives |
 | §201 (old 115BAB) | 15% base, **17.16%** effective | **Closed to new units** — manufacturing had to commence by 31-03-2024 |
-| Non-opting domestic company | 25% if turnover in the reference year is ≤ ₹400 cr, else 30%; surcharge 7% (>₹1 cr–10 cr), 12% (>₹10 cr); cess 4% | For tax year 2026-27 the reference year is 2024-25 (Finance Bill 2026, Part I-B, Paragraph E, as introduced); check the enacted Finance Act for later years |
-| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Old regime: MAT is a final tax, and no new credit accrues. Existing MAT credit can be set off only under the new regime, capped at 25% of the tax payable on total income under the other provisions (Finance Bill 2026 clause 50, as introduced). The Act as passed still says 15% (§206(1)(b)(ii)) |
+| Non-opting domestic company | 25% if turnover in the reference year is ≤ ₹400 cr, else 30%; surcharge 7% (>₹1 cr–10 cr), 12% (>₹10 cr); cess 4% | For tax year 2026-27 the reference year is 2024-25 (Finance Act 2026, First Schedule Part I-B, Paragraph E); each year's Finance Act sets the reference year for that year |
+| MAT (§206, old 115JB) | **14%** from tax year 2026-27 (was 15%) | Old regime: MAT is a final tax and no new credit accrues (Finance Act 2026 s.59 omits §206(1)(m)-(p)). Existing §115JAA credit can be set off only by a domestic company that has opted under §200(5) or §201(2) for a tax year beginning on or after 1 Apr 2026, capped at 25% of the tax payable on total income computed under the other provisions (§206(3) as substituted by Finance Act 2026 s.59(b)). The IFSC rate stays 9% |
 
 **Why.** A flat 25% or 30% misstates NOPAT by several points, and the opt-in
 regime changes whether past MAT credit is usable at all.

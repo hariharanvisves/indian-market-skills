@@ -17,7 +17,7 @@ Contents: [Auth flow](#auth-flow) · [Order rate limits](#order-rate-limits) ·
 | Dhan | Token generated on Dhan Web; a TOTP endpoint; or API key consent in 3 steps (key and secret valid 12 months) | dhanhq.co/docs/v2/authentication |
 | Angel One | `loginByPassword` with client code, PIN and TOTP, returning a JWT; publisher login also exists | smartapi.angelone.in/docs, User and FAQ |
 | ICICI Breeze | Browser login gives `API_Session`; `CustomerDetails` returns `session_token`; requests are signed with SHA-256 of timestamp, JSON and secret; generated manually each day | icicidirect.com FAQ "What is a session key" |
-| Fyers | Auth code; `appIdHash` = SHA-256 of `app_id:app_secret`; returns an access and a refresh token; refresh-token lifetime unverified | fyers.in/api-docs, validate-auth-code |
+| Fyers | Auth code; `appIdHash` = SHA-256 of `app_id:app_secret`; returns an access and a refresh token; refresh-token lifetime unverified | fyers.in/api-docs/v3/api/authentication/individual-app/validate-auth-code/ |
 
 ## Order rate limits
 
@@ -49,7 +49,7 @@ Map every one of these to `PENDING` (or `UNKNOWN` where marked), never `REJECTED
 |---|---|
 | Zerodha Kite | None documented |
 | Upstox | Yes, sandbox apps and tokens |
-| Dhan | Yes, closed environment, not paper trading (dhan.co support) |
+| Dhan | Yes: separate environment `sandbox.dhan.co/v2` with its own token from cloud.dhanhq.co; only endpoints marked sandbox-enabled (docs.dhanhq.co/api/v2/sandbox) |
 | Angel One | None documented |
 | ICICI Breeze | None documented |
 | Fyers | None documented |

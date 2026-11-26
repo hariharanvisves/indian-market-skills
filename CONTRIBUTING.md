@@ -32,6 +32,8 @@ Put the citation in the pull request description.
   - F&O and intraday tax, F&O charges: `fno-tax-and-charges`
   - tax effect of corporate actions (cost basis, buybacks): `corporate-action-taxation`
   - foreign shares, RSUs, LRS/TCS, Schedule FA: `foreign-equity-for-residents`
+  - capital gains on land, buildings, gold, unlisted shares and depreciable assets, and the §54/§54F/§54EC exemptions: `non-equity-capital-gains`
+  - NPS contributions, employer limits and withdrawals: `nps-taxation`
   - holidays, sessions, expiry-day shifts: `nse-trading-calendar`
   - NSE's official MCP servers (mcp.nseindia.in), their tools and terms: `nse-official-mcp`
   - general broker-API safety principles: `kite-connect-safety`
